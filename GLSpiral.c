@@ -19,10 +19,10 @@ r32 g_Positions[][2] = {
     {200, -200},
 };
 
-r32 g_ScreenRect[][4] = {
+r32 g_ScreenQuad[][4] = {
     {-1, 1, 0, 1},
-    {1, 1, 1,1},
     {-1, -1, 0, 0},
+    {1, 1, 1, 1},
     {1, -1, 1, 0},
 };
 
@@ -162,6 +162,22 @@ i32 main(void) {
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
+	// Create screen quad
+	GLuint VAO_ScreenQuad, VBO_ScreenQuad;
+	glGenVertexArrays(1, &VAO_ScreenQuad);
+	glBindVertexArray(VAO_ScreenQuad);
+	glGenBuffers(1, &VBO_ScreenQuad);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO_ScreenQuad);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_ScreenQuad), g_ScreenQuad,
+	             GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(r32) * 4, NULL);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(r32) * 4,
+	                      (void *) (2 * sizeof(r32)));
+
+	GLuint TestBMP = CreateTextureFromFile("test1.bmp");
+
 	u32 Ticks;
 	u64 RenderTime;
 	u32 LastPrintTime, LastFrameRenderTime, LastFrameDisplayTime;
@@ -199,24 +215,6 @@ i32 main(void) {
 
 		// Render frame to back buffer.
 		if(Ticks - LastFrameRenderTime > 16) {
-#if 0
-			Mat4 RotMat2, FinalRotMat;
-
-			Mat4_Identity(FinalRotMat);
-			Quat q2 = Quat_RotAxis((Vec3){0, 0, 1}, -time);
-			Mat4_RotateQuat(RotMat, q);
-			Mat4_RotateQuat(RotMat2, q2);
-			Mat4_MulMat_Out(RotMat2, RotMat, FinalRotMat);
-			Mat4_MulMat_Out(TransMat, FinalRotMat, ModelMat);
-			Mat4_MulMat_Out(TransMat, FinalRotMat, ModelMat);
-#else
-			Quat q2 = Quat_RotAxis((Vec3){0, 0, 1}, time);
-			Quat finalQuat = Quat_Mul(q, q2);
-			Mat4_RotateQuat(RotMat, finalQuat);
-			Mat4_MulMat_Out(TransMat, RotMat, ModelMat);
-#endif
-			glUniformMatrix4fv(ModelLoc, 1, GL_TRUE, ModelMat);
-
 			RenderTime = SDL_GetPerformanceCounter();
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuf);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -224,14 +222,18 @@ i32 main(void) {
 			i32 realW, realH;
 			SDL_GetWindowSize(Window, &realW, &realH);
 
-			// Render here:
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			// Draw everything:
 
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, Framebuf);
+			// glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuf);
+			// glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+			// Render to screen quad:
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			glBlitFramebuffer(0, 0, g_Width, g_Height, 0, 0, realW, realH,
-			                  GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-			                  GL_NEAREST);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, TestBMP);
+			glUniform1i(glGetUniformLocation(g_ShaderProgram, "fbo_color"), 0);
+			glBindVertexArray(VAO_ScreenQuad);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			SDL_GL_SwapWindow(Window);
 
@@ -394,7 +396,7 @@ GLuint CreateTextureFromFile(const char *filename) {
 	u8 *Data;
 	i32 ImgWidth, ImgHeight, CompPerPixel;
 
-	// stbi_set_flip_vertically_on_load(1);
+	stbi_set_flip_vertically_on_load(1);
 	Data = stbi_load(filename, &ImgWidth, &ImgHeight, &CompPerPixel, 0);
 	if(!Data) return 0;
 
@@ -406,7 +408,17 @@ GLuint CreateTextureFromFile(const char *filename) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ImgWidth, ImgHeight, 0, GL_RGBA,
+	printf("CompPerPixel: %d\n", CompPerPixel);
+
+	GLenum Format;
+	switch(CompPerPixel) {
+		case 1: Format = GL_RED; break;
+		case 2: Format = GL_RG; break;
+		case 3: Format = GL_RGB; break;
+		case 4: Format = GL_RGBA; break;
+	}
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ImgWidth, ImgHeight, 0, Format,
 	             GL_UNSIGNED_BYTE, Data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 

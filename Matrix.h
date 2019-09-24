@@ -107,6 +107,6 @@ extern void Mat4_Scale(Mat4 out, Vec3 amt);
 
 extern void Mat4_OrthoProj(Mat4 out, r32 left, r32 right, r32 top, r32 bottom,
                            r32 zNear, r32 zFar);
-extern void Mat4_RectProj(Mat4 out);
+extern void Mat4_RectProj(Mat4 out, r32 fov, r32 aspect, r32 zNear, r32 zFar);
 
 #endif

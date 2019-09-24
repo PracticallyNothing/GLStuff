@@ -1,21 +1,35 @@
-CC      = gcc
+CC      = clang
 FLAGS   = -std=c99
 INCLUDE = -I./glad_Core-33/include/
 LIBS    = -lm -ldl -lSDL2 -lGL
 SOURCES := $(shell find . -name '*.c')
-OBJECTS = $(patsubst %.c, obj/%.o, $(SOURCES))
-OBJS_EX := $(patsubst %.c, obj/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
+OBJS_REL = $(patsubst %.c, obj/release/%.o, $(SOURCES))
+OBJS_DBG = $(patsubst %.c, obj/debug/%.o, $(SOURCES))
+OBJS_REL_EX := $(patsubst %.c, obj/release/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
+OBJS_DBG_EX := $(patsubst %.c, obj/debug/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
 
-all: dirs GLSpiral
+all: rel
 
-GLSpiral: $(OBJECTS)
-	$(CC) -o $@ $(OBJS_EX) $(LIBS) $(FLAGS)
-$(OBJECTS): obj/%.o: %.c
-	$(CC) -c $< -o obj/$(shell echo '$@' | sed 's/.*\///') $(INCLUDE)
+rel: release
+dbg: debug
 
-.PHONY: clean
-.PHONY: dirs
+release: dirs GLSpiral_release
+debug: dirs GLSpiral_debug
+
+GLSpiral: GLSpiral_release
+
+GLSpiral_release: $(OBJS_REL)
+	$(CC) -o $@ $(OBJS_REL_EX) $(LIBS) $(FLAGS) -O2
+$(OBJS_REL): obj/release/%.o: %.c
+	$(CC) -c $< -o obj/release/$(shell echo '$@' | sed 's/.*\///') $(INCLUDE)
+
+GLSpiral_debug: $(OBJS_DBG)
+	$(CC) -o $@ $(OBJS_DBG_EX) $(LIBS) $(FLAGS) -g
+$(OBJS_DBG): obj/debug/%.o: %.c
+	$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(INCLUDE)
+
+.PHONY: clean dirs
 clean:
-	rm -f GLSpiral $(OBJS_EX)
+	rm -rf obj/ GLSpiral_*
 dirs:
-	mkdir -p obj
+	mkdir -p obj obj/release obj/debug

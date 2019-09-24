@@ -145,30 +145,66 @@ void Mat4_Neg_Out(const Mat4 m, Mat4 out) {
 void Mat2_Add(Mat2 a, const Mat2 b) { Mat2_Add_Out(a, b, a); }
 void Mat3_Add(Mat3 a, const Mat3 b) { Mat3_Add_Out(a, b, a); }
 void Mat4_Add(Mat4 a, const Mat4 b) { Mat4_Add_Out(a, b, a); }
-void Mat2_Add_Out(const Mat2 a, const Mat2 b, Mat2 out) { for(i32 i = 0; i < 4; i++) out[i] = a[i] + b[i]; }
-void Mat3_Add_Out(const Mat3 a, const Mat3 b, Mat3 out) { for(i32 i = 0; i < 9; i++) out[i] = a[i] + b[i]; }
-void Mat4_Add_Out(const Mat4 a, const Mat4 b, Mat4 out) { for(i32 i = 0; i < 16; i++) out[i] = a[i] + b[i]; }
+void Mat2_Add_Out(const Mat2 a, const Mat2 b, Mat2 out) {
+	for(i32 i = 0; i < 4; i++) out[i] = a[i] + b[i];
+}
+void Mat3_Add_Out(const Mat3 a, const Mat3 b, Mat3 out) {
+	for(i32 i = 0; i < 9; i++) out[i] = a[i] + b[i];
+}
+void Mat4_Add_Out(const Mat4 a, const Mat4 b, Mat4 out) {
+	for(i32 i = 0; i < 16; i++) out[i] = a[i] + b[i];
+}
 
 void Mat2_Sub(Mat2 a, const Mat2 b) { Mat2_Sub_Out(a, b, a); }
 void Mat3_Sub(Mat3 a, const Mat3 b) { Mat3_Sub_Out(a, b, a); }
 void Mat4_Sub(Mat4 a, const Mat4 b) { Mat4_Sub_Out(a, b, a); }
-void Mat2_Sub_Out(const Mat2 a, const Mat2 b, Mat2 out) { for(i32 i = 0; i < 4; i++) out[i] = a[i] - b[i]; }
-void Mat3_Sub_Out(const Mat3 a, const Mat3 b, Mat3 out) { for(i32 i = 0; i < 9; i++) out[i] = a[i] - b[i]; }
-void Mat4_Sub_Out(const Mat4 a, const Mat4 b, Mat4 out) { for(i32 i = 0; i < 16; i++) out[i] = a[i] + b[i]; }
+void Mat2_Sub_Out(const Mat2 a, const Mat2 b, Mat2 out) {
+	for(i32 i = 0; i < 4; i++) out[i] = a[i] - b[i];
+}
+void Mat3_Sub_Out(const Mat3 a, const Mat3 b, Mat3 out) {
+	for(i32 i = 0; i < 9; i++) out[i] = a[i] - b[i];
+}
+void Mat4_Sub_Out(const Mat4 a, const Mat4 b, Mat4 out) {
+	for(i32 i = 0; i < 16; i++) out[i] = a[i] + b[i];
+}
 
-void Mat2_MulScal(Mat2 matrix, const r32 scalar) { Mat2_MulScal_Out(matrix, scalar, matrix); }
-void Mat3_MulScal(Mat3 matrix, const r32 scalar) { Mat3_MulScal_Out(matrix, scalar, matrix); }
-void Mat4_MulScal(Mat4 matrix, const r32 scalar) { Mat4_MulScal_Out(matrix, scalar, matrix); }
-void Mat2_MulScal_Out(const Mat2 a, r32 scalar, Mat2 out) { for(i32 i = 0; i < 4; i++) out[i] = a[i] * scalar; }
-void Mat3_MulScal_Out(const Mat3 a, r32 scalar, Mat3 out) { for(i32 i = 0; i < 9; i++) out[i] = a[i] * scalar; }
-void Mat4_MulScal_Out(const Mat4 a, r32 scalar, Mat4 out) { for(i32 i = 0; i < 16; i++) out[i] = a[i] * scalar; }
+void Mat2_MulScal(Mat2 matrix, const r32 scalar) {
+	Mat2_MulScal_Out(matrix, scalar, matrix);
+}
+void Mat3_MulScal(Mat3 matrix, const r32 scalar) {
+	Mat3_MulScal_Out(matrix, scalar, matrix);
+}
+void Mat4_MulScal(Mat4 matrix, const r32 scalar) {
+	Mat4_MulScal_Out(matrix, scalar, matrix);
+}
+void Mat2_MulScal_Out(const Mat2 a, r32 scalar, Mat2 out) {
+	for(i32 i = 0; i < 4; i++) out[i] = a[i] * scalar;
+}
+void Mat3_MulScal_Out(const Mat3 a, r32 scalar, Mat3 out) {
+	for(i32 i = 0; i < 9; i++) out[i] = a[i] * scalar;
+}
+void Mat4_MulScal_Out(const Mat4 a, r32 scalar, Mat4 out) {
+	for(i32 i = 0; i < 16; i++) out[i] = a[i] * scalar;
+}
 
-void Mat2_DivScal(Mat2 matrix, const r32 scalar) { Mat2_DivScal_Out(matrix, scalar, matrix); }
-void Mat3_DivScal(Mat3 matrix, const r32 scalar) { Mat3_DivScal_Out(matrix, scalar, matrix); }
-void Mat4_DivScal(Mat4 matrix, const r32 scalar) { Mat4_DivScal_Out(matrix, scalar, matrix); }
-void Mat2_DivScal_Out(const Mat2 a, r32 scalar, Mat2 out) { for(i32 i = 0; i < 4; i++) out[i] = a[i] / scalar; }
-void Mat3_DivScal_Out(const Mat3 a, r32 scalar, Mat3 out) { for(i32 i = 0; i < 9; i++) out[i] = a[i] / scalar; }
-void Mat4_DivScal_Out(const Mat4 a, r32 scalar, Mat4 out) { for(i32 i = 0; i < 16; i++) out[i] = a[i] / scalar; }
+void Mat2_DivScal(Mat2 matrix, const r32 scalar) {
+	Mat2_DivScal_Out(matrix, scalar, matrix);
+}
+void Mat3_DivScal(Mat3 matrix, const r32 scalar) {
+	Mat3_DivScal_Out(matrix, scalar, matrix);
+}
+void Mat4_DivScal(Mat4 matrix, const r32 scalar) {
+	Mat4_DivScal_Out(matrix, scalar, matrix);
+}
+void Mat2_DivScal_Out(const Mat2 a, r32 scalar, Mat2 out) {
+	for(i32 i = 0; i < 4; i++) out[i] = a[i] / scalar;
+}
+void Mat3_DivScal_Out(const Mat3 a, r32 scalar, Mat3 out) {
+	for(i32 i = 0; i < 9; i++) out[i] = a[i] / scalar;
+}
+void Mat4_DivScal_Out(const Mat4 a, r32 scalar, Mat4 out) {
+	for(i32 i = 0; i < 16; i++) out[i] = a[i] / scalar;
+}
 
 void Mat2_MulMat(Mat2 a, const Mat2 b) {
 	Mat2 *tmp = malloc(sizeof(Mat2));
@@ -269,6 +305,18 @@ void Mat4_OrthoProj(Mat4 out, r32 left, r32 right, r32 top, r32 bottom,
 	out[11] = (z > 0 ? -1 : 1);
 }
 
+void Mat4_RectProj(Mat4 out, r32 fov, r32 aspect, r32 zNear, r32 zFar) {
+	Mat4_Identity(out);
+
+	const r32 tanHalfFov = tan(fov / 2.0);
+
+	out[0] = 1.0 / (aspect * tanHalfFov);
+	out[5] = 1.0 / tanHalfFov;
+	out[10] = -(zFar + zNear) / (zFar - zNear);
+	out[11] = -1.0;
+	out[14] = -(2.0 * zFar * zNear) / (zFar - zNear);
+}
+
 void Mat4_Translate(Mat4 out, Vec3 amt) {
 	out[3] = amt.x;
 	out[7] = amt.y;
@@ -281,8 +329,7 @@ void Mat4_Scale(Mat4 out, Vec3 amt) {
 	out[10] = amt.z;
 }
 
-void Mat4_RotateVec(Mat4 out, Vec3 amt) {
-}
+void Mat4_RotateVec(Mat4 out, Vec3 amt) {}
 
 // Thank you,
 // http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm

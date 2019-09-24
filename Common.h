@@ -21,4 +21,7 @@ extern const r64 Pi;
 extern const r64 Pi_Half;
 extern const r64 Pi_Quarter;
 
+extern r64 DegToRad(r64 degrees);
+extern r64 RadToDeg(r64 radians);
+
 #endif
