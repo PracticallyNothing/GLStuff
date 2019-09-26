@@ -1,5 +1,5 @@
 CC      = clang
-FLAGS   = -std=c99
+FLAGS   = -std=c99 
 INCLUDE = -I./glad_Core-33/include/
 LIBS    = -lm -ldl -lSDL2 -lGL
 SOURCES := $(shell find . -name '*.c')
@@ -8,7 +8,7 @@ OBJS_DBG = $(patsubst %.c, obj/debug/%.o, $(SOURCES))
 OBJS_REL_EX := $(patsubst %.c, obj/release/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
 OBJS_DBG_EX := $(patsubst %.c, obj/debug/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
 
-all: rel
+all: dbg 
 
 rel: release
 dbg: debug
@@ -26,7 +26,7 @@ $(OBJS_REL): obj/release/%.o: %.c
 GLSpiral_debug: $(OBJS_DBG)
 	$(CC) -o $@ $(OBJS_DBG_EX) $(LIBS) $(FLAGS) -g
 $(OBJS_DBG): obj/debug/%.o: %.c
-	$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(INCLUDE)
+	$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(INCLUDE) -Wall -Wextra -pedantic
 
 .PHONY: clean dirs
 clean:
