@@ -38,4 +38,9 @@ extern u64 Kilobytes(u32 amt);
 extern u64 Megabytes(u32 amt);
 extern u64 Gigabytes(u32 amt);
 
+// --- Utility --- //
+
+extern i32 PC_IsLittleEndian(void);
+extern void PC_PrintVideoDriverInfo(void);
+
 #endif

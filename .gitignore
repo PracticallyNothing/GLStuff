@@ -2,6 +2,7 @@ test1.bmp
 debug.cap
 Epilepsy
 GLSpiral_*
+Videojame.txt
 
 # Created by https://www.gitignore.io/api/c,vim,tags,emacs
 # Edit at https://www.gitignore.io/?templates=c,vim,tags,emacs
@@ -9,6 +10,7 @@ GLSpiral_*
 ### C ###
 # Prerequisites
 *.d
+*.asm
 
 # Object files
 *.o
