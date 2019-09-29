@@ -349,20 +349,23 @@ i32 main(void) {
 			glBindVertexArray(Cube_VAO);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Cube_Inds);
 
-			const i32 N = 150;
+			const i32 N = 5;
 
-			for(int z = -(N / 2); z <= N / 2; z++) {
-				for(int x = -(N / 2); x <= N / 2; x++) {
-					Transform.Position.x = x * 10.0;
-					Transform.Position.z = z * 10.0;
-					Transform.Rotation = Quat_RotAxis(V3(1, 1, 1), x * time);
-					Transform3D_Mat4(Transform, ModelMat);
-					Shader_UniformMat4(s2, "model", ModelMat);
-					glDrawElements(GL_TRIANGLES,
-					               sizeof(g_CubeInds) / sizeof(u32),
-					               GL_UNSIGNED_INT, NULL);
-				}
-			}
+			for(int z = -(N / 2); z <= N / 2; z++)
+				for(int y = -(N / 2); y <= N / 2; y++)
+					for(int x = -(N / 2); x <= N / 2; x++) {
+						Transform.Position.x = x * 10.0;
+						Transform.Position.y = y * 10.0;
+						Transform.Position.z = z * 10.0;
+						Transform.Rotation =
+						    Quat_RotAxis(V3(1, 1, 1), x * y * z * time);
+						Transform3D_Mat4(Transform, ModelMat);
+						Shader_UniformMat4(s2, "model", ModelMat);
+						glDrawElements(GL_TRIANGLES,
+						               sizeof(g_CubeInds) / sizeof(u32),
+						               GL_UNSIGNED_INT, NULL);
+					}
+
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 			// --- Render to screen quad --- //
