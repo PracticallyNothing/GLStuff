@@ -292,7 +292,7 @@ i32 main(void) {
 						case SDL_WINDOWEVENT_RESIZED: {
 							i32 w = e.window.data1, h = e.window.data2;
 							glViewport(0, 0, w, h);
-							printf("Viewport change to %dx%d\n", w, h);
+							// printf("Viewport change to %dx%d\n", w, h);
 							// Mat4_OrthoProj(PerspMat, 0, w, 0, h, 0.01,
 							// 1000.0);
 							//
@@ -306,7 +306,7 @@ i32 main(void) {
 		// Render frame to back buffer.
 		if(Ticks - LastFrameRenderTime > 16) {
 			RenderTime = SDL_GetPerformanceCounter();
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Framebuf);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			i32 realW, realH;
@@ -367,13 +367,13 @@ i32 main(void) {
 
 			// --- Render to screen quad --- //
 
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			Shader_Use(s);
-			Shader_Uniform1i(s, "fbo_color", 0);
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, Texture_Color);
-			glBindVertexArray(VAO_ScreenQuad);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			//	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			//	Shader_Use(s);
+			//	Shader_Uniform1i(s, "fbo_color", 0);
+			//	glActiveTexture(GL_TEXTURE0);
+			//	glBindTexture(GL_TEXTURE_2D, Texture_Color);
+			//	glBindVertexArray(VAO_ScreenQuad);
+			//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			SDL_GL_SwapWindow(Window);
 
