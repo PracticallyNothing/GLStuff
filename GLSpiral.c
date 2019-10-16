@@ -7,53 +7,60 @@
 #include "Common.h"
 #include "Math3D.h"
 #include "Shader.h"
+#include "WavefrontOBJ.h"
 #include "stb_image.h"
 
-typedef struct Transform2D_t Transform2D;
-typedef struct Transform3D_t Transform3D;
-typedef struct Camera_t Camera;
+typedef struct Transform2D Transform2D;
+typedef struct Transform3D Transform3D;
+typedef struct Camera Camera;
 
-struct Transform2D_t {
+struct Transform2D {
 	Vec2 Position;
 	r32 Rotation;
 	Vec2 Scale;
 	Transform2D *Parent;
 };
 
-struct Transform3D_t {
+struct Transform3D {
 	Vec3 Position;
 	Quat Rotation;
 	Vec3 Scale;
 	Transform3D *Parent;
 };
 
-struct Camera_t {
+enum CameraMode {
+	CameraMode_Orthographic,
+	CameraMode_Perspective,
+
+	CameraMode_NumModes,
+};
+
+const char *CameraMode_EnumNames[] = {"CameraMode_Ortho", "CameraMode_Persp",
+                                      "CameraMode_NumModes"};
+struct Camera {
+	// Generic properties
 	Vec3 Position;
 	Vec3 Target;
 	Vec3 Up;
+	r32 ZNear, ZFar;
+
+	enum CameraMode Mode;
+
+	// Orthographic specific:
+	i32 ScreenWidth;
+	i32 ScreenHeight;
+	// Perspective specific:
+	r32 VerticalFoV;
+	r32 AspectRatio;
 };
 
-const char *const VertexShaderText =
-    "#version 330\n"
-    "\n"
-    "in vec3 pos;\n"
-    "out vec3 fPos;\n"
-    "\n"
-    "uniform mat4 persp;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 model;\n"
-    "\n"
-    "void main() {\n"
-    "   gl_Position = persp * view * model * vec4(pos, 1);\n"
-    "   fPos = (model * vec4(pos,1)).xyz;\n"
-    "}";
-const char *const FragmentShaderText =
-    "#version 330\n"
-    "in vec3 fPos;"
-    "out vec4 color;\n"
-    "void main() {\n"
-    "    color = vec4(fPos, 1);\n"
-    "}";
+typedef struct GPUModel {
+	GLuint VAO;
+	GLuint VBOs[3];
+	GLuint ElementBuffer;
+	u32 NumVertices;
+	u32 NumIndices;
+} GPUModel;
 
 const u32 g_Width = 1280, g_Height = 720;
 
@@ -90,11 +97,16 @@ void GL_InitAttribs(void);
 GLuint Texture_FromFile(const char *filename);
 void Transform2D_Mat3(Transform2D t, Mat3 out);
 void Transform3D_Mat4(Transform3D t, Mat4 out);
-void Camera_Mat4(Camera c, Mat4 out);
+void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj);
 void RenderLines(Vec3 *linePoints, i32 numLines);
 void RenderLineCircle(r32 radius);
 
+void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj);
+
 i32 main(void) {
+	WObj_Library *Lib = WObj_FromFile("tree.obj");
+
+	const i32 N = 2;
 	u32 StartupTime;
 
 	SDL_Window *Window;
@@ -105,6 +117,13 @@ i32 main(void) {
 	Mat4 PerspMat, ViewMat, ModelMat;
 	Transform3D Transform;
 	Camera Camera;
+	Camera.Position = V3(0, 0, -1);
+	Camera.Up = V3(0, 1, 0);
+	Camera.Target = V3(0, 0, 0);
+	Camera.Mode = CameraMode_Perspective;
+	Camera.ZNear = 0.01f;
+	Camera.ZFar = 10000.0f;
+	Camera.VerticalFoV = Pi_Half + Pi_Quarter;
 
 	StartupTime = SDL_GetTicks();
 
@@ -138,11 +157,11 @@ i32 main(void) {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
+	glCullFace(GL_FRONT);
 	glEnable(GL_MULTISAMPLE);
 
 	s = Shader_FromFiles("vert.glsl", "frag.glsl");
-	s2 = Shader_FromSrc(VertexShaderText, FragmentShaderText);
+	s2 = Shader_FromFiles("FullLighting.vert", "FullLighting.frag");
 
 	Transform = (Transform3D){.Position = {0, 0, -50},
 	                          .Rotation = Quat_Identity,
@@ -209,7 +228,7 @@ i32 main(void) {
 	//--------------------------------//
 
 #if 0
-	// TODO: Make this prettier.
+	// TODO: Make this process prettier.
 	GLuint VAO, VBO_Pos;
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
@@ -235,6 +254,10 @@ i32 main(void) {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(r32) * 4,
 	                      (void *) (2 * sizeof(r32)));
 
+	GPUModel treeTrunk, treeLeaves;
+	WObj_ToGPUModel(&treeTrunk, &Lib->Objects[0]);
+	WObj_ToGPUModel(&treeLeaves, &Lib->Objects[1]);
+
 	// Create 3D cube
 	GLuint Cube_VAO, Cube_Pos, Cube_Inds;
 	glGenVertexArrays(1, &Cube_VAO);
@@ -256,23 +279,71 @@ i32 main(void) {
 
 	GLuint TestBMP = Texture_FromFile("test1.bmp");
 
-	u32 Ticks;
-	u64 RenderTime;
-	u32 LastPrintTime, LastFrameRenderTime;
 	SDL_Event e;
+	u32 Ticks = 0;
+	u64 RenderTime = 0;
+	u32 LastPrintTime = 0, LastFrameRenderTime = 0;
 	r32 time = 0;
 	i32 StopTime = 0;
 
 	printf("Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
+	SDL_GL_SetSwapInterval(-1);
 
 	while(1) {
+		u32 DrawCalls = 0;
 		Ticks = SDL_GetTicks();
 
 		while(SDL_PollEvent(&e)) {
+			Vec3 CameraDirection =
+			    Vec3_Norm(Vec3_Sub(Camera.Target, Camera.Position));
+			Vec3 CameraRight =
+			    Vec3_Norm(Vec3_Cross(Camera.Up, CameraDirection));
+			const r32 CameraSpeed = 5.f;
+
 			switch(e.type) {
 				case SDL_QUIT: goto end;
+				case SDL_MOUSEWHEEL: {
+					Camera.VerticalFoV =
+					    Clamp_R32(Camera.VerticalFoV - e.wheel.y * 0.05f,
+					              0.05f * Pi, 0.95f * Pi);
+				} break;
 				case SDL_KEYDOWN:
-					switch(e.key.keysym.sym) {}
+					switch(e.key.keysym.sym) {
+						case SDLK_w:
+							Camera.Position = Vec3_Add(
+							    Camera.Position,
+							    Vec3_MultScal(CameraDirection, CameraSpeed));
+							break;
+						case SDLK_s:
+							Camera.Position = Vec3_Add(
+							    Camera.Position,
+							    Vec3_MultScal(CameraDirection, -CameraSpeed));
+							break;
+						case SDLK_a:
+							Camera.Position = Vec3_Add(
+							    Camera.Position,
+							    Vec3_MultScal(CameraRight, -CameraSpeed));
+							break;
+						case SDLK_d:
+							Camera.Position = Vec3_Add(
+							    Camera.Position,
+							    Vec3_MultScal(CameraRight, CameraSpeed));
+							break;
+						case SDLK_5:
+							Camera.Mode =
+							    (Camera.Mode + 1) % CameraMode_NumModes;
+							printf(
+							    "Camera mode change: %d (%s)\n", Camera.Mode,
+							    (Camera.Mode == CameraMode_Orthographic
+							         ? "CameraMode_Ortho"
+							         : (Camera.Mode == CameraMode_Perspective
+							                ? "CameraMode_Persp"
+							                : (Camera.Mode ==
+							                           CameraMode_NumModes
+							                       ? "CameraMode_NumModes"
+							                       : "Unknown camera mode"))));
+							break;
+					}
 					break;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
@@ -300,6 +371,7 @@ i32 main(void) {
 							break;
 						}
 					}
+					break;
 			}
 		}
 
@@ -309,8 +381,9 @@ i32 main(void) {
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			i32 realW, realH;
-			SDL_GetWindowSize(Window, &realW, &realH);
+			SDL_GetWindowSize(Window, &Camera.ScreenWidth,
+			                  &Camera.ScreenHeight);
+			Camera.AspectRatio = 16.0 / 9;
 
 			// --- Draw everything --- //
 
@@ -319,21 +392,19 @@ i32 main(void) {
 			// Transform.Scale = V3(0.5, 0.5, 0.5);
 
 			Camera.Position.x = 15 * sinf(time);
-			Camera.Position.y = 5 * sinf(time);
+			Camera.Position.y = 15 * sinf(time);
 			Camera.Position.z = 15 * cosf(time);
 			// Camera.Position.y = 5;
 			// Camera.Position.z = -15;
 
 			// Camera.Target = tr.Position;
-			Camera.Target = V3(0, 0, 0);
+			// Camera.Target = V3(0, 0, 0);
 			// Camera.Target = Vec3_Add(Camera.Position, V3(0, 0, 1));
 
-			Camera.Up = V3(0, 1, 0);
+			// Camera.Up = V3(0, 1, 0);
 
-			Camera_Mat4(Camera, ViewMat);
+			Camera_Mat4(Camera, ViewMat, PerspMat);
 			// Transform3D_Mat4(Transform, ModelMat);
-			Mat4_RectProj(PerspMat, DegToRad(90.0), (1.0f * g_Width) / g_Height,
-			              0.001f, 1000.0f);
 
 			Shader_Use(s2);
 			Shader_UniformMat4(s2, "persp", PerspMat);
@@ -341,30 +412,69 @@ i32 main(void) {
 			Mat4_Identity(ModelMat);
 			Shader_UniformMat4(s2, "model", ModelMat);
 
-			Vec3 line[] = {V3(0, -5, 0),
-			               Vec3_Add(Camera.Position, V3(0, -5, 0))};
-			RenderLines(line, 1);
-			RenderLineCircle(15);
+			// Vec3 line[] =
+			// {V3(0, -5, 0), Vec3_Add(Camera.Position, V3(0, -5, 0))};
+			// RenderLines(line, 1);
+			// RenderLineCircle(15);
 
-			glBindVertexArray(Cube_VAO);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Cube_Inds);
+			// Shader_Uniform1i(s2, "sun_enabled", 0);
+			// Shader_Uniform3f(s2, "sun.Ambient", HexToRGB("FDB813"));
+			// Shader_Uniform3f(s2, "sun.Diffuse", HexToRGB("FD8813"));
+			// Shader_Uniform3f(s2, "sun.Specular", V3(1, 1, 1));
+			// Shader_Uniform3f(s2, "sun.Direction", Vec3_Norm(V3(0, -1, 1)));
+			// Shader_Uniform3f(s2, "viewPos", Camera.Position);
 
-			const i32 N = 5;
+			Shader_Uniform1f(s2, "mat_specularExponent", 512);
 
-			for(int z = -(N / 2); z <= N / 2; z++)
-				for(int y = -(N / 2); y <= N / 2; y++)
+			Shader_Uniform1i(s2, "pointLights_numEnabled", 1);
+			Shader_Uniform3f(s2, "pointLights[0].Position", V3(0, 0, 0));
+			Shader_Uniform3f(s2, "pointLights[0].Ambient", V3(1, 1, 1));
+			Shader_Uniform3f(s2, "pointLights[0].Diffuse", V3(1, 1, 1));
+			Shader_Uniform3f(s2, "pointLights[0].Specular", V3(1, 1, 1));
+			Shader_Uniform1f(s2, "pointLights[0].ConstantAttenuation", 1);
+			Shader_Uniform1f(s2, "pointLights[0].LinearAttenuation", 0.35);
+			Shader_Uniform1f(s2, "pointLights[0].QuadraticAttenuation", 0.44);
+
+
+			for(int z = -(N / 2); z <= N / 2; z++) {
+				Transform.Position.z = z * 10.0;
+
+				for(int y = -(N / 2); y <= N / 2; y++) {
+					Transform.Position.y = y * 10.0;
+
 					for(int x = -(N / 2); x <= N / 2; x++) {
 						Transform.Position.x = x * 10.0;
-						Transform.Position.y = y * 10.0;
-						Transform.Position.z = z * 10.0;
 						Transform.Rotation =
 						    Quat_RotAxis(V3(1, 1, 1), x * y * z * time);
 						Transform3D_Mat4(Transform, ModelMat);
 						Shader_UniformMat4(s2, "model", ModelMat);
-						glDrawElements(GL_TRIANGLES,
-						               sizeof(g_CubeInds) / sizeof(u32),
+
+						Mat4 Model_RotationMat = {0};
+						Mat4_RotateQuat(Model_RotationMat, Transform.Rotation);
+						Shader_UniformMat4(s2, "model_rot", Model_RotationMat);
+
+						Shader_Uniform3f(s2, "mat_ambient", V3(0, 1, 0));
+						Shader_Uniform3f(s2, "mat_diffuse", V3(1, 0, 0));
+						Shader_Uniform3f(s2, "mat_specular", V3(1, 1, 1));
+						glBindVertexArray(treeTrunk.VAO);
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+						             treeTrunk.ElementBuffer);
+						glDrawElements(GL_TRIANGLES, treeTrunk.NumIndices,
 						               GL_UNSIGNED_INT, NULL);
+
+						Shader_Uniform3f(s2, "mat_ambient", V3(0, 1, 0));
+						Shader_Uniform3f(s2, "mat_diffuse", V3(0, 1, 0));
+						Shader_Uniform3f(s2, "mat_specular", V3(1, 1, 1));
+						glBindVertexArray(treeLeaves.VAO);
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+						             treeLeaves.ElementBuffer);
+						glDrawElements(GL_TRIANGLES, treeLeaves.NumIndices,
+						               GL_UNSIGNED_INT, NULL);
+
+						DrawCalls++;
 					}
+				}
+			}
 
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
@@ -389,9 +499,10 @@ i32 main(void) {
 
 		// Print render time.
 		if(Ticks - LastPrintTime > 500) {
-			printf("[%10d] Render time: %f ms (%10ld ticks)\n", SDL_GetTicks(),
+			printf("[%10d] Render time: %f ms (%5d draw calls)\n",
+			       SDL_GetTicks(),
 			       (r64)(1000 * RenderTime) / SDL_GetPerformanceFrequency(),
-			       RenderTime);
+			       DrawCalls);
 			LastPrintTime = Ticks;
 		}
 	}
@@ -399,6 +510,8 @@ i32 main(void) {
 end:
 	// glDeleteBuffers(1, &VBO_Pos);
 	// glDeleteVertexArrays(1, &VAO);
+	Shader_Free(s);
+	Shader_Free(s2);
 	SDL_GL_DeleteContext(GLContext);
 	SDL_DestroyWindow(Window);
 	SDL_Quit();
@@ -482,10 +595,10 @@ void Transform2D_Mat3(Transform2D t, Mat3 out) {
 	// Parent
 	if(t.Parent && t.Parent != &t) Transform2D_Mat3(*t.Parent, parent);
 
-	Mat3_MultMat(scale, rotate);
-	Mat3_MultMat(scale, translate);
-	Mat3_MultMat(scale, parent);
-	Mat3_Copy(out, translate);
+	Mat3_MultMat(rotate, scale);
+	Mat3_MultMat(translate, rotate);
+	Mat3_MultMat(parent, translate);
+	Mat3_Copy(out, parent);
 }
 
 void Transform3D_Mat4(Transform3D t, Mat4 out) {
@@ -516,7 +629,7 @@ void Transform3D_Mat4(Transform3D t, Mat4 out) {
 
 // Thank you,
 // http://ogldev.atspace.co.uk/www/tutorial13/tutorial13.html
-void Camera_Mat4(Camera c, Mat4 out) {
+void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 	Mat4 Translation, Rotation;
 
 	Mat4_Identity(Translation);
@@ -548,12 +661,26 @@ void Camera_Mat4(Camera c, Mat4 out) {
 	Rotation[9] = N.y;
 	Rotation[10] = N.z;
 
-
-	// Mat4_MultMat(Translation, Rotation);
-	// Mat4_Copy(out, Translation);
-
 	Mat4_MultMat(Rotation, Translation);
-	Mat4_Copy(out, Rotation);
+	Mat4_Copy(out_view, Rotation);
+
+	switch(c.Mode) {
+		case CameraMode_Orthographic: {
+			Mat4_OrthoProj(out_proj, 0, c.ScreenWidth, 0, c.ScreenHeight,
+			               c.ZNear, c.ZFar);
+			break;
+		}
+		case CameraMode_Perspective: {
+			Mat4_RectProj(out_proj, c.VerticalFoV, c.AspectRatio, c.ZNear,
+			              c.ZFar);
+			break;
+		}
+
+		case CameraMode_NumModes: {
+			i32 *nope = NULL;
+			i32 reallyNope = *nope;
+		}
+	}
 }
 
 GLuint Lines_VAO = 0, Lines_Pos = 0;
@@ -586,39 +713,55 @@ void RenderLineCircle(r32 radius) {
 	}
 
 	RenderLines(lines, 32);
+	free(lines);
 }
 
-#if 0
-// Potential GUI Code
+#define VBO_POS 0
+#define VBO_UV 1
+#define VBO_NORM 2
 
-GUI *g_GameGUI, *g_DebugGUI;
+void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj) {
+	glGenVertexArrays(1, &out->VAO);
+	glBindVertexArray(out->VAO);
+	glGenBuffers(3, out->VBOs);
+	glGenBuffers(1, &out->ElementBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, out->ElementBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * obj->NumIndices,
+	             obj->Indices, GL_STATIC_DRAW);
 
-void InitGUI() {
-	g_GameGUI = GUI_Init();
+	out->NumVertices = obj->NumVertices;
+	out->NumIndices = obj->NumIndices;
 
-	GUI_AddFPSCounter(g_GameGUI, FPSPos_TopLeft, FPSType_FPS);
+	Array *Positions = Array_Init(sizeof(Vec3));
+	Array *UVs = Array_Init(sizeof(Vec2));
+	Array *Normals = Array_Init(sizeof(Vec3));
 
-	// --- Debug GUI --- //
-	
-	GUI_Panel *LogPanel;
+	for(i32 i = 0; i < obj->NumVertices; i++) {
+		WObj_Vertex *vtx = &obj->Vertices[i];
+		Array_Push(Positions, &vtx->Position);
+		Array_Push(UVs, &vtx->UV);
+		Array_Push(Normals, &vtx->Normal);
+	}
 
-	g_DebugGUI = GUI_Init();
-	GUI_AddFPSCounter(g_DebugGUI, FPSPos_TopLeft, FPSType_Frametime);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, out->VBOs[VBO_POS]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3) * obj->NumVertices,
+	             Positions->Data, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
-	LogPanel = GUI_AddPanel(
-		g_DebugGUI,  // target GUI
-		0, 0,        // x, y
-		500, 300,    // width, height
-		"Debug log", // title
-		PanelButtons_None
-	);
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, out->VBOs[VBO_UV]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * obj->NumVertices, UVs->Data,
+	             GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
-	GUI_Panel_AddTextList(
-		LogPanel, // target panel
-		0, 0,     // x, y
-		500, -1,  // width, height
-		500,      // num entries
-	);
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, out->VBOs[VBO_NORM]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3) * obj->NumVertices,
+	             Normals->Data, GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	Array_Free(Positions);
+	Array_Free(UVs);
+	Array_Free(Normals);
 }
-
-#endif

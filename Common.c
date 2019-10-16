@@ -8,8 +8,59 @@ const r64 Pi = 3.14159265358979323846;
 const r64 Pi_Half = 1.57079632679489661923;
 const r64 Pi_Quarter = 0.78539816339744830962;
 
-r64 DegToRad(r64 degrees) { return degrees * Pi / 180.0; }
-r64 RadToDeg(r64 radians) { return radians * 180.0 / Pi; }
+r64 DegToRad(r64 degrees) { return degrees * (Pi / 180.0); }
+r64 RadToDeg(r64 radians) { return radians * (180.0 / Pi); }
+
+r64 Clamp_R64(r64 value, r64 min, r64 max) {
+	if(value < min)
+		return min;
+	else if(value > max)
+		return max;
+	else
+		return value;
+}
+
+r32 Clamp_R32(r32 value, r32 min, r32 max) {
+	if(value < min)
+		return min;
+	else if(value > max)
+		return max;
+	else
+		return value;
+}
+
+i32 Clamp_I32(i32 value, i32 min, i32 max) {
+	if(value < min)
+		return min;
+	else if(value > max)
+		return max;
+	else
+		return value;
+}
+
+// Thank you,
+// https://stackoverflow.com/a/101613
+i32 Pow_I32(i32 n, u32 power) {
+	i32 res = 1;
+
+	while(1) {
+		if(power & 1) res *= n;
+		power >>= 1;
+		if(!power) break;
+		n *= n;
+	}
+
+	return res;
+}
+
+i32 String_ToI32(const char *str) { return String_ToI32_N(str, strlen(str)); }
+i32 String_ToI32_N(const char *str, u32 len) {
+	i32 res = 0;
+	for(i32 i = 0; i < len; i++) {
+		res += (str[i] - '0') * Pow_I32(10, len - 1 - i);
+	}
+	return res;
+}
 
 static u32 File_GetSize(FILE *f) {
 	fpos_t CurrPos;
@@ -23,7 +74,8 @@ static u32 File_GetSize(FILE *f) {
 	return Size;
 }
 
-i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize) {
+i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize,
+                      u32 *realSize) {
 	FILE *File;
 	u32 Size;
 
@@ -33,15 +85,102 @@ i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize) {
 	Size = File_GetSize(File);
 	Size = (Size > bufSize ? bufSize : Size);
 	fread(buf, sizeof(u8), Size, File);
+	if(realSize) *realSize = Size;
 	fclose(File);
 
 	return 1;
 }
 
+
 void File_DumpBuffer(const char *filename, const u8 *buf, u32 bufSize) {
 	FILE *File = fopen(filename, "wb");
 	fwrite(buf, sizeof(u8), bufSize, File);
 	fclose(File);
+}
+
+Array *Array_Init(u32 itemSize) {
+	if(!itemSize) return NULL;
+
+	Array *a = malloc(sizeof(Array));
+
+	a->Data = malloc(itemSize);
+	a->ItemSize = itemSize;
+	a->ArraySize = 0;
+	a->ArrayCapacity = 1;
+
+	return a;
+}
+
+Array *Array_Prealloc(u32 itemSize, u32 capacity) {
+	if(!capacity) return NULL;
+
+	Array *a = malloc(sizeof(Array));
+
+	a->Data = malloc(itemSize * capacity);
+	a->ItemSize = itemSize;
+	a->ArraySize = 0;
+	a->ArrayCapacity = capacity;
+
+	return a;
+}
+
+const r32 Array_GrowthFactor = 2;
+
+void Array_Push(Array *a, const void *item) {
+	if(a->ArraySize >= a->ArrayCapacity) {
+		a->ArrayCapacity *= Array_GrowthFactor;
+		a->Data = realloc(a->Data, a->ItemSize * a->ArrayCapacity);
+	}
+	memcpy(a->Data + a->ItemSize * a->ArraySize, item, a->ItemSize);
+	a->ArraySize++;
+}
+
+void Array_CopyData(void *out, const Array *src) {
+	for(u32 i = 0; i < src->ArraySize; i++) {
+		void *to = out + i * src->ItemSize;
+		void *from = Array_Get(src, i);
+		memcpy(to, from, src->ItemSize);
+	}
+}
+
+void Array_Copy(Array *out, const Array *src) {
+	out->ArraySize = src->ArraySize;
+	out->ArrayCapacity = src->ArrayCapacity;
+	out->ItemSize = src->ItemSize;
+
+	for(u32 i = 0; i < out->ArraySize; i++) {
+		void *to = out->Data + i * out->ItemSize;
+		void *from = src->Data + i * src->ItemSize;
+		memcpy(to, from, out->ItemSize);
+	}
+}
+
+void Array_Clear(Array *a) { a->ArraySize = 0; }
+void Array_Reverse(Array *a) {
+	for(u32 i = 0; i < a->ArraySize / 2; i++) {
+		void *A = a->Data + i * a->ItemSize;
+		void *B = a->Data + (a->ArraySize - i) * a->ItemSize;
+		SWAP_U8_ARR(A, B, a->ItemSize);
+	}
+}
+
+void *Array_Get(const Array *a, i32 idx) {
+	if(idx < 0 || idx >= a->ArraySize) return NULL;
+	return a->Data + idx * a->ItemSize;
+}
+
+void *Array_GetFirst(const Array *arr) { return Array_Get(arr, 0); }
+void *Array_GetLast(const Array *arr) {
+	return Array_Get(arr, arr->ArraySize - 1);
+}
+
+void Array_Pop(Array *a) {
+	if(a->ArraySize > 0) a->ArraySize--;
+}
+
+void Array_Free(Array *a) {
+	free(a->Data);
+	free(a);
 }
 
 u64 Bytes(u32 amt) { return amt; }
@@ -72,3 +211,85 @@ void PC_PrintVideoDriverInfo(void) {
 }
 
 void PC_GetWindowSize(i32 *w, i32 *h) { SDL_GetWindowSize(NULL, w, h); }
+
+// Breaks if A is NULL/invalid or lo > hi
+u32 _QSort_Partition_i32(i32 *A, u32 lo, u32 hi) {
+	i32 pivot = A[lo + (hi - lo) / 2];
+	i32 i = lo - 1;
+	i32 j = hi + 1;
+
+	while(1) {
+		do { i++; } while(A[i] < pivot);
+		do { j--; } while(A[j] > pivot);
+		if(i >= j) return j;
+		SWAP_I32(A[i], A[j]);
+	}
+}
+
+void Util_Quicksort_i32(i32 *arr, u32 size) {
+	if(size < 2) return;
+
+	if(size == 2) {
+		if(arr[0] > arr[1]) { SWAP_I32(arr[0], arr[1]); }
+		return;
+	}
+
+	u32 p = _QSort_Partition_i32(arr, 0, size - 1);
+	Util_Quicksort_i32(arr, p);
+	Util_Quicksort_i32(arr + p + 1, size - p);
+}
+
+u32 _QSort_Partition_r32(r32 *A, u32 lo, u32 hi) {
+	r32 pivot = A[lo + (hi - lo) / 2];
+	i32 i = lo - 1;
+	i32 j = hi + 1;
+
+	while(1) {
+		do { i++; } while(A[i] < pivot);
+		do { j--; } while(A[j] > pivot);
+		if(i >= j) return j;
+		SWAP_R32(A[i], A[j]);
+	}
+}
+
+void Util_Quicksort_r32(r32 *arr, u32 size) {
+	if(size < 2) return;
+
+	if(size == 2) {
+		if(arr[0] > arr[1]) { SWAP_R32(arr[0], arr[1]); }
+		return;
+	}
+
+	u32 p = _QSort_Partition_r32(arr, 0, size - 1);
+	Util_Quicksort_r32(arr, p);
+	Util_Quicksort_r32(arr + p + 1, size - p - 1);
+}
+
+u32 _QSort_Partition_func(void *A, u32 lo, u32 hi, u32 itemSize,
+                          Util_CompFunc f) {
+	void *pivot = A + itemSize * (lo + (hi - lo) / 2);
+	i32 i = lo - 1;
+	i32 j = hi + 1;
+
+	while(1) {
+		do { i++; } while(f(A + itemSize * i, pivot) < 0);
+		do { j--; } while(f(A + itemSize * j, pivot) > 0);
+		if(i >= j) return j;
+		SWAP_U8_ARR(A + itemSize * i, A + itemSize * j, itemSize);
+	}
+}
+
+void Util_Quicksort_func(void *arr, u32 itemSize, u32 arrSize,
+                         Util_CompFunc compFunc) {
+	if(arrSize < 2) return;
+
+	if(arrSize == 2) {
+		if(compFunc(arr, arr + itemSize) > 0)
+			SWAP_U8_ARR(arr, arr + itemSize, itemSize);
+		return;
+	}
+
+	u32 p = _QSort_Partition_func(arr, 0, arrSize - 1, itemSize, compFunc);
+	Util_Quicksort_func(arr, itemSize, p, compFunc);
+	Util_Quicksort_func(arr + p + 1, itemSize, arrSize - p - 1, compFunc);
+}

@@ -9,11 +9,12 @@ Shader *Shader_FromFiles(const char *vertexFile, const char *fragmentFile) {
 	char *VertexSrc, *FragmentSrc;
 
 	Res = NULL;
-	VertexSrc = malloc(Megabytes(1));
-	FragmentSrc = malloc(Megabytes(1));
+	VertexSrc = calloc(1, Megabytes(1));
+	FragmentSrc = calloc(1, Megabytes(1));
 
-	if(!File_ReadToBuffer(vertexFile, (u8 *) VertexSrc, Megabytes(1)) ||
-	   !File_ReadToBuffer(fragmentFile, (u8 *) FragmentSrc, Megabytes(1))) {
+	if(!File_ReadToBuffer(vertexFile, (u8 *) VertexSrc, Megabytes(1), NULL) ||
+	   !File_ReadToBuffer(fragmentFile, (u8 *) FragmentSrc, Megabytes(1),
+	                      NULL)) {
 		goto end;
 	}
 
@@ -138,4 +139,5 @@ void Shader_Free(Shader *s) {
 	glDeleteShader(s->VertexID);
 	glDeleteShader(s->FragmentID);
 	glDeleteProgram(s->ProgramID);
+	free(s);
 }

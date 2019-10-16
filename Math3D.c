@@ -95,6 +95,20 @@ void Mat4_Identity(Mat4 m) {
 	m[0] = m[5] = m[10] = m[15] = 1;
 }
 
+
+void Mat2_FromMat3(Mat2 out, const Mat3 m) {
+	for(i32 y = 0; y < 2; y++)
+		for(i32 x = 0; x < 2; x++) out[x + y * 2] = m[x + y * 3];
+}
+void Mat2_FromMat4(Mat2 out, const Mat4 m) {
+	for(i32 y = 0; y < 2; y++)
+		for(i32 x = 0; x < 2; x++) out[x + y * 2] = m[x + y * 4];
+}
+void Mat3_FromMat4(Mat3 out, const Mat4 m) {
+	for(i32 y = 0; y < 3; y++)
+		for(i32 x = 0; x < 3; x++) out[x + y * 3] = m[x + y * 4];
+}
+
 void Mat2_Copy(Mat2 out, const Mat2 m) {
 	for(i32 i = 0; i < 4; ++i) out[i] = m[i];
 }
@@ -456,5 +470,29 @@ Quat Quat_Mult(Quat a, Quat b) {
 	w = b.w * a.w - b.x * a.x - b.y * a.y - b.z * a.z;
 
 	return (Quat){x, y, z, w};
+}
+
+static i32 HexToInt(char c) {
+	if(c >= '0' && c <= '9')
+		return c - '0';
+	else if(c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	else if(c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	else
+		return -1;
+}
+
+RGB HexToRGB(const char str[6]) {
+	return V3((HexToInt(str[0]) * 16 + HexToInt(str[1])) / 255.0,
+	          (HexToInt(str[2]) * 16 + HexToInt(str[3])) / 255.0,
+	          (HexToInt(str[4]) * 16 + HexToInt(str[5])) / 255.0);
+}
+
+RGBA HexToRGBA(const char str[8]) {
+	return V4((HexToInt(str[0]) * 16 + HexToInt(str[1])) / 255.0,
+	          (HexToInt(str[2]) * 16 + HexToInt(str[3])) / 255.0,
+	          (HexToInt(str[4]) * 16 + HexToInt(str[5])) / 255.0,
+	          (HexToInt(str[6]) * 16 + HexToInt(str[7])) / 255.0);
 }
 

@@ -5,18 +5,48 @@
 
 // Vectors
 struct Vec2_t {
-    r32 x, y;
+	union {
+		r32 d[2];
+		struct {
+			r32 x, y;
+		};
+		struct {
+			r32 u, v;
+		};
+	};
 };
+
 struct Vec3_t {
-    r32 x, y, z;
+	union {
+		r32 d[3];
+		struct {
+			r32 x, y, z;
+		};
+		struct {
+			r32 r, g, b;
+		};
+		struct {
+			r32 u, v, w;
+		};
+	};
 };
 struct Vec4_t {
-    r32 x, y, z, w;
+	union {
+		r32 d[4];
+		struct {
+			r32 x, y, z, w;
+		};
+		struct {
+			r32 r, g, b, a;
+		};
+	};
 };
 
 typedef struct Vec2_t Vec2;
 typedef struct Vec3_t Vec3;
 typedef struct Vec4_t Vec4;
+typedef Vec3 RGB;
+typedef Vec4 RGBA;
 
 typedef r32 MatValue_t;
 typedef MatValue_t Mat2[4];
@@ -31,13 +61,13 @@ typedef Vec4 Quat;
 #define V3(x, y, z) ((Vec3){(x), (y), (z)})
 #define V4(x, y, z, w) ((Vec4){(x), (y), (z), (w)})
 
-#define V2_V3(v, z) ((Vec3){(v).x, (v).y, (z)})
-#define V3_V4(v, w) ((Vec4){(v).x, (v).y, (v).z, (w)})
-#define V2_V4(v, z, w) ((Vec4){(v).x, (v).y, (z), (w)})
+#define V3_V2(v, z) ((Vec3){(v).x, (v).y, (z)})
+#define V4_V3(v, w) ((Vec4){(v).x, (v).y, (v).z, (w)})
+#define V4_V2(v, z, w) ((Vec4){(v).x, (v).y, (z), (w)})
 
-#define V4_V3(v) ((Vec3){(v).x, (v).y, (v).z})
-#define V4_V2(v) ((Vec2){(v).x, (v).y})
-#define V3_V2(v) ((Vec2){(v).x, (v).y})
+#define V3_V4(v) ((Vec3){(v).x, (v).y, (v).z})
+#define V2_V4(v) ((Vec2){(v).x, (v).y})
+#define V2_V3(v) ((Vec2){(v).x, (v).y})
 
 extern Vec2 Vec2_Neg(Vec2 v);
 extern Vec3 Vec3_Neg(Vec3 v);
@@ -149,9 +179,13 @@ extern void Mat4_RotateQuat(Mat4 out, Quat quat);
 extern void Mat4_Scale(Mat4 out, Vec3 amt);
 
 extern void Mat4_OrthoProj(Mat4 out, r32 left, r32 right, r32 top, r32 bottom,
-			   r32 zNear, r32 zFar);
+                           r32 zNear, r32 zFar);
 
 extern void Mat4_RectProj(Mat4 out, r32 fov, r32 aspect, r32 zNear, r32 zFar);
+
+extern void Mat2_FromMat3(Mat2 out, const Mat3 m);
+extern void Mat2_FromMat4(Mat2 out, const Mat4 m);
+extern void Mat3_FromMat4(Mat3 out, const Mat4 m);
 
 // --- Quaternion operations --- //
 
@@ -165,5 +199,9 @@ extern Quat Quat_Conjugate(Quat q);
 extern r32 Quat_Dot(Quat a, Quat b);
 extern Quat Quat_Mult(Quat a, Quat b);
 extern Quat Quat_Norm(Quat q);
+
+// --- Extra color utilities --- //
+extern RGB HexToRGB(const char str[6]);
+extern RGBA HexToRGBA(const char str[8]);
 
 #endif
