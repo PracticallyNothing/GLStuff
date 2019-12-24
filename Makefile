@@ -1,4 +1,4 @@
-CC      = clang
+CC      = gcc
 WINCC   = x86_64-w64-mingw32-gcc
 FLAGS   = -std=c89 
 INCLUDE = -I./glad_Core-33/include/
@@ -12,7 +12,7 @@ OBJS_DBG_EX := $(patsubst %.c, obj/debug/%.o, $(shell echo '$(SOURCES)' | sed 's
 OBJS_SZ_EX := $(patsubst %.c, obj/size/%.o, $(shell echo '$(SOURCES)' | sed 's/ /\n/g' | sed 's/.*\///'))
 # CC = $(WINCC)
 
-all: dbg rel sz
+all: dbg
 
 rel: release
 dbg: debug

@@ -1,27 +1,39 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#include <SDL2/SDL.h>
+
 #include "Common.h"
 #include "Math3D.h"
 #include "Shader.h"
+#include "Transform.h"
 
-typedef struct Camera {
+typedef struct Camera Camera;
+
+enum CameraMode {
+	CameraMode_Orthographic,
+	CameraMode_Perspective,
+
+	CameraMode_NumModes,
+};
+
+struct Camera {
+	// Generic properties
 	Vec3 Position;
 	Vec3 Target;
 	Vec3 Up;
-} Camera;
+	r32 ZNear, ZFar;
 
-enum AttachmentType {
-	AttachmentType_None = 0,
-	AttachmentType_Texture,
-	AttachmentType_Renderbuffer
+	enum CameraMode Mode;
+
+	// Orthographic specific:
+	i32 ScreenWidth;
+	i32 ScreenHeight;
+	// Perspective specific:
+	r32 VerticalFoV;
+	r32 AspectRatio;
 };
 
-enum MultisampleMode {
-	MultisampleMode_None = 0,
-	MultisampleMode_X2,
-	MultisampleMode_X4,
-};
 
 enum LightType {
 	LightType_Point,
@@ -57,67 +69,130 @@ typedef struct Light {
 	} L;
 } Light;
 
-typedef struct RenderTarget {
-	u32 Width;
-	u32 Height;
+// ---=== Rendering system ===---
 
-	GLuint Framebuffer;
+typedef struct RSys_Size_t RSys_Size;
 
-	enum AttachmentType ColorAttachmentType;
-	enum AttachmentType DepthAttachmentType;
-	enum AttachmentType StencilAttachmentType;
+struct RSys_Size_t {
+	i32 Width, Height;
+	r32 AspectRatio;
+};
 
-	GLuint ColorAttachment;
-	GLuint DepthAttachment;
-	GLuint StencilAttachment;
-} RenderTarget;
+struct RSys_State_t {
+	SDL_Window *Window;
+	SDL_GLContext GLContext;
+	u64 LastFrameTime;
+	u64 LastFrameDT;
+};
+extern struct RSys_State_t RSys_State;
 
-typedef struct RenderCtx {
-	Mat4 PerspectiveMatrix;
-	Camera Camera;
-	Shader *Shader;
-	RenderTarget *RenderTarget;
-} RenderCtx;
+extern void RSys_Init(u32 Width, u32 Height);
+extern void RSys_Quit();
+extern void RSys_FinishFrame();
+extern RSys_Size RSys_GetSize();
 
-extern void RenderTarget_Init(RenderTarget *);
-extern void RenderTarget_AddColor(RenderTarget *, enum AttachmentType,
-                                  enum MultisampleMode);
-extern void RenderTarget_AddDepth(RenderTarget *, enum AttachmentType);
-extern void RenderTarget_AddStencil(RenderTarget *, enum AttachmentType);
-extern void RenderTarget_Use(RenderTarget *);
-extern void RenderTarget_UseDefault();
+typedef struct RenderTarget_t RenderTarget;
 
-extern void RenderCtx_Init(RenderCtx *);
-extern void RenderCtx_Use(RenderCtx *);
+enum RenderTarget_Type {
+	RenderTarget_DefaultRT = -1,
 
-// ------------------ //
-// Steps to render:
-// 1. Bind the render target
-// 2. Clear it
-// 3. Set up PVM matrix (Projection, View, Model)
-// 4. Bind shader and set up uniforms
-// 5. Bind all necessary textures
-// 6. Bind a vertex array
-// 7. glDrawArrays()/glDrawElements()
-// ------------------ //
-// 1-4 -> RenderCtx
-// 4-7 -> Model
-//
-// So a rendering function would ultimately only need these two parameters,
-// e.g.:
-/////////////////////////////////////////////////////////////////////////////
-//                                                                         //
-// void Render(const RenderCtx *ctx, const Models *models, i32 numModels); //
-//                                                                         //
-/////////////////////////////////////////////////////////////////////////////
-// However, the models array sucks, especially if every model gets its own
-// texture and VAO.
-//
-// A better approach would be to pass a sort of RenderPkg,
-// which contains the required textures and VAOs in a sorted manner, which also
-// describes the dependencies between 3D mesh data and textures (or implies them
-// somehow).
-//
-/////////////////////////////////////////////////////////////////////////////
+	RenderTarget_Texture,
+	RenderTarget_Renderbuffer,
+};
+
+struct RenderTarget_t {
+	enum RenderTarget_Type Type;
+
+	GLuint FramebufferId;
+	GLuint ColorAttachmentId, DepthAttachmentId;
+};
+
+void RSys_UseCamera();
+
+RenderTarget RenderTarget_Init(enum RenderTarget_Type type);
+void RenderTarget_Free(RenderTarget);
+void RenderTarget_ReadFrom(RenderTarget);
+void RenderTarget_DrawTo(RenderTarget);
+
+// ---=== 2D rendering ===---
+struct R2D_State_t {
+	Array *Fonts;
+};
+
+extern struct R2D_State_t R2D_State;
+
+void R2D_Init();
+
+void R2D_UseDefaultShader(int type);
+
+void R2D_DrawTriangles();
+void R2D_DrawRectOutline();
+void R2D_DrawRect();
+void R2D_DrawText();
+void R2D_DrawImage();
+void R2D_DrawSprite();
+// etc.
+// ---===##############===---
+
+// ---=== 3D rendering ===---
+
+enum R3D_ShaderType {
+	R3D_Shader_None = -1,
+
+	R3D_Shader_Unlit = 0,
+	R3D_Shader_Lit,
+	R3D_Shader_Depth,
+
+	R3D_Shader_NumShaders,
+};
+
+struct R3D_State_t {
+	enum R3D_ShaderType CurrentShader;
+	Shader *Shaders[R3D_Shader_NumShaders];
+	i32 DebugMode;
+	void *Scene;
+};
+
+extern struct R3D_State_t R3D_State;
+
+typedef struct R3D_SceneNode_t R3D_SceneNode;
+enum R3D_SceneNode_Type {
+	R3D_SceneNode_None = -1,
+
+	R3D_SceneNode_Camera,
+	R3D_SceneNode_StaticMesh,
+	R3D_SceneNode_SkinnedMesh,
+	R3D_SceneNode_Particles,
+	R3D_SceneNode_Light,
+
+	R3D_SceneNode_NumTypes
+};
+
+struct R3D_SceneNode_t {
+	R3D_SceneNode *Parent;
+	Array *Children;
+
+	Transform3D Transform;
+
+	enum R3D_SceneNode_Type Type;
+
+	union {
+		Camera Camera;
+		void *StaticMesh;
+		void *SkinnedMesh;
+		void *Particles;
+		Light *Light;
+	};
+};
+
+typedef struct R3D_Scene_t {
+	R3D_SceneNode Root;
+} R3D_Scene;
+
+void R3D_Init();
+void R3D_UseShader(enum R3D_ShaderType type);
+void R3D_Render();
+void R3D_SetScene(R3D_Scene *Scene);
+void R3D_DebugMode(i32 mode);
 
 #endif

@@ -38,7 +38,7 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 	File_ReadToBuffer(filename, Buffer, Kilobytes(256), &Size);
 	WObj_Material *CurrMat = NULL;
 
-	i32 i = 0;
+	u32 i = 0;
 	while(i < Size) {
 		if(Buffer[i] == '#') { SKIP_TO_NEXT_LINE(); }
 
@@ -167,7 +167,7 @@ void Object_Init(struct Object *o) {
 }
 void Object_Free(struct Object *o) {
 	if(!o) return;
-	for(i32 j = 0; j < o->Faces->ArraySize; j++) {
+	for(u32 j = 0; j < o->Faces->ArraySize; j++) {
 		struct Face *f = Array_Get(o->Faces, j);
 		Array_Free(f->FaceVertices);
 	}
@@ -186,7 +186,6 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		return NULL;
 	}
 
-	i32 InsideComment = 0;
 	WObj_Library *res = malloc(sizeof(WObj_Library));
 
 	struct Object *CurrObject = NULL;
@@ -200,12 +199,12 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	UVs = Array_Init(sizeof(Vec2));
 
 	// TODO: Figure out what this is supposed to do.
-	bool32 SmoothingEnabled = 0;
+	// bool32 SmoothingEnabled = 0;
 
 	Array *Materials = Array_Init(sizeof(WObj_Material));
 	Array *Objects = Array_Init(sizeof(struct Object));
 
-	i32 i = 0;
+	u32 i = 0;
 	while(i < Size) {
 		if(Buffer[i] == '#') { SKIP_TO_NEXT_LINE(); }
 
@@ -227,7 +226,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			READ_NEXT_WORD(MaterialName);
 
 			WObj_Material *FoundMaterial = NULL;
-			for(i32 i = 0; i < Materials->ArraySize; i++) {
+			for(u32 i = 0; i < Materials->ArraySize; i++) {
 				WObj_Material *mat = Array_Get(Materials, i);
 				if(strcmp(mat->Name, MaterialName) == 0) {
 					FoundMaterial = mat;
@@ -306,6 +305,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				while(Vertex[++j] && Vertex[j] != '/')
 					;
 				if(q + 1 != j) {
+					q++;
 					FV.HasUV = 1;
 					FV.UVId = String_ToI32_N(Vertex + q, j - q) - 1;
 				}
@@ -328,7 +328,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		} else if(strncmp(Command, "s", 1) == 0) {
 			char word[64] = {0};
 			READ_NEXT_WORD(word);
-			SmoothingEnabled = (strncmp(word, "on", 2) == 0);
+			// SmoothingEnabled = (strncmp(word, "on", 2) == 0);
 		} else {
 			// TODO: Better error reporting.
 			fprintf(stderr, "WObj ERROR: unknown command %s", Command);
@@ -346,20 +346,20 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 	Array *FinalObjects = Array_Init(sizeof(WObj_Object));
 
-	for(i32 i = 0; i < Objects->ArraySize; i++) {
+	for(u32 i = 0; i < Objects->ArraySize; i++) {
 		struct Object *obj = Array_Get(Objects, i);
 		u32 NextIndex = 0;
 
-		for(i32 i = 0; i < obj->Faces->ArraySize; i++) {
+		for(u32 i = 0; i < obj->Faces->ArraySize; i++) {
 			Array *FVs =
 			    ((struct Face *) Array_Get(obj->Faces, i))->FaceVertices;
 
-			for(i32 j = 0; j < FVs->ArraySize; j++) {
+			for(u32 j = 0; j < FVs->ArraySize; j++) {
 				struct FaceVertex *v = Array_Get(FVs, j);
 
 				i32 FoundVertexId = -1;
 				// Check to see if this vertex exists.
-				for(i32 q = 0; q < j; q++) {
+				for(u32 q = 0; q < j; q++) {
 					struct FaceVertex *v2 = Array_Get(FVs, q);
 					if(v->PosId == v2->PosId) {
 						FoundVertexId = q;
@@ -403,18 +403,16 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		Array_Clear(Indices);
 	}
 
-
-	// TODO: The Array->Data member could probably just be stolen without
-	//       having to allocate new memory, copy to it, then free the old
-	//       memory. However, it would need to be resized so it doesn't take any
-	//       unnecessary space.
 	res->NumObjects = Objects->ArraySize;
 	res->NumMaterials = Materials->ArraySize;
-	res->Materials = malloc(sizeof(WObj_Material) * res->NumMaterials);
-	res->Objects = malloc(sizeof(WObj_Object) * res->NumObjects);
-	Array_CopyData(res->Objects, FinalObjects);
-	Array_CopyData(res->Materials, Materials);
+	res->Materials = Materials->Data;
+	res->Objects = FinalObjects->Data;
+
+	Materials->Data = NULL;
 	Array_Free(Materials);
+
+	FinalObjects->Data = NULL;
+	Array_Free(FinalObjects);
 
 	Array_Free(Vertices);
 	Array_Free(Indices);
@@ -422,12 +420,12 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	Array_Free(UVs);
 	Array_Free(Normals);
 
-	for(i32 i = 0; i < Objects->ArraySize; i++) {
+	for(u32 i = 0; i < Objects->ArraySize; i++) {
 		struct Object *o = Array_Get(Objects, i);
 		Object_Free(o);
 	}
 	Array_Free(Objects);
-	Array_Free(FinalObjects);
+
 
 	return res;
 }

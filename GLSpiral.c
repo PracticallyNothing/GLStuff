@@ -6,53 +6,10 @@
 
 #include "Common.h"
 #include "Math3D.h"
+#include "Render.h"
 #include "Shader.h"
 #include "WavefrontOBJ.h"
 #include "stb_image.h"
-
-typedef struct Transform2D Transform2D;
-typedef struct Transform3D Transform3D;
-typedef struct Camera Camera;
-
-struct Transform2D {
-	Vec2 Position;
-	r32 Rotation;
-	Vec2 Scale;
-	Transform2D *Parent;
-};
-
-struct Transform3D {
-	Vec3 Position;
-	Quat Rotation;
-	Vec3 Scale;
-	Transform3D *Parent;
-};
-
-enum CameraMode {
-	CameraMode_Orthographic,
-	CameraMode_Perspective,
-
-	CameraMode_NumModes,
-};
-
-const char *CameraMode_EnumNames[] = {"CameraMode_Ortho", "CameraMode_Persp",
-                                      "CameraMode_NumModes"};
-struct Camera {
-	// Generic properties
-	Vec3 Position;
-	Vec3 Target;
-	Vec3 Up;
-	r32 ZNear, ZFar;
-
-	enum CameraMode Mode;
-
-	// Orthographic specific:
-	i32 ScreenWidth;
-	i32 ScreenHeight;
-	// Perspective specific:
-	r32 VerticalFoV;
-	r32 AspectRatio;
-};
 
 typedef struct GPUModel {
 	GLuint VAO;
@@ -61,15 +18,6 @@ typedef struct GPUModel {
 	u32 NumVertices;
 	u32 NumIndices;
 } GPUModel;
-
-const u32 g_Width = 1280, g_Height = 720;
-
-r32 g_Positions[][2] = {
-    {-200, 200},
-    {200, 200},
-    {-200, -200},
-    {200, -200},
-};
 
 r32 g_ScreenQuad[][4] = {
     {-1, 1, 0, 1},
@@ -92,30 +40,29 @@ Vec3 g_CubePos[] = {
 i32 g_CubeInds[] = {0, 2, 1, 3, 0, 1, 7, 4, 3, 4, 0, 3, 1, 2, 5, 2, 6, 5,
                     7, 5, 6, 7, 6, 4, 3, 1, 7, 1, 5, 7, 0, 6, 2, 0, 4, 6};
 
-void GL_InitAttribs(void);
-
 GLuint Texture_FromFile(const char *filename);
-void Transform2D_Mat3(Transform2D t, Mat3 out);
-void Transform3D_Mat4(Transform3D t, Mat4 out);
 void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj);
 void RenderLines(Vec3 *linePoints, i32 numLines);
 void RenderLineCircle(r32 radius);
 
 void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj);
 
+GLuint WireframeCube_VAO = 0;
+GLuint WireframeCube_Pos;
+GLuint WireframeCube_Inds;
+
 i32 main(void) {
+	RSys_Init(1280, 720);
+	// R3D_Init();
+
 	WObj_Library *Lib = WObj_FromFile("tree.obj");
 
 	const i32 N = 2;
 	u32 StartupTime;
 
-	SDL_Window *Window;
-	SDL_GLContext GLContext;
-
-	Shader *s, *s2;
-
 	Mat4 PerspMat, ViewMat, ModelMat;
 	Transform3D Transform;
+
 	Camera Camera;
 	Camera.Position = V3(0, 0, -1);
 	Camera.Up = V3(0, 1, 0);
@@ -127,118 +74,13 @@ i32 main(void) {
 
 	StartupTime = SDL_GetTicks();
 
-	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
-		printf("SDL_Init() failed: %s\n", SDL_GetError());
-		exit(EXIT_FAILURE);
-	}
-
-	PC_PrintVideoDriverInfo();
-
-	GL_InitAttribs();
-
-	Window = SDL_CreateWindow("GL Spiral", 0, 0, g_Width, g_Height,
-	                          SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-
-	if(!Window) {
-		printf("SDL_CreateWindow() failed: %s\n", SDL_GetError());
-		exit(EXIT_FAILURE);
-	}
-
-	GLContext = SDL_GL_CreateContext(Window);
-	if(!GLContext) {
-		printf("SDL_GL_CreateContext() failed: %s\n", SDL_GetError());
-		exit(EXIT_FAILURE);
-	}
-
-	// TODO: Error checking.
-	gladLoadGL();
-
-	glClearColor(0, 0, 0, 1);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glEnable(GL_MULTISAMPLE);
-
-	s = Shader_FromFiles("vert.glsl", "frag.glsl");
-	s2 = Shader_FromFiles("FullLighting.vert", "FullLighting.frag");
+	Shader *s = Shader_FromFiles("vert.glsl", "frag.glsl");
+	Shader *s2 = Shader_FromFiles("FullLighting.vert", "FullLighting.frag");
 
 	Transform = (Transform3D){.Position = {0, 0, -50},
 	                          .Rotation = Quat_Identity,
 	                          .Scale = {1, 1, 1},
 	                          .Parent = NULL};
-
-	GLuint Framebuf;
-	glGenFramebuffers(1, &Framebuf);
-
-#if 0
-    GLuint Renderbuf_Color, Renderbuf_Depth;
-    glGenRenderbuffers(1, &Renderbuf_Color);
-    glGenRenderbuffers(1, &Renderbuf_Depth);
-
-    // Color attachment
-    glBindRenderbuffer(GL_RENDERBUFFER, Renderbuf_Color);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, g_Width, g_Height);
-
-    // Depth attachment
-    glBindRenderbuffer(GL_RENDERBUFFER, Renderbuf_Depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, g_Width,
-			  g_Height);
-
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-    // Framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, Framebuf);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-			      GL_RENDERBUFFER, Renderbuf_Color);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-			      GL_RENDERBUFFER, Renderbuf_Depth);
-#else
-	GLuint Texture_Color, Texture_Depth;
-
-	glGenTextures(1, &Texture_Color);
-	glBindTexture(GL_TEXTURE_2D, Texture_Color);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_Width, g_Height, 0, GL_RGBA,
-	             GL_UNSIGNED_BYTE, NULL);
-
-	glGenTextures(1, &Texture_Depth);
-	glBindTexture(GL_TEXTURE_2D, Texture_Depth);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, g_Width, g_Height, 0,
-	             GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, Framebuf);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-	                       Texture_Color, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-	                       Texture_Depth, 0);
-#endif
-
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		printf("Framebuffer not complete.\n");
-	}
-
-	//--------------------------------//
-
-#if 0
-	// TODO: Make this process prettier.
-	GLuint VAO, VBO_Pos;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-	glGenBuffers(1, &VBO_Pos);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO_Pos);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_Positions), g_Positions,
-	             GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-#endif
 
 	// Create screen quad
 	GLuint VAO_ScreenQuad, VBO_ScreenQuad;
@@ -277,8 +119,6 @@ i32 main(void) {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
-	GLuint TestBMP = Texture_FromFile("test1.bmp");
-
 	SDL_Event e;
 	u32 Ticks = 0;
 	u64 RenderTime = 0;
@@ -302,48 +142,10 @@ i32 main(void) {
 
 			switch(e.type) {
 				case SDL_QUIT: goto end;
-				case SDL_MOUSEWHEEL: {
+				case SDL_MOUSEWHEEL:
 					Camera.VerticalFoV =
 					    Clamp_R32(Camera.VerticalFoV - e.wheel.y * 0.05f,
 					              0.05f * Pi, 0.95f * Pi);
-				} break;
-				case SDL_KEYDOWN:
-					switch(e.key.keysym.sym) {
-						case SDLK_w:
-							Camera.Position = Vec3_Add(
-							    Camera.Position,
-							    Vec3_MultScal(CameraDirection, CameraSpeed));
-							break;
-						case SDLK_s:
-							Camera.Position = Vec3_Add(
-							    Camera.Position,
-							    Vec3_MultScal(CameraDirection, -CameraSpeed));
-							break;
-						case SDLK_a:
-							Camera.Position = Vec3_Add(
-							    Camera.Position,
-							    Vec3_MultScal(CameraRight, -CameraSpeed));
-							break;
-						case SDLK_d:
-							Camera.Position = Vec3_Add(
-							    Camera.Position,
-							    Vec3_MultScal(CameraRight, CameraSpeed));
-							break;
-						case SDLK_5:
-							Camera.Mode =
-							    (Camera.Mode + 1) % CameraMode_NumModes;
-							printf(
-							    "Camera mode change: %d (%s)\n", Camera.Mode,
-							    (Camera.Mode == CameraMode_Orthographic
-							         ? "CameraMode_Ortho"
-							         : (Camera.Mode == CameraMode_Perspective
-							                ? "CameraMode_Persp"
-							                : (Camera.Mode ==
-							                           CameraMode_NumModes
-							                       ? "CameraMode_NumModes"
-							                       : "Unknown camera mode"))));
-							break;
-					}
 					break;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
@@ -363,11 +165,6 @@ i32 main(void) {
 						case SDL_WINDOWEVENT_RESIZED: {
 							i32 w = e.window.data1, h = e.window.data2;
 							glViewport(0, 0, w, h);
-							// printf("Viewport change to %dx%d\n", w, h);
-							// Mat4_OrthoProj(PerspMat, 0, w, 0, h, 0.01,
-							// 1000.0);
-							//
-							// Shader_UniformMat4(s, "persp", PerspMat);
 							break;
 						}
 					}
@@ -381,30 +178,20 @@ i32 main(void) {
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			SDL_GetWindowSize(Window, &Camera.ScreenWidth,
-			                  &Camera.ScreenHeight);
-			Camera.AspectRatio = 16.0 / 9;
+			{
+				RSys_Size sz = RSys_GetSize();
+				Camera.ScreenWidth = sz.Width;
+				Camera.ScreenHeight = sz.Height;
+				Camera.AspectRatio = sz.AspectRatio;
+			}
 
 			// --- Draw everything --- //
 
 			Transform.Position.z = 0;
-			// Transform.Rotation = Quat_RotAxis(V3(1, 1, 1), time);
-			// Transform.Scale = V3(0.5, 0.5, 0.5);
 
-			Camera.Position.x = 15 * sinf(time);
-			Camera.Position.y = 15 * sinf(time);
-			Camera.Position.z = 15 * cosf(time);
-			// Camera.Position.y = 5;
-			// Camera.Position.z = -15;
-
-			// Camera.Target = tr.Position;
-			// Camera.Target = V3(0, 0, 0);
-			// Camera.Target = Vec3_Add(Camera.Position, V3(0, 0, 1));
-
-			// Camera.Up = V3(0, 1, 0);
-
+			Vec3 newPos = V3(15 * sinf(time), 15 * sinf(time), 15 * cosf(time));
+			Camera.Position = V3(0, 0, -15);
 			Camera_Mat4(Camera, ViewMat, PerspMat);
-			// Transform3D_Mat4(Transform, ModelMat);
 
 			Shader_Use(s2);
 			Shader_UniformMat4(s2, "persp", PerspMat);
@@ -412,29 +199,16 @@ i32 main(void) {
 			Mat4_Identity(ModelMat);
 			Shader_UniformMat4(s2, "model", ModelMat);
 
-			// Vec3 line[] =
-			// {V3(0, -5, 0), Vec3_Add(Camera.Position, V3(0, -5, 0))};
-			// RenderLines(line, 1);
-			// RenderLineCircle(15);
-
-			// Shader_Uniform1i(s2, "sun_enabled", 0);
-			// Shader_Uniform3f(s2, "sun.Ambient", HexToRGB("FDB813"));
-			// Shader_Uniform3f(s2, "sun.Diffuse", HexToRGB("FD8813"));
-			// Shader_Uniform3f(s2, "sun.Specular", V3(1, 1, 1));
-			// Shader_Uniform3f(s2, "sun.Direction", Vec3_Norm(V3(0, -1, 1)));
-			// Shader_Uniform3f(s2, "viewPos", Camera.Position);
-
 			Shader_Uniform1f(s2, "mat_specularExponent", 512);
 
 			Shader_Uniform1i(s2, "pointLights_numEnabled", 1);
-			Shader_Uniform3f(s2, "pointLights[0].Position", V3(0, 0, 0));
+			Shader_Uniform3f(s2, "pointLights[0].Position", newPos);
 			Shader_Uniform3f(s2, "pointLights[0].Ambient", V3(1, 1, 1));
 			Shader_Uniform3f(s2, "pointLights[0].Diffuse", V3(1, 1, 1));
 			Shader_Uniform3f(s2, "pointLights[0].Specular", V3(1, 1, 1));
 			Shader_Uniform1f(s2, "pointLights[0].ConstantAttenuation", 1);
 			Shader_Uniform1f(s2, "pointLights[0].LinearAttenuation", 0.35);
 			Shader_Uniform1f(s2, "pointLights[0].QuadraticAttenuation", 0.44);
-
 
 			for(int z = -(N / 2); z <= N / 2; z++) {
 				Transform.Position.z = z * 10.0;
@@ -453,18 +227,30 @@ i32 main(void) {
 						Mat4_RotateQuat(Model_RotationMat, Transform.Rotation);
 						Shader_UniformMat4(s2, "model_rot", Model_RotationMat);
 
-						Shader_Uniform3f(s2, "mat_ambient", V3(0, 1, 0));
-						Shader_Uniform3f(s2, "mat_diffuse", V3(1, 0, 0));
-						Shader_Uniform3f(s2, "mat_specular", V3(1, 1, 1));
+						Shader_Uniform3f(
+						    s2, "mat_ambient",
+						    Lib->Objects[0].Material->AmbientColor);
+						Shader_Uniform3f(
+						    s2, "mat_diffuse",
+						    Lib->Objects[0].Material->DiffuseColor);
+						Shader_Uniform3f(
+						    s2, "mat_specular",
+						    Lib->Objects[0].Material->SpecularColor);
 						glBindVertexArray(treeTrunk.VAO);
 						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
 						             treeTrunk.ElementBuffer);
 						glDrawElements(GL_TRIANGLES, treeTrunk.NumIndices,
 						               GL_UNSIGNED_INT, NULL);
 
-						Shader_Uniform3f(s2, "mat_ambient", V3(0, 1, 0));
-						Shader_Uniform3f(s2, "mat_diffuse", V3(0, 1, 0));
-						Shader_Uniform3f(s2, "mat_specular", V3(1, 1, 1));
+						Shader_Uniform3f(
+						    s2, "mat_ambient",
+						    Lib->Objects[1].Material->AmbientColor);
+						Shader_Uniform3f(
+						    s2, "mat_diffuse",
+						    Lib->Objects[1].Material->DiffuseColor);
+						Shader_Uniform3f(
+						    s2, "mat_specular",
+						    Lib->Objects[1].Material->SpecularColor);
 						glBindVertexArray(treeLeaves.VAO);
 						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
 						             treeLeaves.ElementBuffer);
@@ -488,7 +274,7 @@ i32 main(void) {
 			//	glBindVertexArray(VAO_ScreenQuad);
 			//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-			SDL_GL_SwapWindow(Window);
+			SDL_GL_SwapWindow(RSys_State.Window);
 
 			RenderTime = SDL_GetPerformanceCounter() - RenderTime;
 			LastFrameRenderTime = Ticks;
@@ -512,26 +298,7 @@ end:
 	// glDeleteVertexArrays(1, &VAO);
 	Shader_Free(s);
 	Shader_Free(s2);
-	SDL_GL_DeleteContext(GLContext);
-	SDL_DestroyWindow(Window);
-	SDL_Quit();
-}
-
-void GL_InitAttribs(void) {
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
-	                    SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+	RSys_Quit();
 }
 
 
@@ -568,63 +335,6 @@ GLuint Texture_FromFile(const char *filename) {
 
 	stbi_image_free(Data);
 	return Texture;
-}
-
-void Transform2D_Mat3(Transform2D t, Mat3 out) {
-	Mat3 translate, rotate, scale, parent;
-
-	Mat3_Identity(translate);
-	Mat3_Identity(rotate);
-	Mat3_Identity(scale);
-	Mat3_Identity(parent);
-
-	// Translation
-	translate[2] = t.Position.x;
-	translate[5] = t.Position.y;
-
-	// Rotation
-	rotate[0] = cosf(t.Rotation);
-	rotate[1] = -sinf(t.Rotation);
-	rotate[3] = sinf(t.Rotation);
-	rotate[4] = cosf(t.Rotation);
-
-	// Scale
-	scale[0] = t.Scale.x;
-	scale[4] = t.Scale.y;
-
-	// Parent
-	if(t.Parent && t.Parent != &t) Transform2D_Mat3(*t.Parent, parent);
-
-	Mat3_MultMat(rotate, scale);
-	Mat3_MultMat(translate, rotate);
-	Mat3_MultMat(parent, translate);
-	Mat3_Copy(out, parent);
-}
-
-void Transform3D_Mat4(Transform3D t, Mat4 out) {
-	Mat4 translate, rotate, scale, parent;
-
-	Mat4_Identity(translate);
-	Mat4_Identity(rotate);
-	Mat4_Identity(scale);
-	Mat4_Identity(parent);
-
-	// Translation
-	Mat4_Translate(translate, t.Position);
-
-	// Rotation
-	Mat4_RotateQuat(rotate, t.Rotation);
-
-	// Scale
-	Mat4_Scale(scale, t.Scale);
-
-	// Parent matrix
-	if(t.Parent && t.Parent != &t) Transform3D_Mat4(*t.Parent, parent);
-
-	Mat4_MultMat(rotate, scale);
-	Mat4_MultMat(translate, rotate);
-	Mat4_MultMat(parent, translate);
-	Mat4_Copy(out, parent);
 }
 
 // Thank you,

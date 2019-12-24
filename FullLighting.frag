@@ -123,8 +123,8 @@ void main() {
 		float diffuseStr = max(dot(-lDir, fNorm), 0);
 		float specularStr = 0.5 * CalcSpecular(lDir);
 
-		ambient += l.Ambient * mat_ambient * ambientStr * atten;
-		diffuse += l.Diffuse * mat_diffuse * diffuseStr * atten;
+		ambient  += l.Ambient  * mat_ambient  * ambientStr  * atten;
+		diffuse  += l.Diffuse  * mat_diffuse  * diffuseStr  * atten;
 		specular += l.Specular * mat_specular * specularStr * atten;
 	}
 
