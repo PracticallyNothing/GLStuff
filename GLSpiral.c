@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "Common.h"
+#include "Editor.h"
 #include "Math3D.h"
 #include "Render.h"
 #include "Shader.h"
@@ -121,41 +122,23 @@ i32 main(void) {
 
 	SDL_Event e;
 	u32 Ticks = 0;
-	u64 RenderTime = 0;
-	u32 LastPrintTime = 0, LastFrameRenderTime = 0;
-	r32 time = 0;
-	i32 StopTime = 0;
 
 	printf("Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
+	Editor_Init();
+
 	while(1) {
-		u32 DrawCalls = 0;
 		Ticks = SDL_GetTicks();
 
 		while(SDL_PollEvent(&e)) {
-			Vec3 CameraDirection =
-			    Vec3_Norm(Vec3_Sub(Camera.Target, Camera.Position));
-			Vec3 CameraRight =
-			    Vec3_Norm(Vec3_Cross(Camera.Up, CameraDirection));
-			const r32 CameraSpeed = 5.f;
-
 			switch(e.type) {
 				case SDL_QUIT: goto end;
-				case SDL_MOUSEWHEEL:
-					Camera.VerticalFoV =
-					    Clamp_R32(Camera.VerticalFoV - e.wheel.y * 0.05f,
-					              0.05f * Pi, 0.95f * Pi);
-					break;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
 						case SDLK_ESCAPE:
 						case SDLK_q: goto end;
-						case SDLK_SPACE:
-							StopTime = !StopTime;
-							printf("Time %s!\n",
-							       (StopTime ? "stopped" : "unstopped"));
-							break;
+						default: Editor_HandleInput(&e); break;
 					}
 					break;
 				case SDL_WINDOWEVENT:
@@ -169,128 +152,20 @@ i32 main(void) {
 						}
 					}
 					break;
+				default: Editor_HandleInput(&e); break;
 			}
 		}
 
 		// Render frame to back buffer.
-		if(Ticks - LastFrameRenderTime > 16) {
-			RenderTime = SDL_GetPerformanceCounter();
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		if(Ticks - RSys_State.LastFrameTime > 16) {
+			// Editor rendering
+			Editor_Render();
 
-			{
-				RSys_Size sz = RSys_GetSize();
-				Camera.ScreenWidth = sz.Width;
-				Camera.ScreenHeight = sz.Height;
-				Camera.AspectRatio = sz.AspectRatio;
-			}
-
-			// --- Draw everything --- //
-
-			Transform.Position.z = 0;
-
-			Vec3 newPos = V3(15 * sinf(time), 15 * sinf(time), 15 * cosf(time));
-			Camera.Position = V3(0, 0, -15);
-			Camera_Mat4(Camera, ViewMat, PerspMat);
-
-			Shader_Use(s2);
-			Shader_UniformMat4(s2, "persp", PerspMat);
-			Shader_UniformMat4(s2, "view", ViewMat);
-			Mat4_Identity(ModelMat);
-			Shader_UniformMat4(s2, "model", ModelMat);
-
-			Shader_Uniform1f(s2, "mat_specularExponent", 512);
-
-			Shader_Uniform1i(s2, "pointLights_numEnabled", 1);
-			Shader_Uniform3f(s2, "pointLights[0].Position", newPos);
-			Shader_Uniform3f(s2, "pointLights[0].Ambient", V3(1, 1, 1));
-			Shader_Uniform3f(s2, "pointLights[0].Diffuse", V3(1, 1, 1));
-			Shader_Uniform3f(s2, "pointLights[0].Specular", V3(1, 1, 1));
-			Shader_Uniform1f(s2, "pointLights[0].ConstantAttenuation", 1);
-			Shader_Uniform1f(s2, "pointLights[0].LinearAttenuation", 0.35);
-			Shader_Uniform1f(s2, "pointLights[0].QuadraticAttenuation", 0.44);
-
-			for(int z = -(N / 2); z <= N / 2; z++) {
-				Transform.Position.z = z * 10.0;
-
-				for(int y = -(N / 2); y <= N / 2; y++) {
-					Transform.Position.y = y * 10.0;
-
-					for(int x = -(N / 2); x <= N / 2; x++) {
-						Transform.Position.x = x * 10.0;
-						Transform.Rotation =
-						    Quat_RotAxis(V3(1, 1, 1), x * y * z * time);
-						Transform3D_Mat4(Transform, ModelMat);
-						Shader_UniformMat4(s2, "model", ModelMat);
-
-						Mat4 Model_RotationMat = {0};
-						Mat4_RotateQuat(Model_RotationMat, Transform.Rotation);
-						Shader_UniformMat4(s2, "model_rot", Model_RotationMat);
-
-						Shader_Uniform3f(
-						    s2, "mat_ambient",
-						    Lib->Objects[0].Material->AmbientColor);
-						Shader_Uniform3f(
-						    s2, "mat_diffuse",
-						    Lib->Objects[0].Material->DiffuseColor);
-						Shader_Uniform3f(
-						    s2, "mat_specular",
-						    Lib->Objects[0].Material->SpecularColor);
-						glBindVertexArray(treeTrunk.VAO);
-						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-						             treeTrunk.ElementBuffer);
-						glDrawElements(GL_TRIANGLES, treeTrunk.NumIndices,
-						               GL_UNSIGNED_INT, NULL);
-
-						Shader_Uniform3f(
-						    s2, "mat_ambient",
-						    Lib->Objects[1].Material->AmbientColor);
-						Shader_Uniform3f(
-						    s2, "mat_diffuse",
-						    Lib->Objects[1].Material->DiffuseColor);
-						Shader_Uniform3f(
-						    s2, "mat_specular",
-						    Lib->Objects[1].Material->SpecularColor);
-						glBindVertexArray(treeLeaves.VAO);
-						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-						             treeLeaves.ElementBuffer);
-						glDrawElements(GL_TRIANGLES, treeLeaves.NumIndices,
-						               GL_UNSIGNED_INT, NULL);
-
-						DrawCalls++;
-					}
-				}
-			}
-
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-			// --- Render to screen quad --- //
-
-			//	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			//	Shader_Use(s);
-			//	Shader_Uniform1i(s, "fbo_color", 0);
-			//	glActiveTexture(GL_TEXTURE0);
-			//	glBindTexture(GL_TEXTURE_2D, Texture_Color);
-			//	glBindVertexArray(VAO_ScreenQuad);
-			//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-			SDL_GL_SwapWindow(RSys_State.Window);
-
-			RenderTime = SDL_GetPerformanceCounter() - RenderTime;
-			LastFrameRenderTime = Ticks;
-			if(!StopTime) time += 0.01;
+			// Display the work onto the screen.
+			RSys_FinishFrame();
 		}
 
 		Ticks = SDL_GetTicks();
-
-		// Print render time.
-		if(Ticks - LastPrintTime > 500) {
-			printf("[%10d] Render time: %f ms (%5d draw calls)\n",
-			       SDL_GetTicks(),
-			       (r64)(1000 * RenderTime) / SDL_GetPerformanceFrequency(),
-			       DrawCalls);
-			LastPrintTime = Ticks;
-		}
 	}
 
 end:
