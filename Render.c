@@ -1,4 +1,5 @@
 #include "Render.h"
+#include <stdlib.h>
 
 struct RSys_State_t RSys_State;
 

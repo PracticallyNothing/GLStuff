@@ -156,7 +156,7 @@ void HashMap_FreePerElement(HashMap *hm, FreeElem_Func func);
 // --- Array --- //
 
 typedef struct Array {
-	void *Data;
+	u8 *Data;
 	u32 ItemSize;
 	u32 ArraySize;
 	u32 ArrayCapacity;
@@ -164,13 +164,13 @@ typedef struct Array {
 
 Array *Array_Init(u32 itemSize);
 Array *Array_Prealloc(u32 itemSize, u32 capacity);
-void Array_Push(Array *, const void *);
+void Array_Push(Array *, const u8*);
 void Array_Pop(Array *);
 void Array_Copy(Array *out, const Array *src);
-void Array_CopyData(void *out, const Array *src);
-void *Array_Get(const Array *, i32 idx);
-void *Array_GetFirst(const Array *arr);
-void *Array_GetLast(const Array *arr);
+void Array_CopyData(u8 *out, const Array *src);
+u8 *Array_Get(const Array *, i32 idx);
+u8 *Array_GetFirst(const Array *arr);
+u8 *Array_GetLast(const Array *arr);
 void Array_Clear(Array *);
 void Array_Reverse(Array *);
 void Array_Free(Array *);
@@ -192,11 +192,11 @@ extern void PC_PrintVideoDriverInfo(void);
 //   -1 if first item is larger than second;
 //   1 if the second item is larger than the first;
 //   0 if both items are equal.
-typedef i32 (*Util_CompFunc)(const void *, const void *);
+typedef i32 (*Util_CompFunc)(const u8 *, const u8 *);
 
 extern void Util_Quicksort_i32(i32 *arr, u32 size);
 extern void Util_Quicksort_r32(r32 *arr, u32 size);
-extern void Util_Quicksort_func(void *arr, u32 itemSize, u32 arrSize,
+extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                                 Util_CompFunc compFunc);
 
 #endif

@@ -20,11 +20,11 @@ struct Editor_State_t {
 
 const i32 CameraTimeMs = 500;
 u32 LastMove = 0;
-Vec2 TargetAtMoveStart = V2(0, 0);
+Vec2 TargetAtMoveStart = V2C(0,0);
 
 bool32 InsideCameraDrag = 0;
-Vec2 InitialDragMousePos = V2(0, 0);
-Vec2 InitialYawPitch = V2(0, 0);
+Vec2 InitialDragMousePos = V2C(0, 0);
+Vec2 InitialYawPitch = V2C(0, 0);
 SDL_Cursor *Cursor_Normal, *Cursor_Rotate;
 
 static const char *Editor_WireSrc[2] = {
@@ -79,7 +79,7 @@ static const char *Editor_TerrainSrc[2] = {
 
 static TerrainPiece *Editor_TerrainUnderCursor() {
 	for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-		TerrainPiece *piece = Array_Get(Editor_State.Terrain, i);
+		TerrainPiece *piece = (TerrainPiece*) Array_Get(Editor_State.Terrain, i);
 
 		if(piece->Position.x == Editor_State.CursorPosition.x &&
 		   piece->Position.y == Editor_State.CursorPosition.y) {
@@ -177,7 +177,7 @@ void Editor_Init() {
 	Editor_State.Terrain = Array_Init(sizeof(TerrainPiece));
 	{
 		TerrainPiece Default = {.Position = V2(0, 0)};
-		Array_Push(Editor_State.Terrain, &Default);
+		Array_Push(Editor_State.Terrain, (u8*) &Default);
 	}
 
 	Cursor_Normal = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -221,7 +221,7 @@ void Editor_HandleInput(SDL_Event *e) {
 						TerrainPiece newPiece;
 						newPiece.Position = Editor_State.CursorPosition;
 						newPiece.Disabled = 0;
-						Array_Push(Editor_State.Terrain, &newPiece);
+						Array_Push(Editor_State.Terrain, (u8*) &newPiece);
 						printf("Placed terrain at x: %.2f, y: %.2f\n",
 						       newPiece.Position.x, newPiece.Position.y);
 					} else {
@@ -238,7 +238,7 @@ void Editor_HandleInput(SDL_Event *e) {
 			    Editor_State.Camera.Radius - e->wheel.y * 0.25f, 1, 10);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			if(e->button.button == SDL_BUTTON_MIDDLE) {
+			if(e->button.button == SDL_BUTTON_RIGHT) {
 				// Begin camera drag if it hasn't been started yet.
 				if(!InsideCameraDrag) {
 					SDL_SetCursor(Cursor_Rotate);
@@ -264,7 +264,7 @@ void Editor_HandleInput(SDL_Event *e) {
 			}
 		} break;
 		case SDL_MOUSEBUTTONUP:
-			if(e->button.button == SDL_BUTTON_MIDDLE) {
+			if(e->button.button == SDL_BUTTON_RIGHT) {
 				SDL_SetCursor(Cursor_Normal);
 				InsideCameraDrag = 0;
 			}
@@ -332,7 +332,7 @@ void Editor_Render() {
 		Shader_Use(Editor_State.TerrainShader);
 
 		for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-			TerrainPiece *piece = Array_Get(Editor_State.Terrain, i);
+			TerrainPiece *piece = (TerrainPiece*) Array_Get(Editor_State.Terrain, i);
 			if(piece->Disabled) continue;
 
 			Transform.Position =

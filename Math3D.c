@@ -402,7 +402,7 @@ void Mat4_RotateQuat(Mat4 out, Quat q) {
 
 // --- Quaternion operations --- //
 
-const Quat Quat_Identity = (Quat){0, 0, 0, 1};
+const Quat Quat_Identity = {.x = 0, .y = 0, .z = 0, .w = 1};
 
 Quat Quat_RotAxis(Vec3 axis, r32 angle) {
 	axis = Vec3_Norm(axis);

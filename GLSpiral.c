@@ -51,11 +51,11 @@ GLuint WireframeCube_VAO = 0;
 GLuint WireframeCube_Pos;
 GLuint WireframeCube_Inds;
 
-i32 main(void) {
+int main(int argc, char* argv[]) {
 	RSys_Init(1280, 720);
 	// R3D_Init();
 
-	WObj_Library *Lib = WObj_FromFile("tree.obj");
+	//WObj_Library *Lib = WObj_FromFile("tree.obj");
 
 	const i32 N = 2;
 	u32 StartupTime;
@@ -97,8 +97,8 @@ i32 main(void) {
 	                      (void *) (2 * sizeof(r32)));
 
 	GPUModel treeTrunk, treeLeaves;
-	WObj_ToGPUModel(&treeTrunk, &Lib->Objects[0]);
-	WObj_ToGPUModel(&treeLeaves, &Lib->Objects[1]);
+	//WObj_ToGPUModel(&treeTrunk, &Lib->Objects[0]);
+	//WObj_ToGPUModel(&treeLeaves, &Lib->Objects[1]);
 
 	// Create 3D cube
 	GLuint Cube_VAO, Cube_Pos, Cube_Inds;
@@ -266,9 +266,9 @@ void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj) {
 
 	for(i32 i = 0; i < obj->NumVertices; i++) {
 		WObj_Vertex *vtx = &obj->Vertices[i];
-		Array_Push(Positions, &vtx->Position);
-		Array_Push(UVs, &vtx->UV);
-		Array_Push(Normals, &vtx->Normal);
+		Array_Push(Positions, (u8*) &vtx->Position);
+		Array_Push(UVs, (u8*) &vtx->UV);
+		Array_Push(Normals, (u8*) &vtx->Normal);
 	}
 
 	glEnableVertexAttribArray(0);
