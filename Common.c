@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 const r64 Tau = 6.28318530717958647692;
 const r64 Pi = 3.14159265358979323846;
@@ -126,7 +127,7 @@ Array *Array_Prealloc(u32 itemSize, u32 capacity) {
 
 const r32 Array_GrowthFactor = 2;
 
-void Array_Push(Array *a, const void *item) {
+void Array_Push(Array *a, const u8 *item) {
 	if(a->ArraySize >= a->ArrayCapacity) {
 		a->ArrayCapacity *= Array_GrowthFactor;
 		a->Data = realloc(a->Data, a->ItemSize * a->ArrayCapacity);
@@ -135,10 +136,10 @@ void Array_Push(Array *a, const void *item) {
 	a->ArraySize++;
 }
 
-void Array_CopyData(void *out, const Array *src) {
+void Array_CopyData(u8 *out, const Array *src) {
 	for(u32 i = 0; i < src->ArraySize; i++) {
-		void *to = out + i * src->ItemSize;
-		void *from = Array_Get(src, i);
+		u8 *to = out + i * src->ItemSize;
+		u8 *from = Array_Get(src, i);
 		memcpy(to, from, src->ItemSize);
 	}
 }
@@ -149,8 +150,8 @@ void Array_Copy(Array *out, const Array *src) {
 	out->ItemSize = src->ItemSize;
 
 	for(u32 i = 0; i < out->ArraySize; i++) {
-		void *to = out->Data + i * out->ItemSize;
-		void *from = src->Data + i * src->ItemSize;
+		u8 *to = out->Data + i * out->ItemSize;
+		u8 *from = src->Data + i * src->ItemSize;
 		memcpy(to, from, out->ItemSize);
 	}
 }
@@ -158,19 +159,19 @@ void Array_Copy(Array *out, const Array *src) {
 void Array_Clear(Array *a) { a->ArraySize = 0; }
 void Array_Reverse(Array *a) {
 	for(u32 i = 0; i < a->ArraySize / 2; i++) {
-		void *A = a->Data + i * a->ItemSize;
-		void *B = a->Data + (a->ArraySize - i) * a->ItemSize;
+		u8 *A = a->Data + i * a->ItemSize;
+		u8 *B = a->Data + (a->ArraySize - i) * a->ItemSize;
 		SWAP_U8_ARR(A, B, a->ItemSize);
 	}
 }
 
-void *Array_Get(const Array *a, i32 idx) {
+u8 *Array_Get(const Array *a, i32 idx) {
 	if(idx < 0 || idx >= a->ArraySize) return NULL;
 	return a->Data + idx * a->ItemSize;
 }
 
-void *Array_GetFirst(const Array *arr) { return Array_Get(arr, 0); }
-void *Array_GetLast(const Array *arr) {
+u8 *Array_GetFirst(const Array *arr) { return Array_Get(arr, 0); }
+u8 *Array_GetLast(const Array *arr) {
 	return Array_Get(arr, arr->ArraySize - 1);
 }
 
@@ -265,9 +266,9 @@ void Util_Quicksort_r32(r32 *arr, u32 size) {
 	Util_Quicksort_r32(arr + p + 1, size - p - 1);
 }
 
-u32 _QSort_Partition_func(void *A, u32 lo, u32 hi, u32 itemSize,
+u32 _QSort_Partition_func(u8 *A, u32 lo, u32 hi, u32 itemSize,
                           Util_CompFunc f) {
-	void *pivot = A + itemSize * (lo + (hi - lo) / 2);
+	u8 *pivot = A + itemSize * (lo + (hi - lo) / 2);
 	i32 i = lo - 1;
 	i32 j = hi + 1;
 
@@ -279,7 +280,7 @@ u32 _QSort_Partition_func(void *A, u32 lo, u32 hi, u32 itemSize,
 	}
 }
 
-void Util_Quicksort_func(void *arr, u32 itemSize, u32 arrSize,
+void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                          Util_CompFunc compFunc) {
 	if(arrSize < 2) return;
 

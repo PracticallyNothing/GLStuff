@@ -61,6 +61,10 @@ typedef Vec4 Quat;
 #define V3(x, y, z) ((Vec3){(x), (y), (z)})
 #define V4(x, y, z, w) ((Vec4){(x), (y), (z), (w)})
 
+#define V2C(X, Y)       {.x = (X), .y = (Y)}
+#define V3C(X, Y, Z)    {.x = (X), .y = (Y), .z = (Z)}
+#define V4C(X, Y, Z, W) {.x = (X), .y = (Y), .z = (Z), .w = (W)}
+
 #define V3_V2(v, z) ((Vec3){(v).x, (v).y, (z)})
 #define V4_V3(v, w) ((Vec4){(v).x, (v).y, (v).z, (w)})
 #define V4_V2(v, z, w) ((Vec4){(v).x, (v).y, (z), (w)})
