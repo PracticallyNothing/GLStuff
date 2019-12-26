@@ -4,6 +4,7 @@
 
 typedef struct TerrainPiece_t {
 	Vec2 Position;
+	bool32 Disabled;
 } TerrainPiece;
 
 struct Editor_State_t {
@@ -11,10 +12,23 @@ struct Editor_State_t {
 	Vec2 CursorPosition;
 
 	Camera Camera;
+	r32 CameraPitch;
+	r32 CameraYaw;
+	r32 CameraDistance;
+
 	Shader *WireShader, *TerrainShader;
 	GLuint CursorVAO, CursorInds;
 	GLuint TerrainVAO;
 } Editor_State;
+
+const i32 CameraTimeMs = 500;
+u32 LastMove = 0;
+Vec2 TargetAtMoveStart = V2(0, 0);
+
+bool32 InsideCameraDrag = 0;
+Vec2 InitialDragMousePos = V2(0, 0);
+Vec2 InitialYawPitch = V2(0, 0);
+SDL_Cursor *Cursor_Normal, *Cursor_Rotate;
 
 static const char *Editor_WireSrc[2] = {
     // Vertex shader
@@ -56,33 +70,51 @@ static const char *Editor_TerrainSrc[2] = {
     "in vec2 fUV;\n"
     "out vec4 fColor;\n"
     "void main() {\n"
-    "    float thickness = 0.05;\n"
+    "    float thickness = 0.2;\n"
     "    \n"
-    "    if((fUV.x > 1 + thickness/2 && fUV.y < 1 - thickness/2) ||\n"
-    "       (fUV.x < 1 - thickness/2 && fUV.y > 1 + thickness/2)) {\n"
+    "    if((fUV.x >  thickness/2 && fUV.y < -thickness/2) ||\n"
+    "       (fUV.x < -thickness/2 && fUV.y >  thickness/2)) {\n"
     "        fColor = vec4(0.3, 0.3, 0.3, 1);\n"
-    "    } else if((fUV.x > 1 + thickness/2 && fUV.y > 1 + thickness/2) ||\n"
-    "             (fUV.x < 1 - thickness/2 && fUV.y < 1 - thickness/2)) {\n"
+    "    } else if((fUV.x >  thickness/2 && fUV.y >  thickness/2) ||\n"
+    "              (fUV.x < -thickness/2 && fUV.y < -thickness/2)) {\n"
     "        fColor = vec4(0.5, 0.5, 0.5, 1);\n"
     "    } else {\n"
     "        fColor = vec4(0.4, 0.4, 0.4, 1);\n"
     "    }\n"
     "}"};
 
+static TerrainPiece *Editor_TerrainUnderCursor() {
+	for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
+		TerrainPiece *piece = Array_Get(Editor_State.Terrain, i);
+
+		if(piece->Position.x == Editor_State.CursorPosition.x &&
+		   piece->Position.y == Editor_State.CursorPosition.y) {
+			return piece;
+		}
+	}
+	return NULL;
+}
+
 void Editor_Init() {
+	// Generate shaders
 	Editor_State.WireShader =
 	    Shader_FromSrc(Editor_WireSrc[0], Editor_WireSrc[1]);
 
 	Editor_State.TerrainShader =
 	    Shader_FromSrc(Editor_TerrainSrc[0], Editor_TerrainSrc[1]);
 
+	// Reset cursor position
 	Editor_State.CursorPosition = V2(0, 0);
 
+	// Setup camera
 	Editor_State.Camera = (Camera){.Mode = CameraMode_Perspective,
 	                               .ZNear = 0.01,
-	                               .ZFar = 1000,
+	                               .ZFar = 1e10,
 	                               .VerticalFoV = Pi_Half + Pi_Quarter,
 	                               .Up = V3(0, 1, 0)};
+	Editor_State.CameraYaw = DegToRad(290);
+	Editor_State.CameraPitch = DegToRad(45);
+	Editor_State.CameraDistance = 2;
 
 	// Generate cursor.
 	{
@@ -90,9 +122,9 @@ void Editor_Init() {
 		glBindVertexArray(Editor_State.CursorVAO);
 
 		Vec3 CursorPos[8] = {
-		    {0.5, 0.2, 0.5},    {-0.5, 0.2, 0.5},  {-0.5, -0.2, 0.5},
-		    {0.5, -0.2, 0.5},   {0.5, 0.2, -0.5},  {-0.5, 0.2, -0.5},
-		    {-0.5, -0.2, -0.5}, {0.5, -0.2, -0.5},
+		    {0.54, 0.2, 0.54},    {-0.54, 0.2, 0.54},  {-0.54, -0.2, 0.54},
+		    {0.54, -0.2, 0.54},   {0.54, 0.2, -0.54},  {-0.54, 0.2, -0.54},
+		    {-0.54, -0.2, -0.54}, {0.54, -0.2, -0.54},
 		};
 
 		u8 CursorInds[18] = {0, 1, 2, 3, 0, 4, 5, 6, 7,
@@ -126,10 +158,10 @@ void Editor_Init() {
 		};
 
 		Vec2 TerrainUV[4] = {
-		    {0, 2},
-		    {0, 0},
-		    {2, 0},
-		    {2, 2},
+		    {-1, +1},
+		    {-1, -1},
+		    {+1, -1},
+		    {+1, +1},
 		};
 
 		GLuint TerrainVBOs[2];
@@ -153,47 +185,92 @@ void Editor_Init() {
 		TerrainPiece Default = {.Position = V2(0, 0)};
 		Array_Push(Editor_State.Terrain, &Default);
 	}
+
+	Cursor_Normal = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+	Cursor_Rotate = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
 }
 
+
+const r32 speed = 20;
 void Editor_HandleInput(SDL_Event *e) {
 	switch(e->type) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
-				case SDLK_LEFT: Editor_State.CursorPosition.x--; break;
-				case SDLK_RIGHT: Editor_State.CursorPosition.x++; break;
-				case SDLK_UP: Editor_State.CursorPosition.y++; break;
-				case SDLK_DOWN: Editor_State.CursorPosition.y--; break;
-			}
-			break;
-		case SDL_KEYUP:
-			switch(e->key.keysym.sym) {
+					// bool32 shift = e->key.keysym.mod & KMOD_LSHIFT;
+
+				case SDLK_LEFT:
+					Editor_State.CursorPosition.x -= speed;
+					goto SetLastMove;
+				case SDLK_RIGHT:
+					Editor_State.CursorPosition.x += speed;
+					goto SetLastMove;
+				case SDLK_UP:
+					Editor_State.CursorPosition.y += speed;
+					goto SetLastMove;
+				case SDLK_DOWN:
+					Editor_State.CursorPosition.y -= speed;
+					goto SetLastMove;
+
+				SetLastMove:
+					TargetAtMoveStart = V2(Editor_State.Camera.Target.x,
+					                       Editor_State.Camera.Target.z);
+					LastMove = SDL_GetTicks();
+					break;
+
 				case SDLK_SPACE: {
-					bool32 spaceOccupied = 0;
-
-					for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-						TerrainPiece *piece =
-						    Array_Get(Editor_State.Terrain, i);
-
-						if(piece->Position.x == Editor_State.CursorPosition.x &&
-						   piece->Position.y == Editor_State.CursorPosition.y) {
-							spaceOccupied = 1;
-							break;
-						}
-					}
-					if(!spaceOccupied) {
+					TerrainPiece *underCursor = Editor_TerrainUnderCursor();
+					if(!underCursor) {
 						TerrainPiece newPiece;
 						newPiece.Position = Editor_State.CursorPosition;
+						newPiece.Disabled = 0;
 						Array_Push(Editor_State.Terrain, &newPiece);
 						printf("Placed terrain at x: %.2f, y: %.2f\n",
 						       newPiece.Position.x, newPiece.Position.y);
+					} else {
+						underCursor->Disabled = !underCursor->Disabled;
+						printf("Toggled terrain at x: %.2f, y: %.2f\n",
+						       Editor_State.CursorPosition.x,
+						       Editor_State.CursorPosition.y);
 					}
 				} break;
 			}
 			break;
 		case SDL_MOUSEWHEEL:
-			Editor_State.Camera.VerticalFoV =
-			    Clamp_R32(Editor_State.Camera.VerticalFoV - e->wheel.y * 0.05f,
-			              0.05f * Pi, 0.95f * Pi);
+			Editor_State.CameraDistance = Clamp_R32(
+			    Editor_State.CameraDistance - e->wheel.y * 0.25f, 1, 10);
+			break;
+		case SDL_MOUSEBUTTONDOWN:
+			if(e->button.button == SDL_BUTTON_MIDDLE) {
+				// Begin camera drag if it hasn't been started yet.
+				if(!InsideCameraDrag) {
+					SDL_SetCursor(Cursor_Rotate);
+
+					InsideCameraDrag = 1;
+					InitialDragMousePos = V2(e->button.x, e->button.y);
+					InitialYawPitch =
+					    V2(Editor_State.CameraYaw, Editor_State.CameraPitch);
+				}
+			}
+			break;
+		case SDL_MOUSEMOTION:
+			if(e->button.button == SDL_BUTTON_MIDDLE) {
+				if(InsideCameraDrag) {
+					r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
+					r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
+
+					Editor_State.CameraYaw =
+					    (-dx) * Pi_Half + InitialYawPitch.x;
+					Editor_State.CameraPitch =
+					    Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y,
+					              Pi_Quarter / 4, Pi_Half / 1.01);
+				}
+			}
+			break;
+		case SDL_MOUSEBUTTONUP:
+			if(e->button.button == SDL_BUTTON_MIDDLE) {
+				SDL_SetCursor(Cursor_Normal);
+				InsideCameraDrag = 0;
+			}
 			break;
 		default: {
 			// printf("Unknown event type %u\n", e->type);
@@ -204,7 +281,7 @@ void Editor_HandleInput(SDL_Event *e) {
 
 // Thank you,
 // http://ogldev.atspace.co.uk/www/tutorial13/tutorial13.html
-void Camera_Mat4_Ex(Camera c, Mat4 out_view, Mat4 out_proj) {
+static void Camera_Mat4_Ex(Camera c, Mat4 out_view, Mat4 out_proj) {
 	Mat4 Translation, Rotation;
 
 	Mat4_Identity(Translation);
@@ -253,13 +330,65 @@ void Camera_Mat4_Ex(Camera c, Mat4 out_view, Mat4 out_proj) {
 	}
 }
 
+r32 LinearLerp(r32 start, r32 end, r32 amt) {
+	return start + (end - start) * Clamp_R32(amt, 0, 1);
+}
+
+r32 CubicLerp(r32 start, r32 end, r32 amt) {
+	return start + (end - start) * Clamp_R32(amt * amt, 0, 1);
+}
+
+// https://wikimedia.org/api/rest_v1/media/math/render/svg/504c44ca5c5f1da2b6cb1702ad9d1afa27cc1ee0
+r32 BezierLerp(r32 start, r32 end, r32 amt, Vec2 P1, Vec2 P2) {
+	Vec2 P0 = V2(0, start), P3 = V2(1, end);
+	P1.y = start + (end - start) * P1.y;
+	P2.y = start + (end - start) * P2.y;
+
+	r32 t = Clamp_R32(amt, 0, 1);
+
+	P0 = Vec2_MultScal(P0, powf(1 - t, 3));
+	P1 = Vec2_MultScal(P1, 3.0f * powf(1 - t, 2) * t);
+	P2 = Vec2_MultScal(P2, 3.0f * (1 - t) * t * t);
+	P3 = Vec2_MultScal(P3, t * t * t);
+
+	return Vec2_Add(Vec2_Add(P0, P1), Vec2_Add(P2, P3)).y;
+}
+
+// https://www.w3schools.com/cssref/css3_pr_transition-timing-function.asp
+r32 EaseInOutLerp(r32 start, r32 end, r32 amt) {
+	return BezierLerp(start, end, amt, V2(0.25, 0.1), V2(0.25, 1));
+}
+
+r32 SpringLerp(r32 start, r32 end, r32 amt) {
+	return BezierLerp(start, end, amt / 2, V2(0.25, -0.5), V2(0.60, 2.5));
+}
+
+
 void Editor_Render() {
 	// Position camera
-	Editor_State.Camera.Target = (Vec3){.x = Editor_State.CursorPosition.x,
-	                                    .y = 0,
-	                                    .z = Editor_State.CursorPosition.y};
-	Editor_State.Camera.Position =
-	    Vec3_Add(Editor_State.Camera.Target, V3(1.2, 1.1, -1.6));
+	Editor_State.Camera.Target = (Vec3){
+	    .x = EaseInOutLerp(TargetAtMoveStart.x, Editor_State.CursorPosition.x,
+	                       (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
+
+	    .y = 0,
+
+	    .z = EaseInOutLerp(TargetAtMoveStart.y, Editor_State.CursorPosition.y,
+	                       (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
+	};
+
+
+	{
+		Vec3 CameraOffset = V3(0, 0, 0);
+		CameraOffset.x =
+		    sinf(Editor_State.CameraPitch) * cosf(Editor_State.CameraYaw);
+		CameraOffset.z =
+		    sinf(Editor_State.CameraPitch) * sinf(Editor_State.CameraYaw);
+		CameraOffset.y = cosf(Editor_State.CameraPitch);
+		CameraOffset = Vec3_MultScal(CameraOffset, Editor_State.CameraDistance);
+
+		Editor_State.Camera.Position =
+		    Vec3_Add(Editor_State.Camera.Target, CameraOffset);
+	}
 
 	Editor_State.Camera.AspectRatio = RSys_GetSize().AspectRatio;
 
@@ -271,12 +400,14 @@ void Editor_Render() {
 		Mat4_MultMat(VP, View);
 	}
 
-
 	// Render the wireframe cursor
 	{
-		Transform3D CursorTransform = {.Position = Editor_State.Camera.Target,
-		                               .Rotation = Quat_Identity,
-		                               .Scale = V3(1, 1, 1)};
+		Transform3D CursorTransform = {
+		    .Position = {.x = Editor_State.CursorPosition.x,
+		                 .y = 0,
+		                 .z = Editor_State.CursorPosition.y},
+		    .Rotation = Quat_Identity,
+		    .Scale = V3(1, 1, 1)};
 
 		Mat4 Model;
 		Transform3D_Mat4(CursorTransform, Model);
@@ -305,10 +436,10 @@ void Editor_Render() {
 
 		for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
 			TerrainPiece *piece = Array_Get(Editor_State.Terrain, i);
+			if(piece->Disabled) continue;
 
 			Transform.Position =
 			    (Vec3){.x = piece->Position.x, .y = 0, .z = piece->Position.y};
-
 
 			Mat4 Model;
 			Transform3D_Mat4(Transform, Model);
