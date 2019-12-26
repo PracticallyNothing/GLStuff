@@ -49,8 +49,8 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 			WObj_Material NewMaterial;
 			memset(&NewMaterial, 0, sizeof(WObj_Material));
 			READ_NEXT_WORD(NewMaterial.Name);
-			Array_Push(MaterialsArray, &NewMaterial);
-			CurrMat = Array_GetLast(MaterialsArray);
+			Array_Push(MaterialsArray, (u8 *) &NewMaterial);
+			CurrMat = (WObj_Material *) Array_GetLast(MaterialsArray);
 		} else if(strncmp(Command, "Ka", 2) == 0) {
 			char r[32] = {0};
 			char g[32] = {0};
@@ -168,7 +168,7 @@ void Object_Init(struct Object *o) {
 void Object_Free(struct Object *o) {
 	if(!o) return;
 	for(u32 j = 0; j < o->Faces->ArraySize; j++) {
-		struct Face *f = Array_Get(o->Faces, j);
+		struct Face *f = (struct Face *) Array_Get(o->Faces, j);
 		Array_Free(f->FaceVertices);
 	}
 	Array_Free(o->Faces);
@@ -215,8 +215,8 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			struct Object obj;
 			Object_Init(&obj);
 			READ_NEXT_WORD(obj.Name);
-			Array_Push(Objects, &obj);
-			CurrObject = Array_GetLast(Objects);
+			Array_Push(Objects, (u8 *) &obj);
+			CurrObject = (struct Object *) Array_GetLast(Objects);
 		} else if(strncmp(Command, "mtllib", 6) == 0) {
 			char MtlFilename[256] = {0};
 			READ_NEXT_WORD(MtlFilename);
@@ -227,7 +227,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 			WObj_Material *FoundMaterial = NULL;
 			for(u32 i = 0; i < Materials->ArraySize; i++) {
-				WObj_Material *mat = Array_Get(Materials, i);
+				WObj_Material *mat = (WObj_Material *) Array_Get(Materials, i);
 				if(strcmp(mat->Name, MaterialName) == 0) {
 					FoundMaterial = mat;
 					break;
@@ -254,7 +254,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			pos.y = atof(y);
 			pos.z = atof(z);
 
-			Array_Push(Positions, &pos);
+			Array_Push(Positions, (u8 *) &pos);
 		} else if(strncmp(Command, "vt", 2) == 0) {
 			Vec2 UV;
 			char u[32] = {0};
@@ -265,7 +265,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			UV.u = atof(u);
 			UV.v = atof(v);
 
-			Array_Push(UVs, &UV);
+			Array_Push(UVs, (u8 *) &UV);
 		} else if(strncmp(Command, "vn", 2) == 0) {
 			Vec3 normal;
 			char x[32] = {0};
@@ -279,7 +279,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			normal.y = atof(y);
 			normal.z = atof(z);
 
-			Array_Push(Normals, &normal);
+			Array_Push(Normals, (u8 *) &normal);
 		} else if(strncmp(Command, "f", 1) == 0) {
 			struct Face Face;
 			Face.FaceVertices = Array_Init(sizeof(struct FaceVertex));
@@ -321,10 +321,10 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				FV.NormalId = String_ToI32_N(Vertex + q, j - q) - 1;
 
 			face_vertex_end:
-				Array_Push(Face.FaceVertices, &FV);
+				Array_Push(Face.FaceVertices, (u8 *) &FV);
 			}
 
-			Array_Push(CurrObject->Faces, &Face);
+			Array_Push(CurrObject->Faces, (u8 *) &Face);
 		} else if(strncmp(Command, "s", 1) == 0) {
 			char word[64] = {0};
 			READ_NEXT_WORD(word);
@@ -347,7 +347,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	Array *FinalObjects = Array_Init(sizeof(WObj_Object));
 
 	for(u32 i = 0; i < Objects->ArraySize; i++) {
-		struct Object *obj = Array_Get(Objects, i);
+		struct Object *obj = (struct Object *) Array_Get(Objects, i);
 		u32 NextIndex = 0;
 
 		for(u32 i = 0; i < obj->Faces->ArraySize; i++) {
@@ -355,12 +355,13 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			    ((struct Face *) Array_Get(obj->Faces, i))->FaceVertices;
 
 			for(u32 j = 0; j < FVs->ArraySize; j++) {
-				struct FaceVertex *v = Array_Get(FVs, j);
+				struct FaceVertex *v = (struct FaceVertex *) Array_Get(FVs, j);
 
 				i32 FoundVertexId = -1;
 				// Check to see if this vertex exists.
 				for(u32 q = 0; q < j; q++) {
-					struct FaceVertex *v2 = Array_Get(FVs, q);
+					struct FaceVertex *v2 =
+					    (struct FaceVertex *) Array_Get(FVs, q);
 					if(v->PosId == v2->PosId) {
 						FoundVertexId = q;
 						break;
@@ -377,13 +378,13 @@ WObj_Library *WObj_FromFile(const char *filename) {
 						vtx.Normal =
 						    *((Vec3 *) Array_Get(Normals, v->NormalId));
 
-					Array_Push(Vertices, &vtx);
-					Array_Push(Indices, &NextIndex);
+					Array_Push(Vertices, (u8 *) &vtx);
+					Array_Push(Indices, (u8 *) &NextIndex);
 					NextIndex++;
 				}
 				// Else, just add an index to the original.
 				else {
-					Array_Push(Indices, &NextIndex);
+					Array_Push(Indices, (u8 *) &NextIndex);
 				}
 			}
 		}
@@ -394,10 +395,10 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		Object.NumIndices = Indices->ArraySize;
 		Object.Vertices = malloc(Vertices->ArraySize * sizeof(WObj_Vertex));
 		Object.Indices = malloc(Indices->ArraySize * sizeof(u32));
-		Array_CopyData(Object.Vertices, Vertices);
-		Array_CopyData(Object.Indices, Indices);
+		Array_CopyData((u8 *) Object.Vertices, Vertices);
+		Array_CopyData((u8 *) Object.Indices, Indices);
 
-		Array_Push(FinalObjects, &Object);
+		Array_Push(FinalObjects, (u8 *) &Object);
 
 		Array_Clear(Vertices);
 		Array_Clear(Indices);
@@ -405,8 +406,8 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 	res->NumObjects = Objects->ArraySize;
 	res->NumMaterials = Materials->ArraySize;
-	res->Materials = Materials->Data;
-	res->Objects = FinalObjects->Data;
+	res->Materials = (WObj_Material *) Materials->Data;
+	res->Objects = (WObj_Object *) FinalObjects->Data;
 
 	Materials->Data = NULL;
 	Array_Free(Materials);
@@ -421,7 +422,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	Array_Free(Normals);
 
 	for(u32 i = 0; i < Objects->ArraySize; i++) {
-		struct Object *o = Array_Get(Objects, i);
+		struct Object *o = (struct Object *) Array_Get(Objects, i);
 		Object_Free(o);
 	}
 	Array_Free(Objects);
