@@ -5,6 +5,7 @@
 #include "Math3D.h"
 
 typedef struct Camera Camera;
+typedef struct OrbitCamera_t OrbitCamera;
 
 enum CameraMode {
 	CameraMode_Orthographic,
@@ -30,6 +31,18 @@ struct Camera {
 	r32 AspectRatio;
 };
 
+struct OrbitCamera_t {
+	Vec3 Center;
+	r32 Radius;
+	r32 Yaw, Pitch;
+
+	r32 ZNear, ZFar;
+	r32 VerticalFoV;
+	r32 AspectRatio;
+};
+
+extern Vec3 OrbitCamera_GetOffset(OrbitCamera c);
+extern void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj);
 extern void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj);
 
 #endif

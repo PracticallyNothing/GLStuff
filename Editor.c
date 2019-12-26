@@ -11,10 +11,7 @@ struct Editor_State_t {
 	Array *Terrain;
 	Vec2 CursorPosition;
 
-	Camera Camera;
-	r32 CameraPitch;
-	r32 CameraYaw;
-	r32 CameraDistance;
+	OrbitCamera Camera;
 
 	Shader *WireShader, *TerrainShader;
 	GLuint CursorVAO, CursorInds;
@@ -104,14 +101,14 @@ void Editor_Init() {
 	Editor_State.CursorPosition = V2(0, 0);
 
 	// Setup camera
-	Editor_State.Camera = (Camera){.Mode = CameraMode_Perspective,
-	                               .ZNear = 0.01,
-	                               .ZFar = 1e10,
-	                               .VerticalFoV = Pi_Half + Pi_Quarter,
-	                               .Up = V3(0, 1, 0)};
-	Editor_State.CameraYaw = DegToRad(290);
-	Editor_State.CameraPitch = DegToRad(45);
-	Editor_State.CameraDistance = 2;
+	Editor_State.Camera = (OrbitCamera){
+	    .ZNear = 1e-2,
+	    .ZFar = 1e10,
+	    .VerticalFoV = Pi_Half + Pi_Quarter,
+	};
+	Editor_State.Camera.Yaw = DegToRad(290);
+	Editor_State.Camera.Pitch = DegToRad(45);
+	Editor_State.Camera.Radius = 2;
 
 	// Generate cursor.
 	{
@@ -191,10 +188,8 @@ void Editor_Init() {
 const r32 speed = 1;
 
 void Editor_HandleInput(SDL_Event *e) {
-	Vec3 CameraDirection = Vec3_Norm(
-	    Vec3_Sub(Editor_State.Camera.Target, Editor_State.Camera.Position));
-	Vec3 CameraRight =
-	    Vec3_Norm(Vec3_Cross(Editor_State.Camera.Up, CameraDirection));
+	Vec3 CameraDirection = Vec3_Neg(OrbitCamera_GetOffset(Editor_State.Camera));
+	Vec3 CameraRight = Vec3_Norm(Vec3_Cross(V3(0, 1, 0), CameraDirection));
 
 	switch(e->type) {
 		case SDL_KEYDOWN:
@@ -215,8 +210,8 @@ void Editor_HandleInput(SDL_Event *e) {
 					goto SetLastMove;
 
 				SetLastMove:
-					TargetAtMoveStart = V2(Editor_State.Camera.Target.x,
-					                       Editor_State.Camera.Target.z);
+					TargetAtMoveStart = V2(Editor_State.Camera.Center.x,
+					                       Editor_State.Camera.Center.z);
 					LastMove = SDL_GetTicks();
 					break;
 
@@ -239,8 +234,8 @@ void Editor_HandleInput(SDL_Event *e) {
 			}
 			break;
 		case SDL_MOUSEWHEEL:
-			Editor_State.CameraDistance = Clamp_R32(
-			    Editor_State.CameraDistance - e->wheel.y * 0.25f, 1, 10);
+			Editor_State.Camera.Radius = Clamp_R32(
+			    Editor_State.Camera.Radius - e->wheel.y * 0.25f, 1, 10);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
 			if(e->button.button == SDL_BUTTON_MIDDLE) {
@@ -251,7 +246,7 @@ void Editor_HandleInput(SDL_Event *e) {
 					InsideCameraDrag = 1;
 					InitialDragMousePos = V2(e->button.x, e->button.y);
 					InitialYawPitch =
-					    V2(Editor_State.CameraYaw, Editor_State.CameraPitch);
+					    V2(Editor_State.Camera.Yaw, Editor_State.Camera.Pitch);
 				}
 			}
 			break;
@@ -262,8 +257,8 @@ void Editor_HandleInput(SDL_Event *e) {
 				r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
 				r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
 
-				Editor_State.CameraYaw = (-dx) * Pi_Half + InitialYawPitch.x;
-				Editor_State.CameraPitch =
+				Editor_State.Camera.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
+				Editor_State.Camera.Pitch =
 				    Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y, DegToRad(1),
 				              DegToRad(89));
 			}
@@ -283,7 +278,7 @@ void Editor_HandleInput(SDL_Event *e) {
 
 void Editor_Render() {
 	// Position camera
-	Editor_State.Camera.Target = (Vec3){
+	Editor_State.Camera.Center = (Vec3){
 	    .x = Lerp_EaseInOut(TargetAtMoveStart.x, Editor_State.CursorPosition.x,
 	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
 
@@ -292,28 +287,13 @@ void Editor_Render() {
 	    .z = Lerp_EaseInOut(TargetAtMoveStart.y, Editor_State.CursorPosition.y,
 	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
 	};
-
-
-	{
-		Vec3 CameraOffset = V3(0, 0, 0);
-		CameraOffset.x =
-		    sinf(Editor_State.CameraPitch) * cosf(Editor_State.CameraYaw);
-		CameraOffset.z =
-		    sinf(Editor_State.CameraPitch) * sinf(Editor_State.CameraYaw);
-		CameraOffset.y = cosf(Editor_State.CameraPitch);
-		CameraOffset = Vec3_MultScal(CameraOffset, Editor_State.CameraDistance);
-
-		Editor_State.Camera.Position =
-		    Vec3_Add(Editor_State.Camera.Target, CameraOffset);
-	}
-
 	Editor_State.Camera.AspectRatio = RSys_GetSize().AspectRatio;
 
 	// Set up Model-View-Projection matrix
 	Mat4 VP;
 	{
 		Mat4 View;
-		Camera_Mat4(Editor_State.Camera, View, VP);
+		OrbitCamera_Mat4(Editor_State.Camera, View, VP);
 		Mat4_MultMat(VP, View);
 	}
 

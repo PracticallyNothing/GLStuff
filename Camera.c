@@ -1,6 +1,31 @@
 #include "Camera.h"
 
+#include <math.h>
 #include <stdlib.h>
+
+Vec3 OrbitCamera_GetOffset(OrbitCamera c) {
+	return (Vec3){.x = c.Radius * sinf(c.Pitch) * cosf(c.Yaw),
+	              .z = c.Radius * sinf(c.Pitch) * sinf(c.Yaw),
+	              .y = c.Radius * cosf(c.Pitch)};
+}
+
+void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
+	Camera cc = {
+	    .Position = Vec3_Add(c.Center, OrbitCamera_GetOffset(c)),
+	    .Target = c.Center,
+	    .Up = V3(0, 1, 0),
+
+	    .ZNear = c.ZNear,
+	    .ZFar = c.ZFar,
+
+	    .Mode = CameraMode_Perspective,
+
+	    .AspectRatio = c.AspectRatio,
+	    .VerticalFoV = c.VerticalFoV,
+	};
+
+	Camera_Mat4(cc, out_view, out_proj);
+}
 
 // Thank you,
 // http://ogldev.atspace.co.uk/www/tutorial13/tutorial13.html
