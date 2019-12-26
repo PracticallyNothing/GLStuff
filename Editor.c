@@ -70,17 +70,14 @@ static const char *Editor_TerrainSrc[2] = {
     "in vec2 fUV;\n"
     "out vec4 fColor;\n"
     "void main() {\n"
-    "    float thickness = 0.2;\n"
+    "    float thickness = 0.05;\n"
     "    \n"
-    "    if((fUV.x >  thickness/2 && fUV.y < -thickness/2) ||\n"
-    "       (fUV.x < -thickness/2 && fUV.y >  thickness/2)) {\n"
-    "        fColor = vec4(0.3, 0.3, 0.3, 1);\n"
-    "    } else if((fUV.x >  thickness/2 && fUV.y >  thickness/2) ||\n"
-    "              (fUV.x < -thickness/2 && fUV.y < -thickness/2)) {\n"
-    "        fColor = vec4(0.5, 0.5, 0.5, 1);\n"
-    "    } else {\n"
-    "        fColor = vec4(0.4, 0.4, 0.4, 1);\n"
-    "    }\n"
+    "   if((fUV.x > -1 + thickness && fUV.x < 1 - thickness) && \n"
+    "      (fUV.y > -1 + thickness && fUV.y < 1 - thickness)) {\n"
+    "       fColor = vec4(0.3, 0.3, 0.3, 1);\n"
+    "   } else {\n"
+    "       fColor = vec4(0.5, 0.5, 0.5, 1);\n"
+    "   }\n"
     "}"};
 
 static TerrainPiece *Editor_TerrainUnderCursor() {
@@ -191,12 +188,18 @@ void Editor_Init() {
 }
 
 
-const r32 speed = 20;
+const r32 speed = 1;
+
 void Editor_HandleInput(SDL_Event *e) {
+	Vec3 CameraDirection = Vec3_Norm(
+	    Vec3_Sub(Editor_State.Camera.Target, Editor_State.Camera.Position));
+	Vec3 CameraRight =
+	    Vec3_Norm(Vec3_Cross(Editor_State.Camera.Up, CameraDirection));
+
 	switch(e->type) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
-					// bool32 shift = e->key.keysym.mod & KMOD_LSHIFT;
+					// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
 
 				case SDLK_LEFT:
 					Editor_State.CursorPosition.x -= speed;
@@ -252,20 +255,19 @@ void Editor_HandleInput(SDL_Event *e) {
 				}
 			}
 			break;
-		case SDL_MOUSEMOTION:
-			if(e->button.button == SDL_BUTTON_MIDDLE) {
-				if(InsideCameraDrag) {
-					r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
-					r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
+		case SDL_MOUSEMOTION: {
+			bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
 
-					Editor_State.CameraYaw =
-					    (-dx) * Pi_Half + InitialYawPitch.x;
-					Editor_State.CameraPitch =
-					    Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y,
-					              Pi_Quarter / 4, Pi_Half / 1.01);
-				}
+			if(InsideCameraDrag) {
+				r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
+				r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
+
+				Editor_State.CameraYaw = (-dx) * Pi_Half + InitialYawPitch.x;
+				Editor_State.CameraPitch =
+				    Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y, DegToRad(1),
+				              DegToRad(89));
 			}
-			break;
+		} break;
 		case SDL_MOUSEBUTTONUP:
 			if(e->button.button == SDL_BUTTON_MIDDLE) {
 				SDL_SetCursor(Cursor_Normal);
@@ -279,101 +281,16 @@ void Editor_HandleInput(SDL_Event *e) {
 	}
 }
 
-// Thank you,
-// http://ogldev.atspace.co.uk/www/tutorial13/tutorial13.html
-static void Camera_Mat4_Ex(Camera c, Mat4 out_view, Mat4 out_proj) {
-	Mat4 Translation, Rotation;
-
-	Mat4_Identity(Translation);
-	Mat4_Identity(Rotation);
-
-	Mat4_Translate(Translation, Vec3_Neg(c.Position));
-
-	Vec3 tgt = Vec3_Sub(c.Target, c.Position);
-
-	Vec3 N = Vec3_Norm(tgt);
-	Vec3 U = Vec3_Norm(Vec3_Cross(c.Up, tgt));
-	Vec3 V = Vec3_Cross(N, U);
-
-	// printf("%.2f %.2f %.2f\n", N.x, N.y, N.z);
-
-	// N points towards the target point
-	// U points to the right of the camera
-	// V points towards the sky
-
-	Rotation[0] = U.x;
-	Rotation[1] = U.y;
-	Rotation[2] = U.z;
-
-	Rotation[4] = V.x;
-	Rotation[5] = V.y;
-	Rotation[6] = V.z;
-
-	Rotation[8] = N.x;
-	Rotation[9] = N.y;
-	Rotation[10] = N.z;
-
-	Mat4_MultMat(Rotation, Translation);
-	Mat4_Copy(out_view, Rotation);
-
-	switch(c.Mode) {
-		case CameraMode_Orthographic:
-			Mat4_OrthoProj(out_proj, 0, c.ScreenWidth, 0, c.ScreenHeight,
-			               c.ZNear, c.ZFar);
-			break;
-		case CameraMode_Perspective:
-			Mat4_RectProj(out_proj, c.VerticalFoV, c.AspectRatio, c.ZNear,
-			              c.ZFar);
-			break;
-
-		case CameraMode_NumModes: exit(EXIT_FAILURE);
-	}
-}
-
-r32 LinearLerp(r32 start, r32 end, r32 amt) {
-	return start + (end - start) * Clamp_R32(amt, 0, 1);
-}
-
-r32 CubicLerp(r32 start, r32 end, r32 amt) {
-	return start + (end - start) * Clamp_R32(amt * amt, 0, 1);
-}
-
-// https://wikimedia.org/api/rest_v1/media/math/render/svg/504c44ca5c5f1da2b6cb1702ad9d1afa27cc1ee0
-r32 BezierLerp(r32 start, r32 end, r32 amt, Vec2 P1, Vec2 P2) {
-	Vec2 P0 = V2(0, start), P3 = V2(1, end);
-	P1.y = start + (end - start) * P1.y;
-	P2.y = start + (end - start) * P2.y;
-
-	r32 t = Clamp_R32(amt, 0, 1);
-
-	P0 = Vec2_MultScal(P0, powf(1 - t, 3));
-	P1 = Vec2_MultScal(P1, 3.0f * powf(1 - t, 2) * t);
-	P2 = Vec2_MultScal(P2, 3.0f * (1 - t) * t * t);
-	P3 = Vec2_MultScal(P3, t * t * t);
-
-	return Vec2_Add(Vec2_Add(P0, P1), Vec2_Add(P2, P3)).y;
-}
-
-// https://www.w3schools.com/cssref/css3_pr_transition-timing-function.asp
-r32 EaseInOutLerp(r32 start, r32 end, r32 amt) {
-	return BezierLerp(start, end, amt, V2(0.25, 0.1), V2(0.25, 1));
-}
-
-r32 SpringLerp(r32 start, r32 end, r32 amt) {
-	return BezierLerp(start, end, amt / 2, V2(0.25, -0.5), V2(0.60, 2.5));
-}
-
-
 void Editor_Render() {
 	// Position camera
 	Editor_State.Camera.Target = (Vec3){
-	    .x = EaseInOutLerp(TargetAtMoveStart.x, Editor_State.CursorPosition.x,
-	                       (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
+	    .x = Lerp_EaseInOut(TargetAtMoveStart.x, Editor_State.CursorPosition.x,
+	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
 
 	    .y = 0,
 
-	    .z = EaseInOutLerp(TargetAtMoveStart.y, Editor_State.CursorPosition.y,
-	                       (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
+	    .z = Lerp_EaseInOut(TargetAtMoveStart.y, Editor_State.CursorPosition.y,
+	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
 	};
 
 
@@ -396,7 +313,7 @@ void Editor_Render() {
 	Mat4 VP;
 	{
 		Mat4 View;
-		Camera_Mat4_Ex(Editor_State.Camera, View, VP);
+		Camera_Mat4(Editor_State.Camera, View, VP);
 		Mat4_MultMat(VP, View);
 	}
 

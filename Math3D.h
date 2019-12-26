@@ -204,4 +204,14 @@ extern Quat Quat_Norm(Quat q);
 extern RGB HexToRGB(const char str[6]);
 extern RGBA HexToRGBA(const char str[8]);
 
+// --- Value Interpolation --- //
+
+extern r32 Lerp_Linear(r32 start, r32 end, r32 amt);
+extern r32 Lerp_Cubic(r32 start, r32 end, r32 amt);
+extern r32 Lerp_Bezier(r32 start, r32 end, r32 amt, Vec2 P1, Vec2 P2);
+extern r32 Lerp_EaseInOut(r32 start, r32 end, r32 amt);
+extern r32 Lerp_Spring(r32 start, r32 end, r32 amt);
+
+// --- ------------------ --- //
+
 #endif

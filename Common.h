@@ -114,7 +114,6 @@ r32 String_ToR32(const char *);
 r32 String_ToR32_N(const char *, u32 len);
 
 // --- Pi, degrees and radians --- //
-
 extern const r64 Tau;
 extern const r64 Pi;
 extern const r64 Pi_Half;
@@ -126,6 +125,7 @@ extern r64 RadToDeg(r64 radians);
 extern r64 Clamp_R64(r64 value, r64 min, r64 max);
 extern r32 Clamp_R32(r32 value, r32 min, r32 max);
 extern i32 Clamp_I32(i32 value, i32 min, i32 max);
+
 // --- File operations --- //
 
 extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize,

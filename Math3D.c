@@ -496,3 +496,35 @@ RGBA HexToRGBA(const char str[8]) {
 	          (HexToInt(str[6]) * 16 + HexToInt(str[7])) / 255.0);
 }
 
+r32 Lerp_Linear(r32 start, r32 end, r32 amt) {
+	return start + (end - start) * Clamp_R32(amt, 0, 1);
+}
+
+r32 Lerp_Cubic(r32 start, r32 end, r32 amt) {
+	return start + (end - start) * Clamp_R32(amt * amt, 0, 1);
+}
+
+// https://wikimedia.org/api/rest_v1/media/math/render/svg/504c44ca5c5f1da2b6cb1702ad9d1afa27cc1ee0
+r32 Lerp_Bezier(r32 start, r32 end, r32 amt, Vec2 P1, Vec2 P2) {
+	Vec2 P0 = V2(0, start), P3 = V2(1, end);
+	P1.y = start + (end - start) * P1.y;
+	P2.y = start + (end - start) * P2.y;
+
+	r32 t = Clamp_R32(amt, 0, 1);
+
+	P0 = Vec2_MultScal(P0, powf(1 - t, 3));
+	P1 = Vec2_MultScal(P1, 3.0f * powf(1 - t, 2) * t);
+	P2 = Vec2_MultScal(P2, 3.0f * (1 - t) * t * t);
+	P3 = Vec2_MultScal(P3, t * t * t);
+
+	return Vec2_Add(Vec2_Add(P0, P1), Vec2_Add(P2, P3)).y;
+}
+
+// https://www.w3schools.com/cssref/css3_pr_transition-timing-function.asp
+r32 Lerp_EaseInOut(r32 start, r32 end, r32 amt) {
+	return Lerp_Bezier(start, end, amt, V2(0.25, 0.1), V2(0.25, 1));
+}
+
+r32 Lerp_Spring(r32 start, r32 end, r32 amt) {
+	return Lerp_Bezier(start, end, amt / 2, V2(0.25, -0.5), V2(0.60, 2.5));
+}

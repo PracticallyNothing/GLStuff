@@ -3,37 +3,11 @@
 
 #include <SDL2/SDL.h>
 
+#include "Camera.h"
 #include "Common.h"
 #include "Math3D.h"
 #include "Shader.h"
 #include "Transform.h"
-
-typedef struct Camera Camera;
-
-enum CameraMode {
-	CameraMode_Orthographic,
-	CameraMode_Perspective,
-
-	CameraMode_NumModes,
-};
-
-struct Camera {
-	// Generic properties
-	Vec3 Position;
-	Vec3 Target;
-	Vec3 Up;
-	r32 ZNear, ZFar;
-
-	enum CameraMode Mode;
-
-	// Orthographic specific:
-	i32 ScreenWidth;
-	i32 ScreenHeight;
-	// Perspective specific:
-	r32 VerticalFoV;
-	r32 AspectRatio;
-};
-
 
 enum LightType {
 	LightType_Point,
