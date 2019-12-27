@@ -154,17 +154,17 @@ extern void Mat2_Sub(Mat2 a, const Mat2 b);
 extern void Mat3_Sub(Mat3 a, const Mat3 b);
 extern void Mat4_Sub(Mat4 a, const Mat4 b);
 
-extern void Mat2_MultScal(Mat2 matrix, const r32 scalar);
-extern void Mat3_MultScal(Mat3 matrix, const r32 scalar);
-extern void Mat4_MultScal(Mat4 matrix, const r32 scalar);
+extern void Mat2_MultScal(Mat2 matrix, r32 scalar);
+extern void Mat3_MultScal(Mat3 matrix, r32 scalar);
+extern void Mat4_MultScal(Mat4 matrix, r32 scalar);
 
 extern void Mat2_MultMat(Mat2 a, const Mat2 b);
 extern void Mat3_MultMat(Mat3 a, const Mat3 b);
 extern void Mat4_MultMat(Mat4 a, const Mat4 b);
 
-extern void Mat2_DivScal(Mat2 matrix, const r32 scalar);
-extern void Mat3_DivScal(Mat3 matrix, const r32 scalar);
-extern void Mat4_DivScal(Mat4 matrix, const r32 scalar);
+extern void Mat2_DivScal(Mat2 matrix, r32 scalar);
+extern void Mat3_DivScal(Mat3 matrix, r32 scalar);
+extern void Mat4_DivScal(Mat4 matrix, r32 scalar);
 
 extern Vec2 Mat2_MultVec2(const Mat2 m, Vec2 v);
 extern Vec3 Mat3_MultVec3(const Mat3 m, Vec3 v);
