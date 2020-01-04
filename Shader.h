@@ -12,8 +12,7 @@ struct Shader_t {
 };
 typedef struct Shader_t Shader;
 
-extern Shader *Shader_FromFiles(const char *vertexFile,
-                                const char *fragmentFile);
+extern Shader *Shader_FromFile(const char *file);
 extern Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc);
 
 extern void Shader_Use(Shader *);

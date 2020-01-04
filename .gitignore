@@ -17,6 +17,7 @@ Videojame.txt
 *.ko
 *.obj
 *.elf
+!/res/models/*.obj
 
 # Linker output
 *.ilk

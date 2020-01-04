@@ -1,3 +1,28 @@
+@vert
+#version 330
+
+in vec3 pos;
+in vec2 uv;
+in vec3 norm;
+
+out vec3 fPos;
+out vec2 fUV;
+out vec3 fNorm;
+
+uniform mat4 persp;
+uniform mat4 view;
+uniform mat4 model;
+
+void main() {
+	gl_Position = persp * view * model * vec4(pos, 1);
+	fPos = (model * vec4(pos,1)).xyz;
+	fUV = uv;
+	// TODO: Replace this operation with uniform
+	fNorm = mat3(transpose(inverse(model))) * norm;
+}
+@@
+
+@frag
 #version 330
 
 // Thank you,
@@ -12,31 +37,31 @@ out vec4 color;
 uniform vec3 viewPos;
 
 /*
-uniform Material {
-	vec3 Ambient;
-	vec3 Diffuse;
-	vec3 Specular;
-	float SpecularExponent;
+   uniform Material {
+   vec3 Ambient;
+   vec3 Diffuse;
+   vec3 Specular;
+   float SpecularExponent;
 
-	bool HasAmbientTex = false;
-	bool HasDiffuseTex = false;
-	bool HasSpecularTex = false;
+   bool HasAmbientTex = false;
+   bool HasDiffuseTex = false;
+   bool HasSpecularTex = false;
 
-	sampler2D AmbientTex;
-	sampler2D DiffuseTex;
-	sampler2D SpecularTex;
-} mat;
+   sampler2D AmbientTex;
+   sampler2D DiffuseTex;
+   sampler2D SpecularTex;
+   } mat;
 
-uniform Lights {
-	bool SunEnabled = false;
-	Sun Sun;
+   uniform Lights {
+   bool SunEnabled = false;
+   Sun Sun;
 
-	int NumPointLights = 0;
-	PointLight Points [8];
+   int NumPointLights = 0;
+   PointLight Points [8];
 
-	int NumSpotlights  = 0;
-	Spotlight Spots  [8];
-} lights;
+   int NumSpotlights  = 0;
+   Spotlight Spots  [8];
+   } lights;
  */
 
 uniform vec3 mat_ambient = vec3(1, 0, 0);
@@ -116,8 +141,8 @@ void main() {
 
 		float dist = length(lDir);
 		float atten = 1.0 / (l.ConstantAttenuation +
-		                     l.LinearAttenuation * dist +
-		                     l.QuadraticAttenuation * pow(dist, 2));
+				l.LinearAttenuation * dist +
+				l.QuadraticAttenuation * pow(dist, 2));
 
 		float ambientStr = 0.01;
 		float diffuseStr = max(dot(-lDir, fNorm), 0);
@@ -149,3 +174,4 @@ void main() {
 
 	color = vec4(ambient + diffuse + specular, 1);
 }
+@@

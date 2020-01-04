@@ -1,6 +1,7 @@
 #include "Common.h"
 
 #include <SDL2/SDL.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -293,5 +294,34 @@ void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
 	u32 p = _QSort_Partition_func(arr, 0, arrSize - 1, itemSize, compFunc);
 	Util_Quicksort_func(arr, itemSize, p, compFunc);
 	Util_Quicksort_func(arr + p + 1, itemSize, arrSize - p - 1, compFunc);
+}
+
+// --- Logging --- //
+
+const char *RESET = "\033[0m";
+
+const char *CYAN = "\033[36m";
+const char *BLUE = "\033[34m";
+const char *GREEN = "\033[32m";
+const char *YELLOW = "\033[33m";
+const char *RED = "\033[31m";
+const char *BOLDRED = "\033[31;1m";
+
+void Log_Debug(const char *msg) {
+	fprintf(stdout, "%sDebug%s: %s\n", BLUE, RESET, msg);
+}
+
+void Log_Info(const char *msg) { fprintf(stdout, "Info: %s\n", msg); }
+
+void Log_Warning(const char *msg) {
+	fprintf(stdout, "%sWarning%s: %s\n", YELLOW, RESET, msg);
+}
+void Log_Error(const char *msg) {
+	fprintf(stdout, "%sERROR%s: %s\n", RED, RESET, msg);
+}
+void Log_FatalError(const char *msg) {
+	fprintf(stderr, "%sFATAL ERROR%s: %s\n", BOLDRED, RESET, msg);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal error", msg, NULL);
+	exit(EXIT_FAILURE);
 }
 

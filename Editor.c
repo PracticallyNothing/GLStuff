@@ -20,66 +20,17 @@ struct Editor_State_t {
 
 const i32 CameraTimeMs = 500;
 u32 LastMove = 0;
-Vec2 TargetAtMoveStart = V2C(0,0);
+Vec2 TargetAtMoveStart = V2C(0, 0);
 
 bool32 InsideCameraDrag = 0;
 Vec2 InitialDragMousePos = V2C(0, 0);
 Vec2 InitialYawPitch = V2C(0, 0);
 SDL_Cursor *Cursor_Normal, *Cursor_Rotate;
 
-static const char *Editor_WireSrc[2] = {
-    // Vertex shader
-    "#version 330\n"
-    ""
-    "in vec3 pos;\n"
-    ""
-    "uniform mat4 MVP;\n"
-    ""
-    "void main() { gl_Position = MVP * vec4(pos, 1); }",
-
-    // Fragment shader
-    "#version 330\n"
-    ""
-    "out vec4 fColor;\n"
-    ""
-    "uniform vec3 color;\n"
-    ""
-    "void main() { fColor = vec4(0, 1, 0, 1); }"};
-
-static const char *Editor_TerrainSrc[2] = {
-    // Vertex shader
-    "#version 330\n"
-    ""
-    "in vec3 pos;\n"
-    "in vec2 uv;\n"
-    ""
-    "out vec2 fUV;\n"
-    ""
-    "uniform mat4 MVP;\n"
-    ""
-    "void main() {"
-    "  gl_Position = MVP * vec4(pos, 1);"
-    "  fUV = uv;"
-    "}",
-
-    // Fragment shader
-    "#version 330\n"
-    "in vec2 fUV;\n"
-    "out vec4 fColor;\n"
-    "void main() {\n"
-    "    float thickness = 0.05;\n"
-    "    \n"
-    "   if((fUV.x > -1 + thickness && fUV.x < 1 - thickness) && \n"
-    "      (fUV.y > -1 + thickness && fUV.y < 1 - thickness)) {\n"
-    "       fColor = vec4(0.3, 0.3, 0.3, 1);\n"
-    "   } else {\n"
-    "       fColor = vec4(0.5, 0.5, 0.5, 1);\n"
-    "   }\n"
-    "}"};
-
 static TerrainPiece *Editor_TerrainUnderCursor() {
 	for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-		TerrainPiece *piece = (TerrainPiece*) Array_Get(Editor_State.Terrain, i);
+		TerrainPiece *piece =
+		    (TerrainPiece *) Array_Get(Editor_State.Terrain, i);
 
 		if(piece->Position.x == Editor_State.CursorPosition.x &&
 		   piece->Position.y == Editor_State.CursorPosition.y) {
@@ -91,11 +42,9 @@ static TerrainPiece *Editor_TerrainUnderCursor() {
 
 void Editor_Init() {
 	// Generate shaders
-	Editor_State.WireShader =
-	    Shader_FromSrc(Editor_WireSrc[0], Editor_WireSrc[1]);
-
+	Editor_State.WireShader = Shader_FromFile("res/shaders/editor-cursor.glsl");
 	Editor_State.TerrainShader =
-	    Shader_FromSrc(Editor_TerrainSrc[0], Editor_TerrainSrc[1]);
+	    Shader_FromFile("res/shaders/editor-terrain.glsl");
 
 	// Reset cursor position
 	Editor_State.CursorPosition = V2(0, 0);
@@ -177,7 +126,7 @@ void Editor_Init() {
 	Editor_State.Terrain = Array_Init(sizeof(TerrainPiece));
 	{
 		TerrainPiece Default = {.Position = V2(0, 0)};
-		Array_Push(Editor_State.Terrain, (u8*) &Default);
+		Array_Push(Editor_State.Terrain, (u8 *) &Default);
 	}
 
 	Cursor_Normal = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -221,14 +170,19 @@ void Editor_HandleInput(SDL_Event *e) {
 						TerrainPiece newPiece;
 						newPiece.Position = Editor_State.CursorPosition;
 						newPiece.Disabled = 0;
-						Array_Push(Editor_State.Terrain, (u8*) &newPiece);
-						printf("Placed terrain at x: %.2f, y: %.2f\n",
-						       newPiece.Position.x, newPiece.Position.y);
+						Array_Push(Editor_State.Terrain, (u8 *) &newPiece);
+
+						char msg[256];
+						sprintf(msg, "Placed terrain at x: %.2f, y: %.2f",
+						        newPiece.Position.x, newPiece.Position.y);
+						Log_Debug(msg);
 					} else {
 						underCursor->Disabled = !underCursor->Disabled;
-						printf("Toggled terrain at x: %.2f, y: %.2f\n",
-						       Editor_State.CursorPosition.x,
-						       Editor_State.CursorPosition.y);
+						char msg[256];
+						sprintf(msg, "Toggled terrain at x: %.2f, y: %.2f",
+						        Editor_State.CursorPosition.x,
+						        Editor_State.CursorPosition.y);
+						Log_Debug(msg);
 					}
 				} break;
 			}
@@ -324,15 +278,17 @@ void Editor_Render() {
 
 	// Render all visible terrain pieces
 	{
-		glBindVertexArray(Editor_State.TerrainVAO);
 		Transform3D Transform = {.Position = V3(0, 0, 0),
 		                         .Rotation = Quat_Identity,
 		                         .Scale = V3(1, 1, 1)};
 
 		Shader_Use(Editor_State.TerrainShader);
 
+		glBindVertexArray(Editor_State.TerrainVAO);
+
 		for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-			TerrainPiece *piece = (TerrainPiece*) Array_Get(Editor_State.Terrain, i);
+			TerrainPiece *piece =
+			    (TerrainPiece *) Array_Get(Editor_State.Terrain, i);
 			if(piece->Disabled) continue;
 
 			Transform.Position =

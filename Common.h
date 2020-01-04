@@ -164,7 +164,7 @@ typedef struct Array {
 
 Array *Array_Init(u32 itemSize);
 Array *Array_Prealloc(u32 itemSize, u32 capacity);
-void Array_Push(Array *, const u8*);
+void Array_Push(Array *, const u8 *);
 void Array_Pop(Array *);
 void Array_Copy(Array *out, const Array *src);
 void Array_CopyData(u8 *out, const Array *src);
@@ -189,14 +189,21 @@ extern void PC_PrintVideoDriverInfo(void);
 
 // Comparison function type
 // Must return the following:
-//   -1 if first item is larger than second;
-//   1 if the second item is larger than the first;
-//   0 if both items are equal.
+//   -1 if first item is larger than second
+//   0 if both items are equal
+//   1 if the second item is larger than the first
 typedef i32 (*Util_CompFunc)(const u8 *, const u8 *);
 
 extern void Util_Quicksort_i32(i32 *arr, u32 size);
 extern void Util_Quicksort_r32(r32 *arr, u32 size);
 extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                                 Util_CompFunc compFunc);
+
+// --- Logging --- //
+extern void Log_Debug(const char *msg);
+extern void Log_Info(const char *msg);
+extern void Log_Warning(const char *msg);
+extern void Log_Error(const char *msg);
+extern void Log_FatalError(const char *msg);
 
 #endif

@@ -4,27 +4,37 @@
 #include <stdlib.h>
 #include <string.h>
 
-Shader *Shader_FromFiles(const char *vertexFile, const char *fragmentFile) {
-	Shader *Res;
-	char *VertexSrc, *FragmentSrc;
+Shader *Shader_FromFile(const char *file) {
+	Shader *Res = NULL;
+	char *src = calloc(1, Megabytes(2));
 
-	Res = NULL;
-	VertexSrc = calloc(1, Megabytes(1));
-	FragmentSrc = calloc(1, Megabytes(1));
+	if(!File_ReadToBuffer(file, (u8 *) src, Megabytes(2), NULL)) { goto end; }
 
-	if(!File_ReadToBuffer(vertexFile, (u8 *) VertexSrc, Megabytes(1), NULL) ||
-	   !File_ReadToBuffer(fragmentFile, (u8 *) FragmentSrc, Megabytes(1),
-	                      NULL)) {
-		goto end;
+	char *vertSrc, *fragSrc;
+
+	{
+		char *start = strstr(src, "@vert") + strlen("@vert"),
+		     *end = strstr(start, "@@");
+
+		u32 len = end - start;
+		vertSrc = calloc(len + 1, sizeof(char));
+		strncpy(vertSrc, start, len);
 	}
 
-	Res = Shader_FromSrc(VertexSrc, FragmentSrc);
-	Res->VertexFile = vertexFile;
-	Res->FragmentFile = fragmentFile;
+	{
+		char *start = strstr(src, "@frag") + strlen("@frag"),
+		     *end = strstr(start, "@@");
 
+		u32 len = end - start;
+		fragSrc = calloc(len + 1, sizeof(char));
+		strncpy(fragSrc, start, len);
+	}
+
+	Res = Shader_FromSrc(vertSrc, fragSrc);
 end:
-	free(VertexSrc);
-	free(FragmentSrc);
+	free(vertSrc);
+	free(fragSrc);
+	free(src);
 	return Res;
 }
 

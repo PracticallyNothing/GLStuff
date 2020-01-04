@@ -53,71 +53,7 @@ GLuint WireframeCube_Inds;
 
 int main(int argc, char *argv[]) {
 	RSys_Init(1280, 720);
-	// R3D_Init();
-
-	// WObj_Library *Lib = WObj_FromFile("tree.obj");
-
-	const i32 N = 2;
-	u32 StartupTime;
-
-	Mat4 PerspMat, ViewMat, ModelMat;
-	Transform3D Transform;
-
-	Camera Camera;
-	Camera.Position = V3(0, 0, -1);
-	Camera.Up = V3(0, 1, 0);
-	Camera.Target = V3(0, 0, 0);
-	Camera.Mode = CameraMode_Perspective;
-	Camera.ZNear = 0.01f;
-	Camera.ZFar = 10000.0f;
-	Camera.VerticalFoV = Pi_Half + Pi_Quarter;
-
-	StartupTime = SDL_GetTicks();
-
-	Shader *s = Shader_FromFiles("vert.glsl", "frag.glsl");
-	Shader *s2 = Shader_FromFiles("FullLighting.vert", "FullLighting.frag");
-
-	Transform = (Transform3D){.Position = {0, 0, -50},
-	                          .Rotation = Quat_Identity,
-	                          .Scale = {1, 1, 1},
-	                          .Parent = NULL};
-
-	// Create screen quad
-	GLuint VAO_ScreenQuad, VBO_ScreenQuad;
-	glGenVertexArrays(1, &VAO_ScreenQuad);
-	glBindVertexArray(VAO_ScreenQuad);
-	glGenBuffers(1, &VBO_ScreenQuad);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO_ScreenQuad);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_ScreenQuad), g_ScreenQuad,
-	             GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(r32) * 4, NULL);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(r32) * 4,
-	                      (void *) (2 * sizeof(r32)));
-
-	GPUModel treeTrunk, treeLeaves;
-	// WObj_ToGPUModel(&treeTrunk, &Lib->Objects[0]);
-	// WObj_ToGPUModel(&treeLeaves, &Lib->Objects[1]);
-
-	// Create 3D cube
-	GLuint Cube_VAO, Cube_Pos, Cube_Inds;
-	glGenVertexArrays(1, &Cube_VAO);
-	glBindVertexArray(Cube_VAO);
-	glGenBuffers(1, &Cube_Pos);
-	glGenBuffers(1, &Cube_Inds);
-	glBindBuffer(GL_ARRAY_BUFFER, Cube_Pos);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_CubePos), (r32 *) g_CubePos,
-	             GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Cube_Inds);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(g_CubeInds),
-	             (i32 *) g_CubeInds, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	u32 StartupTime = SDL_GetTicks();
 
 	SDL_Event e;
 	u32 Ticks = 0;
@@ -168,10 +104,6 @@ int main(int argc, char *argv[]) {
 	}
 
 end:
-	// glDeleteBuffers(1, &VBO_Pos);
-	// glDeleteVertexArrays(1, &VAO);
-	Shader_Free(s);
-	Shader_Free(s2);
 	RSys_Quit();
 }
 
