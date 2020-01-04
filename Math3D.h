@@ -57,13 +57,16 @@ typedef Vec4 Quat;
 
 // --- Vector operations --- //
 
-#define V2(x, y) ((Vec2){(x), (y)})
-#define V3(x, y, z) ((Vec3){(x), (y), (z)})
-#define V4(x, y, z, w) ((Vec4){(x), (y), (z), (w)})
+extern Vec2 V2(r32 x, r32 y);
+extern Vec3 V3(r32 x, r32 y, r32 z);
+extern Vec4 V4(r32 x, r32 y, r32 z, r32 w);
 
-#define V2C(X, Y)       {.x = (X), .y = (Y)}
-#define V3C(X, Y, Z)    {.x = (X), .y = (Y), .z = (Z)}
-#define V4C(X, Y, Z, W) {.x = (X), .y = (Y), .z = (Z), .w = (W)}
+#define V2C(X, Y) \
+	{ .x = (X), .y = (Y) }
+#define V3C(X, Y, Z) \
+	{ .x = (X), .y = (Y), .z = (Z) }
+#define V4C(X, Y, Z, W) \
+	{ .x = (X), .y = (Y), .z = (Z), .w = (W) }
 
 #define V3_V2(v, z) ((Vec3){(v).x, (v).y, (z)})
 #define V4_V3(v, w) ((Vec4){(v).x, (v).y, (v).z, (w)})

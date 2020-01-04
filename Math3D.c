@@ -7,6 +7,10 @@
 
 // --- Vector operations --- //
 
+Vec2 V2(r32 x, r32 y) { return (Vec2) V2C(x, y); }
+Vec3 V3(r32 x, r32 y, r32 z) { return (Vec3) V3C(x, y, z); }
+Vec4 V4(r32 x, r32 y, r32 z, r32 w) { return (Vec4) V4C(x, y, z, w); }
+
 Vec2 Vec2_Neg(Vec2 v) { return V2(-v.x, -v.y); }
 Vec3 Vec3_Neg(Vec3 v) { return V3(-v.x, -v.y, -v.z); }
 Vec4 Vec4_Neg(Vec4 v) { return V4(-v.x, -v.y, -v.z, -v.w); }

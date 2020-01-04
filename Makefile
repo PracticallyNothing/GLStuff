@@ -1,5 +1,5 @@
 CC    = gcc
-FLAGS = -std=c99 `pkg-config sdl2 freetype2 opengl --cflags` -I./glad_Core-33/include/
+FLAGS = -std=c99 `pkg-config sdl2 freetype2 opengl --cflags` -I./glad_Core-33/include/ -Wall
 LIBS  = -lm -ldl `pkg-config sdl2 freetype2 opengl --libs`
 
 SOURCES := $(shell find . -name '*.c')
