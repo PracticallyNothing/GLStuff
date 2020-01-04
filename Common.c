@@ -300,6 +300,8 @@ void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
 
 const char *RESET = "\033[0m";
 
+#include <stdarg.h>
+
 const char *CYAN = "\033[36m";
 const char *BLUE = "\033[34m";
 const char *GREEN = "\033[32m";
@@ -307,19 +309,44 @@ const char *YELLOW = "\033[33m";
 const char *RED = "\033[31m";
 const char *BOLDRED = "\033[31;1m";
 
-void Log_Debug(const char *msg) {
-	fprintf(stdout, "%sDebug%s: %s\n", BLUE, RESET, msg);
+#define VA_PRINT                     \
+	do {                             \
+		va_list args;                \
+		va_start(args, fmt);         \
+		vfprintf(stdout, fmt, args); \
+		va_end(args);                \
+	} while(0)
+
+void Log_Debug(const char *fmt, ...) {
+	fprintf(stdout, "%sDEBUG%s: ", BLUE, RESET);
+	VA_PRINT;
+	fprintf(stdout, "\n");
 }
 
-void Log_Info(const char *msg) { fprintf(stdout, "Info: %s\n", msg); }
+void Log_Info(const char *fmt, ...) {
+	fprintf(stdout, "INFO: ");
+	VA_PRINT;
+	fprintf(stdout, "\n");
+}
 
-void Log_Warning(const char *msg) {
-	fprintf(stdout, "%sWarning%s: %s\n", YELLOW, RESET, msg);
+void Log_Warning(const char *fmt, ...) {
+	fprintf(stdout, "%sWARNING%s: ", YELLOW, RESET);
+	VA_PRINT;
+	fprintf(stdout, "\n");
 }
-void Log_Error(const char *msg) {
-	fprintf(stdout, "%sERROR%s: %s\n", RED, RESET, msg);
+void Log_Error(const char *fmt, ...) {
+	fprintf(stdout, "%sERROR%s: ", RED, RESET);
+	VA_PRINT;
+	fprintf(stdout, "\n");
 }
-void Log_FatalError(const char *msg) {
+void Log_FatalError(const char *fmt, ...) {
+	char msg[512] = {0};
+
+	va_list args;
+	va_start(args, fmt);
+	vsprintf(msg, fmt, args);
+	va_end(args);
+
 	fprintf(stderr, "%sFATAL ERROR%s: %s\n", BOLDRED, RESET, msg);
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal error", msg, NULL);
 	exit(EXIT_FAILURE);

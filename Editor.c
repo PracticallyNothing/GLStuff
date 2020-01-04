@@ -172,17 +172,13 @@ void Editor_HandleInput(SDL_Event *e) {
 						newPiece.Disabled = 0;
 						Array_Push(Editor_State.Terrain, (u8 *) &newPiece);
 
-						char msg[256];
-						sprintf(msg, "Placed terrain at x: %.2f, y: %.2f",
-						        newPiece.Position.x, newPiece.Position.y);
-						Log_Debug(msg);
+						Log_Debug("Placed terrain at x: %.2f, y: %.2f",
+						          newPiece.Position.x, newPiece.Position.y);
 					} else {
 						underCursor->Disabled = !underCursor->Disabled;
-						char msg[256];
-						sprintf(msg, "Toggled terrain at x: %.2f, y: %.2f",
-						        Editor_State.CursorPosition.x,
-						        Editor_State.CursorPosition.y);
-						Log_Debug(msg);
+						Log_Debug("Toggled terrain at x: %.2f, y: %.2f",
+						          Editor_State.CursorPosition.x,
+						          Editor_State.CursorPosition.y);
 					}
 				} break;
 			}

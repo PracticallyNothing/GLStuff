@@ -200,10 +200,10 @@ extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                                 Util_CompFunc compFunc);
 
 // --- Logging --- //
-extern void Log_Debug(const char *msg);
-extern void Log_Info(const char *msg);
-extern void Log_Warning(const char *msg);
-extern void Log_Error(const char *msg);
-extern void Log_FatalError(const char *msg);
+extern void Log_Debug(const char *fmt, ...);
+extern void Log_Info(const char *fmt, ...);
+extern void Log_Warning(const char *fmt, ...);
+extern void Log_Error(const char *fmt, ...);
+extern void Log_FatalError(const char *fmt, ...);
 
 #endif

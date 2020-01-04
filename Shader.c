@@ -6,13 +6,14 @@
 
 Shader *Shader_FromFile(const char *file) {
 	Shader *Res = NULL;
-	char *src = calloc(1, Megabytes(2));
+	u32 bufSize = Kilobytes(16);
+	char *src = calloc(1, bufSize);
 
-	if(!File_ReadToBuffer(file, (u8 *) src, Megabytes(2), NULL)) { goto end; }
+	if(!File_ReadToBuffer(file, (u8 *) src, bufSize, NULL)) { goto end; }
 
 	char *vertSrc, *fragSrc;
 
-	{
+	{ /* Read vertex segment */
 		char *start = strstr(src, "@vert") + strlen("@vert"),
 		     *end = strstr(start, "@@");
 
@@ -21,7 +22,7 @@ Shader *Shader_FromFile(const char *file) {
 		strncpy(vertSrc, start, len);
 	}
 
-	{
+	{ /* Read fragment segment */
 		char *start = strstr(src, "@frag") + strlen("@frag"),
 		     *end = strstr(start, "@@");
 
@@ -31,9 +32,9 @@ Shader *Shader_FromFile(const char *file) {
 	}
 
 	Res = Shader_FromSrc(vertSrc, fragSrc);
-end:
 	free(vertSrc);
 	free(fragSrc);
+end:
 	free(src);
 	return Res;
 }
@@ -55,9 +56,8 @@ static GLuint _Shader_GenShader(GLenum type, const char *src) {
 		Log = malloc(sizeof(char) * LogLength);
 		glGetShaderInfoLog(Shader, LogLength, NULL, Log);
 
-		// TODO: Need better way to report errors.
-		printf("%s shader compilation failed.\n%s\n",
-		       (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), Log);
+		Log_Error("%s shader compilation failed.\n%s\n",
+		          (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), Log);
 		free(Log);
 	}
 
@@ -82,8 +82,7 @@ GLuint _Shader_Link(Shader *s) {
 		Log = malloc(sizeof(char) * LogLength);
 		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, Log);
 
-		// TODO: Need better way to report errors.
-		printf("Shader program linking failed.\n%s\n", Log);
+		Log_Error("Shader program linking failed.\n%s\n", Log);
 		free(Log);
 	}
 	return ShaderProgram;
