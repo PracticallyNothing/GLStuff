@@ -1,7 +1,7 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "Camera.h"
 #include "Common.h"
@@ -81,28 +81,27 @@ struct RenderTarget_t {
 	GLuint ColorAttachmentId, DepthAttachmentId;
 };
 
-void RSys_UseCamera();
-
 RenderTarget RenderTarget_Init(enum RenderTarget_Type type);
 void RenderTarget_Free(RenderTarget);
 void RenderTarget_ReadFrom(RenderTarget);
 void RenderTarget_DrawTo(RenderTarget);
 
 // ---=== 2D rendering ===---
-struct R2D_State_t {
-	Array *Fonts;
-};
+extern void R2D_Init();
 
-extern struct R2D_State_t R2D_State;
+typedef void Font;
 
-void R2D_Init();
+Font *R2D_LoadFont_BMP(const char *fontFile, u32 charWidth, u32 charHeight);
+
+i32 R2D_LoadFont_TTF(const char *fontFile);
+void R2D_UseFont(i32 fontIndex);
 
 void R2D_UseDefaultShader(int type);
 
 void R2D_DrawTriangles();
 void R2D_DrawRectOutline();
 void R2D_DrawRect();
-void R2D_DrawText();
+void R2D_DrawText(Vec2 pos, Vec4 color, const char *fmt, ...);
 void R2D_DrawImage();
 void R2D_DrawSprite();
 // etc.

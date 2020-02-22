@@ -65,9 +65,10 @@ void Editor_Init() {
 		glBindVertexArray(Editor_State.CursorVAO);
 
 		Vec3 CursorPos[8] = {
-		    {0.54, 0.2, 0.54},    {-0.54, 0.2, 0.54},  {-0.54, -0.2, 0.54},
-		    {0.54, -0.2, 0.54},   {0.54, 0.2, -0.54},  {-0.54, 0.2, -0.54},
-		    {-0.54, -0.2, -0.54}, {0.54, -0.2, -0.54},
+		    V3C(+0.54, +0.2, +0.54), V3C(-0.54, +0.2, +0.54),
+		    V3C(-0.54, -0.2, +0.54), V3C(+0.54, -0.2, +0.54),
+		    V3C(+0.54, +0.2, -0.54), V3C(-0.54, +0.2, -0.54),
+		    V3C(-0.54, -0.2, -0.54), V3C(+0.54, -0.2, -0.54),
 		};
 
 		u8 CursorInds[18] = {0, 1, 2, 3, 0, 4, 5, 6, 7,
@@ -94,17 +95,17 @@ void Editor_Init() {
 		glBindVertexArray(Editor_State.TerrainVAO);
 
 		Vec3 TerrainPos[4] = {
-		    {-0.5, 0, 0.5},
-		    {-0.5, 0, -0.5},
-		    {0.5, 0, -0.5},
-		    {0.5, 0, 0.5},
+		    V3C(-0.5, 0, 0.5),
+		    V3C(-0.5, 0, -0.5),
+		    V3C(0.5, 0, -0.5),
+		    V3C(0.5, 0, 0.5),
 		};
 
 		Vec2 TerrainUV[4] = {
-		    {-1, +1},
-		    {-1, -1},
-		    {+1, -1},
-		    {+1, +1},
+		    V2C(-1, +1),
+		    V2C(-1, -1),
+		    V2C(+1, -1),
+		    V2C(+1, +1),
 		};
 
 		GLuint TerrainVBOs[2];
@@ -137,8 +138,10 @@ void Editor_Init() {
 const r32 speed = 1;
 
 void Editor_HandleInput(SDL_Event *e) {
-	Vec3 CameraDirection = Vec3_Neg(OrbitCamera_GetOffset(Editor_State.Camera));
-	Vec3 CameraRight = Vec3_Norm(Vec3_Cross(V3(0, 1, 0), CameraDirection));
+	// Vec3 CameraDirection =
+	// Vec3_Neg(OrbitCamera_GetOffset(Editor_State.Camera)); Vec3 CameraRight =
+
+	// Vec3_Norm(Vec3_Cross(V3(0, 1, 0), CameraDirection));
 
 	switch(e->type) {
 		case SDL_KEYDOWN:
@@ -201,7 +204,7 @@ void Editor_HandleInput(SDL_Event *e) {
 			}
 			break;
 		case SDL_MOUSEMOTION: {
-			bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
+			// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
 
 			if(InsideCameraDrag) {
 				r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;

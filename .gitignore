@@ -4,6 +4,8 @@ Epilepsy
 GLSpiral_*
 Videojame.txt
 
+compile_commands.json
+
 # Created by https://www.gitignore.io/api/c,vim,tags,emacs
 # Edit at https://www.gitignore.io/?templates=c,vim,tags,emacs
 
@@ -154,3 +156,5 @@ Sessionx.vim
 # End of https://www.gitignore.io/api/c,vim,tags,emacs
 
 .vs/
+
+.clangd/

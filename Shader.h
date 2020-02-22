@@ -3,7 +3,7 @@
 
 #include "Common.h"
 #include "Math3D.h"
-#include "glad_Core-33/include/glad/glad.h"
+#include "glad/glad.h"
 
 struct Shader_t {
 	GLuint ProgramID;

@@ -1,6 +1,7 @@
 #include "Common.h"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -300,7 +301,6 @@ void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
 
 const char *RESET = "\033[0m";
 
-#include <stdarg.h>
 
 const char *CYAN = "\033[36m";
 const char *BLUE = "\033[34m";
@@ -317,19 +317,27 @@ const char *BOLDRED = "\033[31;1m";
 		va_end(args);                \
 	} while(0)
 
+enum Log_Level Log_Level;
+
 void Log_Debug(const char *fmt, ...) {
+	if(Log_Level > Log_Level_Debug) { return; }
+
 	fprintf(stdout, "%sDEBUG%s: ", BLUE, RESET);
 	VA_PRINT;
 	fprintf(stdout, "\n");
 }
 
 void Log_Info(const char *fmt, ...) {
+	if(Log_Level > Log_Level_Info) { return; }
+
 	fprintf(stdout, "INFO: ");
 	VA_PRINT;
 	fprintf(stdout, "\n");
 }
 
 void Log_Warning(const char *fmt, ...) {
+	if(Log_Level > Log_Level_Warning) { return; }
+
 	fprintf(stdout, "%sWARNING%s: ", YELLOW, RESET);
 	VA_PRINT;
 	fprintf(stdout, "\n");

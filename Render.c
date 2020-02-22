@@ -1,5 +1,8 @@
 #include "Render.h"
+
+#include <ft2build.h>
 #include <stdlib.h>
+#include FT_FREETYPE_H
 
 struct RSys_State_t RSys_State;
 
@@ -109,3 +112,101 @@ void RSys_Quit() {
 	SDL_DestroyWindow(RSys_State.Window);
 	SDL_Quit();
 }
+
+// ---=== 2D rendering ===---
+
+static struct R2D_State {
+	Array *Fonts;
+	i32 ActiveFont;
+	FT_Library Library;
+
+	GLuint TextVAO;
+	GLuint TextTexture;
+} R2D_State;
+
+static const char *Font_GetFTErrorString(FT_Error e);
+
+void R2D_Init() {
+	R2D_State.Fonts = Array_Init(sizeof(FT_Face));
+	R2D_State.ActiveFont = -1;
+
+	R2D_State.Library = NULL;
+	FT_Error error = FT_Init_FreeType(&R2D_State.Library);
+	if(error)
+		Log_Error("Freetype 2 failed to load (reason: %s)",
+		          Font_GetFTErrorString(error));
+
+	glGenVertexArrays(1, &R2D_State.TextVAO);
+	glBindVertexArray(R2D_State.TextVAO);
+
+	GLuint TextVBOs[2];
+	glGenBuffers(2, TextVBOs);
+	glBindBuffer(GL_ARRAY_BUFFER, TextVBOs[0]);
+}
+void R2D_UseFont(i32 fontIndex) { R2D_State.ActiveFont = fontIndex; }
+
+i32 R2D_LoadFont_TTF(const char *fontFile) {
+	if(!R2D_State.Library) {
+		Log_Warning("Can't load TTF font %s because Freetype failed to load.",
+		            fontFile);
+		return -1;
+	}
+
+	FT_Error error;
+	FT_Face face = NULL;
+
+	error = FT_New_Face(R2D_State.Library, fontFile, 0, &face);
+	if(error) {
+		Log_Error("Font \"%s\" failed to load (reason: %s)", fontFile,
+		          Font_GetFTErrorString(error));
+		return -1;
+	}
+
+	error = FT_Set_Char_Size(face,    /* handle to face object           */
+	                         0,       /* char_width in 1/64th of points  */
+	                         16 * 64, /* char_height in 1/64th of points */
+	                         300,     /* horizontal device resolution    */
+	                         300);    /* vertical device resolution      */
+	if(error) {
+		Log_Error("Failed to set font size for font \"%s\" (reason: %s)",
+		          fontFile, Font_GetFTErrorString(error));
+		return -1;
+	}
+	FT_Select_Charmap(face, FT_ENCODING_UNICODE);
+
+	Array_Push(R2D_State.Fonts, (u8 *) &face);
+	R2D_UseFont(R2D_State.Fonts->ArraySize - 1);
+	return R2D_State.Fonts->ArraySize - 1;
+}
+
+void R2D_DrawText(Vec2 pos, Vec4 color, const char *fmt, ...) {
+	char txt[512] = {0};
+
+	va_list args;
+	va_start(args, fmt);
+	vsprintf(txt, fmt, args);
+	va_end(args);
+
+	Vec2 pen = pos;
+
+	FT_Face face = (FT_Face) Array_Get(R2D_State.Fonts, R2D_State.ActiveFont);
+	FT_Bitmap *bmp = &face->glyph->bitmap;
+
+	for(u32 i = 0; i < strlen(txt); i++) {
+		FT_Load_Char(face, txt[i], FT_LOAD_RENDER);
+	}
+}
+
+static const char *Font_GetFTErrorString(FT_Error e) {
+#undef FTERRORS_H_
+#define FT_ERROR_START_LIST switch(e) {
+#define FT_ERRORDEF(e, v, s) \
+	case v: {                \
+		return s;            \
+	}
+#define FT_ERROR_END_LIST }
+
+#include FT_ERRORS_H
+	return "";
+}
+

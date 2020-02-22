@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,8 +52,11 @@ GLuint WireframeCube_Pos;
 GLuint WireframeCube_Inds;
 
 int main(int argc, char *argv[]) {
-	RSys_Init(1280, 720);
 	u32 StartupTime = SDL_GetTicks();
+
+	RSys_Init(1280, 720);
+	R2D_Init();
+	i32 idx = R2D_LoadFont_TTF("/usr/share/fonts/TTF/UbuntuMono-R.ttf");
 
 	SDL_Event e;
 	u32 Ticks = 0;

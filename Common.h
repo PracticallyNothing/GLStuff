@@ -200,6 +200,14 @@ extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                                 Util_CompFunc compFunc);
 
 // --- Logging --- //
+
+extern enum Log_Level {
+	Log_Level_Debug = 0,
+	Log_Level_Info = 1,
+	Log_Level_Warning = 2,
+	Log_Level_Error = 3,
+} Log_Level;
+
 extern void Log_Debug(const char *fmt, ...);
 extern void Log_Info(const char *fmt, ...);
 extern void Log_Warning(const char *fmt, ...);

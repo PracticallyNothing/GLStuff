@@ -286,6 +286,7 @@ void Mat2_MultMat(Mat2 a, const Mat2 b) {
 	out[3] = a[2] * b[1] + a[3] * b[3];
 	Mat2_Copy(a, out);
 }
+
 void Mat3_MultMat(Mat3 a, const Mat3 b) {
 	Mat3 out;
 	out[0] = a[0] * b[0] + a[1] * b[3] + a[2] * b[6];
@@ -410,8 +411,10 @@ const Quat Quat_Identity = {.x = 0, .y = 0, .z = 0, .w = 1};
 
 Quat Quat_RotAxis(Vec3 axis, r32 angle) {
 	axis = Vec3_Norm(axis);
-	return (Quat){axis.x * sin(angle / 2), axis.y * sin(angle / 2),
-	              axis.z * sin(angle / 2), cos(angle / 2)};
+	return (Quat){.x = axis.x * sin(angle / 2),
+	              .y = axis.y * sin(angle / 2),
+	              .z = axis.z * sin(angle / 2),
+	              .w = cos(angle / 2)};
 }
 
 static r32 _Mix(r32 a, r32 b, r32 t) { return t * a + (1 - t) * b; }
@@ -420,8 +423,10 @@ Quat Quat_Mix(Quat a, Quat b, r32 amt) {
 	r32 cosTheta = Quat_Dot(a, b);
 
 	if(cosTheta > 1 - FLT_EPSILON) {
-		return (Quat){_Mix(a.x, b.x, amt), _Mix(a.y, b.y, amt),
-		              _Mix(a.z, b.z, amt), _Mix(a.w, b.w, amt)};
+		return (Quat){.x = _Mix(a.x, b.x, amt),
+		              .y = _Mix(a.y, b.y, amt),
+		              .z = _Mix(a.z, b.z, amt),
+		              .w = _Mix(a.w, b.w, amt)};
 	} else {
 		r32 angle = acos(cosTheta);
 
@@ -461,7 +466,7 @@ Quat Quat_Inverse(Quat q) {
 r32 Quat_Dot(Quat a, Quat b) { return Vec4_Dot(a, b); }
 Quat Quat_Norm(Quat q) {
 	r32 len = Vec4_Len(q);
-	if(len <= 0) return (Quat){0, 0, 0, 1};
+	if(len <= 0) return (Quat){.x = 0, .y = 0, .z = 0, .w = 1};
 	return Vec4_Norm(q);
 }
 
@@ -473,7 +478,7 @@ Quat Quat_Mult(Quat a, Quat b) {
 	z = b.w * a.z + b.z * a.w + b.x * a.y - b.y * a.x;
 	w = b.w * a.w - b.x * a.x - b.y * a.y - b.z * a.z;
 
-	return (Quat){x, y, z, w};
+	return (Quat){.x = x, .y = y, .z = z, .w = w};
 }
 
 static i32 HexToInt(char c) {
