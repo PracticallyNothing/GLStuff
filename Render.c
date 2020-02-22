@@ -210,3 +210,197 @@ static const char *Font_GetFTErrorString(FT_Error e) {
 	return "";
 }
 
+bool8 RectInitialized = 0;
+Shader *RectShader = NULL;
+GLuint RectVAO = 0;
+GLuint RectVBO = 0;
+
+void R2D_DrawRect(Vec2 Position, Vec2 Size, Vec4 Color, bool8 OutlineOnly) {
+	if(!RectInitialized) {
+		Log_Debug("Initializing Rect...");
+		glGenVertexArrays(1, &RectVAO);
+		glBindVertexArray(RectVAO);
+
+		glGenBuffers(1, &RectVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, RectVBO);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+
+		RectShader = Shader_FromFile("res/shaders/ui_rect.glsl");
+
+		RectInitialized = 1;
+	}
+
+	glBindVertexArray(RectVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, RectVBO);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	Vec2 pos[4];
+	pos[0] = V2(Position.x, Position.y);           // Top left
+	pos[1] = V2(Position.x, Position.y + Size.y);  // Bottom left
+	if(OutlineOnly) {
+		pos[2] = V2(Position.x + Size.x, Position.y + Size.y);  // Bottom right
+		pos[3] = V2(Position.x + Size.x, Position.y);           // Top right
+	} else {
+		pos[2] = V2(Position.x + Size.x, Position.y);           // Top right
+		pos[3] = V2(Position.x + Size.x, Position.y + Size.y);  // Bottom right
+	}
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * 4, pos, GL_DYNAMIC_DRAW);
+
+	RSys_Size size = RSys_GetSize();
+
+	Mat4 view, proj;
+	Camera cam = {.Mode = CameraMode_Orthographic,
+	              .ScreenWidth = size.Width,
+	              .ScreenHeight = size.Height,
+	              .Position = V3(0, 0, -1),
+	              .Target = V3(0, 0, 0),
+	              .Up = V3(0, 1, 0),
+	              .ZNear = 0.01,
+	              .ZFar = 1000};
+
+	Camera_Mat4(cam, view, proj);
+
+	Shader_Use(RectShader);
+	Shader_Uniform1i(RectShader, "type", 0);
+	Shader_UniformMat4(RectShader, "proj", proj);
+	Shader_UniformMat4(RectShader, "view", view);
+	Shader_Uniform4f(RectShader, "color", Color);
+
+	glDrawArrays((OutlineOnly ? GL_LINE_LOOP : GL_TRIANGLE_STRIP), 0, 4);
+}
+
+void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
+                       Vec2 TextureUVs[4]) {
+	if(!RectInitialized) {
+		glGenVertexArrays(1, &RectVAO);
+		glBindVertexArray(RectVAO);
+
+		glGenBuffers(1, &RectVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, RectVBO);
+
+		RectShader = Shader_FromFile("res/shaders/ui_rect.glsl");
+
+		RectInitialized = 1;
+	}
+
+	glBindVertexArray(RectVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, RectVBO);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2), NULL);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2),
+	                      (void *) (sizeof(Vec2) * 4));
+
+	Vec2 PosAndUV[8] = {
+	    V2(Position.x, Position.y),                    // Top left
+	    V2(Position.x, Position.y + Size.y),           // Bottom left
+	    V2(Position.x + Size.x, Position.y),           // Top right
+	    V2(Position.x + Size.x, Position.y + Size.y),  // Bottom right
+
+	    TextureUVs[0],
+	    TextureUVs[1],
+	    TextureUVs[2],
+	    TextureUVs[3],
+	};
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * 8, PosAndUV, GL_DYNAMIC_DRAW);
+
+	RSys_Size size = RSys_GetSize();
+
+	Mat4 view, proj;
+	Camera cam = {
+	    .Mode = CameraMode_Orthographic,
+	    .ScreenWidth = size.Width,
+	    .ScreenHeight = size.Height,
+	    .Position = V3(0, 0, -1),
+	    .Target = V3(0, 0, 0),
+	    .Up = V3(0, 1, 0),
+	    .ZNear = 0.01,
+	    .ZFar = 1000,
+	};
+
+	Camera_Mat4(cam, view, proj);
+
+	Shader_Use(RectShader);
+	Shader_UniformMat4(RectShader, "proj", proj);
+	Shader_UniformMat4(RectShader, "view", view);
+	Shader_Uniform1i(RectShader, "type", 1);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, TextureID);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+Array *DrawCmdQueue = NULL;
+
+typedef struct DrawCmd {
+	enum {
+		DrawCmd_DrawRect,
+		DrawCmd_DrawRectOutline,
+		DrawCmd_DrawImage,
+	} Type;
+
+	union {
+		struct {
+			Vec2 RectPos;
+			Vec2 RectSize;
+
+			union {
+				Vec4 RectColor;
+				struct {
+					GLuint RectTexture;
+					Vec2 RectUVOffset;
+					Vec2 RectUVSize;
+				};
+			};
+		};
+	};
+} DrawCmd;
+
+void R2D_PushRect(Vec2 Position, Vec2 Size, RGBA Color, bool8 OutlineOnly) {
+	if(!DrawCmdQueue) DrawCmdQueue = Array_Init(sizeof(DrawCmd));
+
+	DrawCmd cmd = {
+	    .Type = (OutlineOnly ? DrawCmd_DrawRectOutline : DrawCmd_DrawRect),
+	    .RectPos = Position,
+	    .RectSize = Size,
+	    .RectColor = Color,
+	};
+	Array_Push(DrawCmdQueue, (u8 *) &cmd);
+}
+
+void R2D_FinishRender() {
+	if(!RectShader) RectShader = Shader_FromFile("res/shaders/ui_rect.glsl");
+
+	RSys_Size size = RSys_GetSize();
+
+	Mat4 view, proj;
+	Camera cam = {
+	    .Mode = CameraMode_Orthographic,
+	    .ScreenWidth = size.Width,
+	    .ScreenHeight = size.Height,
+	    .Position = V3(0, 0, -1),
+	    .Target = V3(0, 0, 0),
+	    .Up = V3(0, 1, 0),
+	    .ZNear = 0.01,
+	    .ZFar = 1000,
+	};
+
+	Camera_Mat4(cam, view, proj);
+
+	Shader_Use(RectShader);
+	Shader_UniformMat4(RectShader, "proj", proj);
+	Shader_UniformMat4(RectShader, "view", view);
+
+	for(u32 i = 0; i < DrawCmdQueue->ArraySize; i++) {
+		DrawCmd *cmd = (DrawCmd *) Array_Get(DrawCmdQueue, i);
+		switch(cmd->Type) {
+			case DrawCmd_DrawRect: break;
+		}
+	}
+
+
+	Array_Clear(DrawCmdQueue);
+}

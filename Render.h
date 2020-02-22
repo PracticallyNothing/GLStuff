@@ -88,22 +88,17 @@ void RenderTarget_DrawTo(RenderTarget);
 
 // ---=== 2D rendering ===---
 extern void R2D_Init();
+extern void R2D_DrawTriangles();
+extern void R2D_DrawRect(Vec2 Position, Vec2 Size, Vec4 Color,
+                         bool8 OutlineOnly);
+extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
+                              Vec2 TextureUVs[4]);
+extern void R2D_DrawText(Vec2 pos, Vec4 color, const char *fmt, ...);
+extern void R2D_DrawSprite();
 
-typedef void Font;
-
-Font *R2D_LoadFont_BMP(const char *fontFile, u32 charWidth, u32 charHeight);
-
-i32 R2D_LoadFont_TTF(const char *fontFile);
-void R2D_UseFont(i32 fontIndex);
-
-void R2D_UseDefaultShader(int type);
-
-void R2D_DrawTriangles();
-void R2D_DrawRectOutline();
-void R2D_DrawRect();
-void R2D_DrawText(Vec2 pos, Vec4 color, const char *fmt, ...);
-void R2D_DrawImage();
-void R2D_DrawSprite();
+extern void R2D_PushRect(Vec2 Position, Vec2 Size, Vec4 Color,
+                         bool8 OutlineOnly);
+extern void R2D_FinishRender();
 // etc.
 // ---===##############===---
 

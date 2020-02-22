@@ -271,11 +271,13 @@ void Mat4_OrthoProj(Mat4 out, r32 left, r32 right, r32 top, r32 bottom,
 	r32 y = top - bottom;
 	r32 z = zFar - zNear;
 	out[0] = 2.0 / x;
-	out[3] = (x > 0 ? -1 : 1);
+	out[3] = -((right + left) / x);
+
 	out[5] = 2.0 / y;
-	out[7] = (y > 0 ? -1 : 1);
+	out[7] = -((top + bottom) / y);
+
 	out[10] = 2.0 / z;
-	out[11] = (z > 0 ? -1 : 1);
+	out[11] = -((zFar + zNear) / z);
 }
 
 void Mat2_MultMat(Mat2 a, const Mat2 b) {

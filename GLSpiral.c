@@ -21,10 +21,10 @@ typedef struct GPUModel {
 } GPUModel;
 
 r32 g_ScreenQuad[][4] = {
-    {-1, 1, 0, 1},
+    {-1, +1, 0, 1},
     {-1, -1, 0, 0},
-    {1, 1, 1, 1},
-    {1, -1, 1, 0},
+    {+1, +1, 1, 1},
+    {+1, -1, 1, 0},
 };
 
 Vec3 g_CubePos[] = {
@@ -64,7 +64,13 @@ int main(int argc, char *argv[]) {
 	printf("Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	Editor_Init();
+	const Vec4 Colors[] = {
+	    V4C(1, 0, 0, 0.25), V4C(0, 1, 0, 0.25), V4C(0, 0, 1, 0.25),
+	    V4C(1, 1, 0, 0.25), V4C(0, 1, 1, 0.25), V4C(1, 1, 1, 0.25),
+	};
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -94,10 +100,23 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		i32 N = 128;
+
 		// Render frame to back buffer.
 		if(Ticks - RSys_State.LastFrameTime > 16) {
 			// Editor rendering
 			Editor_Render();
+
+			RSys_Size sz = RSys_GetSize();
+			for(i32 y = 0; y < N; y++) {
+				for(i32 x = 0; x < N; x++) {
+					R2D_DrawRect(V2(sz.Width / N * x, sz.Height / N * y),
+					             V2(sz.Width / N, sz.Height / N),
+					             Colors[(x + y * N) %
+					                    (sizeof(Colors) / sizeof(Colors[0]))],
+					             1);
+				}
+			}
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();

@@ -74,6 +74,6 @@ void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 			              c.ZFar);
 			break;
 
-		case CameraMode_NumModes: exit(EXIT_FAILURE);
+		default: exit(EXIT_FAILURE);
 	}
 }
