@@ -5,37 +5,36 @@
 #include "Math3D.h"
 #include "glad/glad.h"
 
-struct Shader_t {
+struct Shader {
 	GLuint ProgramID;
 	GLuint VertexID, FragmentID;
 	const char *VertexFile, *FragmentFile;
 };
-typedef struct Shader_t Shader;
+extern struct Shader *Shader_FromFile(const char *file);
+extern struct Shader *Shader_FromSrc(const char *vertexSrc,
+                                     const char *fragmentSrc);
 
-extern Shader *Shader_FromFile(const char *file);
-extern Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc);
+extern void Shader_Use(struct Shader *);
 
-extern void Shader_Use(Shader *);
+extern void Shader_Uniform1i(struct Shader *, const char *name, i32);
+extern void Shader_Uniform1f(struct Shader *, const char *name, r32);
+extern void Shader_Uniform2f(struct Shader *, const char *name, Vec2);
+extern void Shader_Uniform3f(struct Shader *, const char *name, Vec3);
+extern void Shader_Uniform4f(struct Shader *, const char *name, Vec4);
 
-extern void Shader_Uniform1i(Shader *, const char *name, i32);
-extern void Shader_Uniform1f(Shader *, const char *name, r32);
-extern void Shader_Uniform2f(Shader *, const char *name, Vec2);
-extern void Shader_Uniform3f(Shader *, const char *name, Vec3);
-extern void Shader_Uniform4f(Shader *, const char *name, Vec4);
-
-extern void Shader_Uniform1fv(Shader *, const char *name, const r32 *,
+extern void Shader_Uniform1fv(struct Shader *, const char *name, const r32 *,
                               u32 count);
-extern void Shader_Uniform2fv(Shader *, const char *name, const Vec2 *,
+extern void Shader_Uniform2fv(struct Shader *, const char *name, const Vec2 *,
                               u32 count);
-extern void Shader_Uniform3fv(Shader *, const char *name, const Vec3 *,
+extern void Shader_Uniform3fv(struct Shader *, const char *name, const Vec3 *,
                               u32 count);
-extern void Shader_Uniform4fv(Shader *, const char *name, const Vec4 *,
+extern void Shader_Uniform4fv(struct Shader *, const char *name, const Vec4 *,
                               u32 count);
 
-extern void Shader_UniformMat2(Shader *, const char *name, const Mat2);
-extern void Shader_UniformMat3(Shader *, const char *name, const Mat3);
-extern void Shader_UniformMat4(Shader *, const char *name, const Mat4);
+extern void Shader_UniformMat2(struct Shader *, const char *name, const Mat2);
+extern void Shader_UniformMat3(struct Shader *, const char *name, const Mat3);
+extern void Shader_UniformMat4(struct Shader *, const char *name, const Mat4);
 
-extern void Shader_Free(Shader *);
+extern void Shader_Free(struct Shader *);
 
 #endif

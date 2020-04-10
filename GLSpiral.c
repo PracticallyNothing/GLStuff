@@ -6,6 +6,7 @@
 
 #include "Common.h"
 #include "Editor.h"
+#include "FakeViM.h"
 #include "Math3D.h"
 #include "Render.h"
 #include "Shader.h"
@@ -28,15 +29,15 @@ r32 g_ScreenQuad[][4] = {
 };
 
 Vec3 g_CubePos[] = {
-    /* 4 */ {-1, -1, -1},
-    /* 5 */ {1, 1, -1},
-    /* 6 */ {1, -1, -1},
-    /* 7 */ {-1, 1, -1},
+    /* 4 */ V3C(-1, -1, -1),
+    /* 5 */ V3C(1, 1, -1),
+    /* 6 */ V3C(1, -1, -1),
+    /* 7 */ V3C(-1, 1, -1),
 
-    /* 0 */ {-1, -1, 1},
-    /* 1 */ {1, 1, 1},
-    /* 2 */ {1, -1, 1},
-    /* 3 */ {-1, 1, 1},
+    /* 0 */ V3C(-1, -1, 1),
+    /* 1 */ V3C(1, 1, 1),
+    /* 2 */ V3C(1, -1, 1),
+    /* 3 */ V3C(-1, 1, 1),
 };
 i32 g_CubeInds[] = {0, 2, 1, 3, 0, 1, 7, 4, 3, 4, 0, 3, 1, 2, 5, 2, 6, 5,
                     7, 5, 6, 7, 6, 4, 3, 1, 7, 1, 5, 7, 0, 6, 2, 0, 4, 6};
@@ -51,12 +52,46 @@ GLuint WireframeCube_VAO = 0;
 GLuint WireframeCube_Pos;
 GLuint WireframeCube_Inds;
 
+typedef struct Entity {
+	enum {
+		// Rocks, barrels, etc.
+		EntityType_Static,
+		// E.g. trees swaying in the wind, waterfalls, etc.
+		EntityType_DynamicMotionless,
+		// Anything that moves & acts according to some set of rules.
+		EntityType_Actor,
+	} Type;
+
+	// Tags that the entity has attached for it for easier sorting.
+	Array *Tags;
+} Entity;
+
+struct Level {
+	Entity *Entities;
+	Light *Lights;
+};
+
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 
 	RSys_Init(1280, 720);
 	R2D_Init();
-	i32 idx = R2D_LoadFont_TTF("/usr/share/fonts/TTF/UbuntuMono-R.ttf");
+
+	const u32 W = 100;
+	const u32 H = 100;
+	const RGBA Colors[] = {
+	    V4C(1, 0, 0, 0.1), V4C(0, 1, 0, 0.1), V4C(0, 0, 1, 0.1),
+	    V4C(1, 1, 0, 0.1), V4C(0, 1, 1, 0.1), V4C(1, 1, 1, 0.1),
+	};
+	struct R2D_Rect *Rects = malloc(sizeof(struct R2D_Rect) * W * H);
+	for(u32 y = 0; y < H; y++) {
+		for(u32 x = 0; x < W; x++) {
+			struct R2D_Rect *r = &Rects[x + y * W];
+			r->Position = V2(x * 10, y * 10);
+			r->Size = V2(10, 10);
+			r->Color = Colors[(x + y) % (sizeof(Colors) / sizeof(RGBA))];
+		}
+	}
 
 	SDL_Event e;
 	u32 Ticks = 0;
@@ -67,10 +102,6 @@ int main(int argc, char *argv[]) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	Editor_Init();
-	const Vec4 Colors[] = {
-	    V4C(1, 0, 0, 0.25), V4C(0, 1, 0, 0.25), V4C(0, 0, 1, 0.25),
-	    V4C(1, 1, 0, 0.25), V4C(0, 1, 1, 0.25), V4C(1, 1, 1, 0.25),
-	};
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -80,9 +111,7 @@ int main(int argc, char *argv[]) {
 				case SDL_QUIT: goto end;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
-						case SDLK_ESCAPE:
-						case SDLK_q: goto end;
-						default: Editor_HandleInput(&e); break;
+						default: FakeVIM_Input(&e); break;
 					}
 					break;
 				case SDL_WINDOWEVENT:
@@ -96,27 +125,17 @@ int main(int argc, char *argv[]) {
 						}
 					}
 					break;
-				default: Editor_HandleInput(&e); break;
+				default: {
+					FakeVIM_Input(&e);
+					// Editor_HandleInput(&e);
+					break;
+				}
 			}
 		}
 
-		i32 N = 128;
-
 		// Render frame to back buffer.
-		if(Ticks - RSys_State.LastFrameTime > 16) {
-			// Editor rendering
-			Editor_Render();
-
-			RSys_Size sz = RSys_GetSize();
-			for(i32 y = 0; y < N; y++) {
-				for(i32 x = 0; x < N; x++) {
-					R2D_DrawRect(V2(sz.Width / N * x, sz.Height / N * y),
-					             V2(sz.Width / N, sz.Height / N),
-					             Colors[(x + y * N) %
-					                    (sizeof(Colors) / sizeof(Colors[0]))],
-					             1);
-				}
-			}
+		if(Ticks - RSys_GetLastFrameTime() > 16) {
+			FakeVIM_Render();
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();
@@ -127,42 +146,6 @@ int main(int argc, char *argv[]) {
 
 end:
 	RSys_Quit();
-}
-
-
-GLuint Texture_FromFile(const char *filename) {
-	GLuint Texture;
-	u8 *Data;
-	i32 ImgWidth, ImgHeight, CompPerPixel;
-
-	stbi_set_flip_vertically_on_load(1);
-	Data = stbi_load(filename, &ImgWidth, &ImgHeight, &CompPerPixel, 0);
-	if(!Data) return 0;
-
-	glGenTextures(1, &Texture);
-	glBindTexture(GL_TEXTURE_2D, Texture);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	printf("CompPerPixel: %d\n", CompPerPixel);
-
-	GLenum Format;
-	switch(CompPerPixel) {
-		case 1: Format = GL_RED; break;
-		case 2: Format = GL_RG; break;
-		case 3: Format = GL_RGB; break;
-		case 4: Format = GL_RGBA; break;
-	}
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ImgWidth, ImgHeight, 0, Format,
-	             GL_UNSIGNED_BYTE, Data);
-	glGenerateMipmap(GL_TEXTURE_2D);
-
-	stbi_image_free(Data);
-	return Texture;
 }
 
 GLuint Lines_VAO = 0, Lines_Pos = 0;

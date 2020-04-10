@@ -39,6 +39,8 @@ struct OrbitCamera_t {
 	r32 ZNear, ZFar;
 	r32 VerticalFoV;
 	r32 AspectRatio;
+
+	bool8 Outwards;
 };
 
 extern Vec3 OrbitCamera_GetOffset(OrbitCamera c);

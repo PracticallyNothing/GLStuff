@@ -89,6 +89,9 @@
 		do { printf((fmt), __VA_ARGS__); } while(0)
 #endif
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;

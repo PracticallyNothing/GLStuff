@@ -13,7 +13,7 @@ struct Editor_State_t {
 
 	OrbitCamera Camera;
 
-	Shader *WireShader, *TerrainShader;
+	struct Shader *WireShader, *TerrainShader;
 	GLuint CursorVAO, CursorInds;
 	GLuint TerrainVAO;
 } Editor_State;
@@ -22,7 +22,7 @@ const i32 CameraTimeMs = 500;
 u32 LastMove = 0;
 Vec2 TargetAtMoveStart = V2C(0, 0);
 
-bool32 InsideCameraDrag = 0;
+bool8 DraggingCamera = 0;
 Vec2 InitialDragMousePos = V2C(0, 0);
 Vec2 InitialYawPitch = V2C(0, 0);
 SDL_Cursor *Cursor_Normal, *Cursor_Rotate;
@@ -147,6 +147,10 @@ void Editor_HandleInput(SDL_Event *e) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
 					// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
+				case SDLK_F1:
+					Editor_State.Camera.Outwards =
+					    !Editor_State.Camera.Outwards;
+					break;
 
 				case SDLK_LEFT:
 					Editor_State.CursorPosition.x -= speed;
@@ -193,10 +197,10 @@ void Editor_HandleInput(SDL_Event *e) {
 		case SDL_MOUSEBUTTONDOWN:
 			if(e->button.button == SDL_BUTTON_RIGHT) {
 				// Begin camera drag if it hasn't been started yet.
-				if(!InsideCameraDrag) {
+				if(!DraggingCamera) {
 					SDL_SetCursor(Cursor_Rotate);
 
-					InsideCameraDrag = 1;
+					DraggingCamera = 1;
 					InitialDragMousePos = V2(e->button.x, e->button.y);
 					InitialYawPitch =
 					    V2(Editor_State.Camera.Yaw, Editor_State.Camera.Pitch);
@@ -206,9 +210,10 @@ void Editor_HandleInput(SDL_Event *e) {
 		case SDL_MOUSEMOTION: {
 			// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
 
-			if(InsideCameraDrag) {
+			if(DraggingCamera) {
 				r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
-				r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
+				r32 dy = (Editor_State.Camera.Outwards ? -1 : 1) *
+				         (e->motion.y - InitialDragMousePos.y) / 256.0;
 
 				Editor_State.Camera.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
 				Editor_State.Camera.Pitch =
@@ -219,7 +224,7 @@ void Editor_HandleInput(SDL_Event *e) {
 		case SDL_MOUSEBUTTONUP:
 			if(e->button.button == SDL_BUTTON_RIGHT) {
 				SDL_SetCursor(Cursor_Normal);
-				InsideCameraDrag = 0;
+				DraggingCamera = 0;
 			}
 			break;
 		default: {

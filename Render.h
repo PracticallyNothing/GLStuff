@@ -52,18 +52,22 @@ struct RSys_Size_t {
 	r32 AspectRatio;
 };
 
-struct RSys_State_t {
-	SDL_Window *Window;
-	SDL_GLContext GLContext;
-	u64 LastFrameTime;
-	u64 LastFrameDT;
-};
-extern struct RSys_State_t RSys_State;
-
 extern void RSys_Init(u32 Width, u32 Height);
 extern void RSys_Quit();
 extern void RSys_FinishFrame();
+
+extern u64 RSys_GetLastFrameTime();
 extern RSys_Size RSys_GetSize();
+
+extern GLuint RSys_GetTempVAO();
+extern void RSys_FreeTempVAO(GLuint);
+
+struct RSys_Texture {
+	GLuint Id;
+	i32 Width, Height;
+	i32 NumComponents;
+};
+extern struct RSys_Texture RSys_TextureFromFile(const char *filename);
 
 typedef struct RenderTarget_t RenderTarget;
 
@@ -87,19 +91,33 @@ void RenderTarget_ReadFrom(RenderTarget);
 void RenderTarget_DrawTo(RenderTarget);
 
 // ---=== 2D rendering ===---
-extern void R2D_Init();
-extern void R2D_DrawTriangles();
-extern void R2D_DrawRect(Vec2 Position, Vec2 Size, Vec4 Color,
-                         bool8 OutlineOnly);
-extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
-                              Vec2 TextureUVs[4]);
-extern void R2D_DrawText(Vec2 pos, Vec4 color, const char *fmt, ...);
-extern void R2D_DrawSprite();
+struct R2D_Rect {
+	Vec2 Position;
+	Vec2 Size;
+	union {
+		RGBA Color;
+		Vec2 UVs[4];
+	};
+};
 
-extern void R2D_PushRect(Vec2 Position, Vec2 Size, Vec4 Color,
-                         bool8 OutlineOnly);
-extern void R2D_FinishRender();
-// etc.
+struct R2D_Spritesheet {
+	GLuint TextureId;
+	u32 Width, Height;
+	u32 SpriteWidth, SpriteHeight;
+};
+
+extern struct R2D_Spritesheet R2D_DefaultFont;
+
+extern void R2D_Init();
+extern void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects,
+                          bool8 Fill);
+extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
+                              const Vec2 *TextureUVs);
+extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
+                         const struct R2D_Spritesheet *font, const char *fmt,
+                         ...);
+extern Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font,
+                               const char *fmt, ...);
 // ---===##############===---
 
 // ---=== 3D rendering ===---
@@ -116,7 +134,7 @@ enum R3D_ShaderType {
 
 struct R3D_State_t {
 	enum R3D_ShaderType CurrentShader;
-	Shader *Shaders[R3D_Shader_NumShaders];
+	struct Shader *Shaders[R3D_Shader_NumShaders];
 	i32 DebugMode;
 	void *Scene;
 };

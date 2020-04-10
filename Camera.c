@@ -24,6 +24,9 @@ void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
 	    .VerticalFoV = c.VerticalFoV,
 	};
 
+	if(c.Outwards)
+		cc.Target = Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
+
 	Camera_Mat4(cc, out_view, out_proj);
 }
 
