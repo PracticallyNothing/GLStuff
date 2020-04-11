@@ -1,230 +1,106 @@
 #include "Editor.h"
 
+#include "Common.h"
 #include "Render.h"
+#include "SDL_keycode.h"
 
-typedef struct TerrainPiece_t {
-	Vec2 Position;
-	bool32 Disabled;
-} TerrainPiece;
-
-struct Editor_State_t {
-	Array *Terrain;
-	Vec2 CursorPosition;
-
-	OrbitCamera Camera;
-
-	struct Shader *WireShader, *TerrainShader;
-	GLuint CursorVAO, CursorInds;
-	GLuint TerrainVAO;
-} Editor_State;
-
-const i32 CameraTimeMs = 500;
-u32 LastMove = 0;
-Vec2 TargetAtMoveStart = V2C(0, 0);
-
-bool8 DraggingCamera = 0;
 Vec2 InitialDragMousePos = V2C(0, 0);
 Vec2 InitialYawPitch = V2C(0, 0);
 SDL_Cursor *Cursor_Normal, *Cursor_Rotate;
 
-static TerrainPiece *Editor_TerrainUnderCursor() {
-	for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-		TerrainPiece *piece =
-		    (TerrainPiece *) Array_Get(Editor_State.Terrain, i);
-
-		if(piece->Position.x == Editor_State.CursorPosition.x &&
-		   piece->Position.y == Editor_State.CursorPosition.y) {
-			return piece;
-		}
-	}
-	return NULL;
-}
+OrbitCamera Cam;
+struct Shader *UnlitColor;
 
 void Editor_Init() {
-	// Generate shaders
-	Editor_State.WireShader = Shader_FromFile("res/shaders/editor-cursor.glsl");
-	Editor_State.TerrainShader =
-	    Shader_FromFile("res/shaders/editor-terrain.glsl");
-
-	// Reset cursor position
-	Editor_State.CursorPosition = V2(0, 0);
-
 	// Setup camera
-	Editor_State.Camera = (OrbitCamera){
-	    .ZNear = 1e-2,
-	    .ZFar = 1e10,
-	    .VerticalFoV = Pi_Half + Pi_Quarter,
-	};
-	Editor_State.Camera.Yaw = DegToRad(290);
-	Editor_State.Camera.Pitch = DegToRad(45);
-	Editor_State.Camera.Radius = 2;
+	Cam = (OrbitCamera){.ZNear = 1e-2,
+	                    .ZFar = 1e10,
+	                    .VerticalFoV = Pi_Half + Pi_Quarter,
+	                    .Yaw = DegToRad(290),
+	                    .Pitch = DegToRad(45),
+	                    .Radius = 2};
 
-	// Generate cursor.
-	{
-		glGenVertexArrays(1, &Editor_State.CursorVAO);
-		glBindVertexArray(Editor_State.CursorVAO);
-
-		Vec3 CursorPos[8] = {
-		    V3C(+0.54, +0.2, +0.54), V3C(-0.54, +0.2, +0.54),
-		    V3C(-0.54, -0.2, +0.54), V3C(+0.54, -0.2, +0.54),
-		    V3C(+0.54, +0.2, -0.54), V3C(-0.54, +0.2, -0.54),
-		    V3C(-0.54, -0.2, -0.54), V3C(+0.54, -0.2, -0.54),
-		};
-
-		u8 CursorInds[18] = {0, 1, 2, 3, 0, 4, 5, 6, 7,
-		                     4, 5, 1, 2, 6, 7, 3, 0, 4};
-
-		GLuint CursorVBOs[2];
-		glGenBuffers(2, CursorVBOs);
-		glBindBuffer(GL_ARRAY_BUFFER, CursorVBOs[0]);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CursorVBOs[1]);
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(CursorPos), CursorPos,
-		             GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CursorInds), CursorInds,
-		             GL_STATIC_DRAW);
-
-		Editor_State.CursorInds = CursorVBOs[1];
-	}
-
-	{
-		glGenVertexArrays(1, &Editor_State.TerrainVAO);
-		glBindVertexArray(Editor_State.TerrainVAO);
-
-		Vec3 TerrainPos[4] = {
-		    V3C(-0.5, 0, 0.5),
-		    V3C(-0.5, 0, -0.5),
-		    V3C(0.5, 0, -0.5),
-		    V3C(0.5, 0, 0.5),
-		};
-
-		Vec2 TerrainUV[4] = {
-		    V2C(-1, +1),
-		    V2C(-1, -1),
-		    V2C(+1, -1),
-		    V2C(+1, +1),
-		};
-
-		GLuint TerrainVBOs[2];
-		glGenBuffers(2, TerrainVBOs);
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-
-		glBindBuffer(GL_ARRAY_BUFFER, TerrainVBOs[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(TerrainPos), TerrainPos,
-		             GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-		glBindBuffer(GL_ARRAY_BUFFER, TerrainVBOs[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(TerrainUV), TerrainUV,
-		             GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-	}
-
-	Editor_State.Terrain = Array_Init(sizeof(TerrainPiece));
-	{
-		TerrainPiece Default = {.Position = V2(0, 0)};
-		Array_Push(Editor_State.Terrain, (u8 *) &Default);
-	}
+	UnlitColor = Shader_FromFile("res/shaders/editor/terrain.glsl");
 
 	Cursor_Normal = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
 	Cursor_Rotate = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
 }
 
-
 const r32 speed = 1;
+bool8 shift = 0;
+enum { Drag_None = 0, Drag_Rotate, Drag_Move } DragMode = Drag_None;
+Vec3 DragMoveOffset = V3C(0, 0, 0);
 
 void Editor_HandleInput(SDL_Event *e) {
-	// Vec3 CameraDirection =
-	// Vec3_Neg(OrbitCamera_GetOffset(Editor_State.Camera)); Vec3 CameraRight =
-
-	// Vec3_Norm(Vec3_Cross(V3(0, 1, 0), CameraDirection));
+	Vec3 camDir = Vec3_Norm(Vec3_Neg(OrbitCamera_GetOffset(Cam)));
+	Vec3 camRight = Vec3_Norm(Vec3_Cross(V3(0, 1, 0), camDir));
+	Vec3 camUp = Vec3_Norm(Vec3_Cross(camRight, camDir));
 
 	switch(e->type) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
-					// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
-				case SDLK_F1:
-					Editor_State.Camera.Outwards =
-					    !Editor_State.Camera.Outwards;
-					break;
+				case SDLK_LSHIFT:
+				case SDLK_RSHIFT: shift = 1; break;
 
-				case SDLK_LEFT:
-					Editor_State.CursorPosition.x -= speed;
-					goto SetLastMove;
-				case SDLK_RIGHT:
-					Editor_State.CursorPosition.x += speed;
-					goto SetLastMove;
-				case SDLK_UP:
-					Editor_State.CursorPosition.y += speed;
-					goto SetLastMove;
-				case SDLK_DOWN:
-					Editor_State.CursorPosition.y -= speed;
-					goto SetLastMove;
-
-				SetLastMove:
-					TargetAtMoveStart = V2(Editor_State.Camera.Center.x,
-					                       Editor_State.Camera.Center.z);
-					LastMove = SDL_GetTicks();
-					break;
-
-				case SDLK_SPACE: {
-					TerrainPiece *underCursor = Editor_TerrainUnderCursor();
-					if(!underCursor) {
-						TerrainPiece newPiece;
-						newPiece.Position = Editor_State.CursorPosition;
-						newPiece.Disabled = 0;
-						Array_Push(Editor_State.Terrain, (u8 *) &newPiece);
-
-						Log_Debug("Placed terrain at x: %.2f, y: %.2f",
-						          newPiece.Position.x, newPiece.Position.y);
-					} else {
-						underCursor->Disabled = !underCursor->Disabled;
-						Log_Debug("Toggled terrain at x: %.2f, y: %.2f",
-						          Editor_State.CursorPosition.x,
-						          Editor_State.CursorPosition.y);
-					}
-				} break;
+				default: break;
 			}
 			break;
+		case SDL_KEYUP:
+			switch(e->key.keysym.sym) {
+				case SDLK_LSHIFT:
+				case SDLK_RSHIFT: shift = 0; break;
+				case SDLK_c:
+					if(e->key.keysym.mod & KMOD_CTRL) {
+						Cam.Center = V3(0, 0, 0);
+						if(DragMode == Drag_Move) DragMode = Drag_None;
+						DragMoveOffset = V3(0, 0, 0);
+					}
+					break;
+
+				default: break;
+			}
+			break;
+
 		case SDL_MOUSEWHEEL:
-			Editor_State.Camera.Radius = Clamp_R32(
-			    Editor_State.Camera.Radius - e->wheel.y * 0.25f, 1, 10);
+			Cam.Radius = Clamp_R32(Cam.Radius - e->wheel.y * 0.25f, 1, 10);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
 			if(e->button.button == SDL_BUTTON_RIGHT) {
 				// Begin camera drag if it hasn't been started yet.
-				if(!DraggingCamera) {
-					SDL_SetCursor(Cursor_Rotate);
+				if(!DragMode) {
+					if(shift)
+						DragMode = Drag_Move;
+					else
+						DragMode = Drag_Rotate;
 
-					DraggingCamera = 1;
 					InitialDragMousePos = V2(e->button.x, e->button.y);
-					InitialYawPitch =
-					    V2(Editor_State.Camera.Yaw, Editor_State.Camera.Pitch);
+					InitialYawPitch = V2(Cam.Yaw, Cam.Pitch);
+
+					SDL_SetCursor(Cursor_Rotate);
 				}
 			}
 			break;
 		case SDL_MOUSEMOTION: {
-			// bool32 shift = e->key.keysym.mod & KMOD_SHIFT;
-
-			if(DraggingCamera) {
+			if(DragMode) {
 				r32 dx = (e->motion.x - InitialDragMousePos.x) / 512.0;
-				r32 dy = (Editor_State.Camera.Outwards ? -1 : 1) *
-				         (e->motion.y - InitialDragMousePos.y) / 256.0;
+				r32 dy = (e->motion.y - InitialDragMousePos.y) / 256.0;
 
-				Editor_State.Camera.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
-				Editor_State.Camera.Pitch =
-				    Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y, DegToRad(1),
-				              DegToRad(89));
+				if(DragMode == Drag_Rotate) {
+					Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
+					Cam.Pitch = Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y,
+					                      DegToRad(1), DegToRad(89));
+				} else if(DragMode == Drag_Move) {
+					DragMoveOffset = Vec3_Add(Vec3_MultScal(camUp, -dy * 2),
+					                          Vec3_MultScal(camRight, -dx * 4));
+				}
 			}
 		} break;
 		case SDL_MOUSEBUTTONUP:
 			if(e->button.button == SDL_BUTTON_RIGHT) {
+				DragMode = Drag_None;
+				Cam.Center = Vec3_Add(Cam.Center, DragMoveOffset);
+				DragMoveOffset = V3(0, 0, 0);
 				SDL_SetCursor(Cursor_Normal);
-				DraggingCamera = 0;
 			}
 			break;
 		default: {
@@ -235,79 +111,56 @@ void Editor_HandleInput(SDL_Event *e) {
 }
 
 void Editor_Render() {
-	// Position camera
-	Editor_State.Camera.Center = (Vec3){
-	    .x = Lerp_EaseInOut(TargetAtMoveStart.x, Editor_State.CursorPosition.x,
-	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
-
-	    .y = 0,
-
-	    .z = Lerp_EaseInOut(TargetAtMoveStart.y, Editor_State.CursorPosition.y,
-	                        (r32)(SDL_GetTicks() - LastMove) / CameraTimeMs),
-	};
-	Editor_State.Camera.AspectRatio = RSys_GetSize().AspectRatio;
-
 	// Set up Model-View-Projection matrix
-	Mat4 VP;
+	Mat4 vp;
 	{
-		Mat4 View;
-		OrbitCamera_Mat4(Editor_State.Camera, View, VP);
-		Mat4_MultMat(VP, View);
+		Cam.Center = Vec3_Add(Cam.Center, DragMoveOffset);
+		Cam.AspectRatio = RSys_GetSize().AspectRatio;
+
+		Mat4 view;
+		OrbitCamera_Mat4(Cam, view, vp);
+		Mat4_MultMat(vp, view);
+
+		Cam.Center = Vec3_Sub(Cam.Center, DragMoveOffset);
 	}
 
-	// Render the wireframe cursor
-	{
-		Transform3D CursorTransform = {
-		    .Position = {.x = Editor_State.CursorPosition.x,
-		                 .y = 0,
-		                 .z = Editor_State.CursorPosition.y},
-		    .Rotation = Quat_Identity,
-		    .Scale = V3(1, 1, 1)};
 
-		Mat4 Model;
-		Transform3D_Mat4(CursorTransform, Model);
+	u32 vao = RSys_GetTempVAO();
+	glBindVertexArray(vao);
+	u32 vbos[2] = {0, 0};
+	glGenBuffers(2, vbos);
 
-		Mat4 MVP;
-		Mat4_Copy(MVP, VP);
-		Mat4_MultMat(MVP, Model);
+	Vec3 pos[4] = {V3C(-1, 0, 1), V3C(-1, 0, -1), V3C(1, 0, 1), V3C(1, 0, -1)};
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, vbos[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(pos), pos, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
-		Shader_Use(Editor_State.WireShader);
-		Shader_UniformMat4(Editor_State.WireShader, "MVP", MVP);
-		glBindVertexArray(Editor_State.CursorVAO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Editor_State.CursorInds);
-		glDrawElements(GL_LINE_LOOP, 18, GL_UNSIGNED_BYTE, NULL);
+	Vec2 uv[4] = {V2C(0, 1), V2C(0, 0), V2C(1, 1), V2C(1, 0)};
+	glEnableVertexAttribArray(1);
+	glBindBuffer(GL_ARRAY_BUFFER, vbos[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(uv), uv, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	}
+	Shader_Use(UnlitColor);
+	Shader_UniformMat4(UnlitColor, "MVP", vp);
 
-	// Render all visible terrain pieces
-	{
-		Transform3D Transform = {.Position = V3(0, 0, 0),
-		                         .Rotation = Quat_Identity,
-		                         .Scale = V3(1, 1, 1)};
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-		Shader_Use(Editor_State.TerrainShader);
+	glBindVertexArray(0);
+	RSys_FreeTempVAO(vao);
 
-		glBindVertexArray(Editor_State.TerrainVAO);
+	const char *fmt =
+	    "[Camera]         X: %.2f, Y: %.2f, Z: %.2f\n"
+	    "[DragMoveOffset] X: %.2f, Y: %.2f, Z: %.2f";
 
-		for(u32 i = 0; i < Editor_State.Terrain->ArraySize; i++) {
-			TerrainPiece *piece =
-			    (TerrainPiece *) Array_Get(Editor_State.Terrain, i);
-			if(piece->Disabled) continue;
+	RSys_Size sz = RSys_GetSize();
+	Vec2 textSz = R2D_GetTextExtents(
+	    &R2D_DefaultFont, fmt, Cam.Center.x, Cam.Center.y, Cam.Center.z,
+	    DragMoveOffset.x, DragMoveOffset.y, DragMoveOffset.z);
 
-			Transform.Position =
-			    (Vec3){.x = piece->Position.x, .y = 0, .z = piece->Position.y};
-
-			Mat4 Model;
-			Transform3D_Mat4(Transform, Model);
-
-			Mat4 MVP;
-			Mat4_Copy(MVP, VP);
-			Mat4_MultMat(MVP, Model);
-
-			Shader_UniformMat4(Editor_State.WireShader, "MVP", MVP);
-
-			glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		}
-	}
+	R2D_DrawText(V2(sz.Width - textSz.x - 20, sz.Height - textSz.y - 20),
+	             V4(1, 1, 1, 1), V4(0, 0, 0, 0), &R2D_DefaultFont, fmt,
+	             Cam.Center.x, Cam.Center.y, Cam.Center.z, DragMoveOffset.x,
+	             DragMoveOffset.y, DragMoveOffset.z);
 }

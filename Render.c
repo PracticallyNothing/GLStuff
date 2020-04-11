@@ -228,8 +228,8 @@ void R2D_Init() {
 	glGenBuffers(2, TextVBOs);
 	glBindBuffer(GL_ARRAY_BUFFER, TextVBOs[0]);
 
-	RectShader = Shader_FromFile("res/shaders/ui_rect.glsl");
-	TextShader = Shader_FromFile("res/shaders/ui_text.glsl");
+	RectShader = Shader_FromFile("res/shaders/ui/rect.glsl");
+	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
 
 	struct RSys_Texture t =
 	    RSys_TextureFromFile("res/textures/font_mono_6x12.png");
@@ -348,7 +348,7 @@ Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt,
 	vsprintf(msg, fmt, args);
 	va_end(args);
 
-	u32 maxWidth = 0, width = 0, height = 0;
+	u32 maxWidth = 0, width = 0, height = 1;
 
 	for(u32 i = 0; i < strlen(msg); ++i) {
 		if(msg[i] == '\n') {
@@ -362,8 +362,6 @@ Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt,
 
 		width++;
 	}
-
-	if(height == 0) height = 1;
 
 	return V2(font->SpriteWidth * maxWidth, font->SpriteHeight * height);
 }
@@ -437,7 +435,8 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 
 	u32 numChars = 0;
 	for(u32 i = 0; i < strlen(msg); i++) {
-		if(isprint(msg[i])) numChars++;
+		numChars +=
+		    ((bg.a <= minAlpha) ? isgraph(msg[i]) : isprint(msg[i])) ? 1 : 0;
 	}
 
 	if(!numChars) return;

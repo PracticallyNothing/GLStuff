@@ -9,20 +9,20 @@
 #include "Shader.h"
 #include "Transform.h"
 
-enum LightType {
+enum R3D_Light_Type {
 	LightType_Point,
 	LightType_Directional,
 	LightType_Spotlight,
 };
 
-typedef struct Light {
-	enum LightType Type;
+struct R3D_Light {
+	enum R3D_Light_Type Type;
 
 	Vec3 Ambient;
 	Vec3 Diffuse;
 	Vec3 Specular;
 
-	union LightData {
+	union {
 		struct PointLight {
 			Vec3 Position;
 			r32 ConstantAttenuation;
@@ -40,8 +40,8 @@ typedef struct Light {
 			r32 CutoffAngle_Inner;
 			r32 CutoffAngle_Outer;
 		} Spot;
-	} L;
-} Light;
+	};
+};
 
 // ---=== Rendering system ===---
 
@@ -69,8 +69,6 @@ struct RSys_Texture {
 };
 extern struct RSys_Texture RSys_TextureFromFile(const char *filename);
 
-typedef struct RenderTarget_t RenderTarget;
-
 enum RenderTarget_Type {
 	RenderTarget_DefaultRT = -1,
 
@@ -78,17 +76,17 @@ enum RenderTarget_Type {
 	RenderTarget_Renderbuffer,
 };
 
-struct RenderTarget_t {
+struct RenderTarget {
 	enum RenderTarget_Type Type;
 
 	GLuint FramebufferId;
 	GLuint ColorAttachmentId, DepthAttachmentId;
 };
 
-RenderTarget RenderTarget_Init(enum RenderTarget_Type type);
-void RenderTarget_Free(RenderTarget);
-void RenderTarget_ReadFrom(RenderTarget);
-void RenderTarget_DrawTo(RenderTarget);
+struct RenderTarget RenderTarget_Init(enum RenderTarget_Type type);
+void RenderTarget_Free(struct RenderTarget);
+void RenderTarget_ReadFrom(struct RenderTarget);
+void RenderTarget_DrawTo(struct RenderTarget);
 
 // ---=== 2D rendering ===---
 struct R2D_Rect {
@@ -146,39 +144,45 @@ enum R3D_SceneNode_Type {
 	R3D_SceneNode_None = -1,
 
 	R3D_SceneNode_Camera,
-	R3D_SceneNode_StaticMesh,
-	R3D_SceneNode_SkinnedMesh,
+	R3D_SceneNode_Actor,
 	R3D_SceneNode_Particles,
 	R3D_SceneNode_Light,
 
 	R3D_SceneNode_NumTypes
 };
 
-struct R3D_SceneNode_t {
-	R3D_SceneNode *Parent;
-	Array *Children;
+struct R3D_Actor {
+	enum {
+		RenderMode_Wireframe,
+		RenderMode_UnlitColor,
+		RenderMode_UnlitDiffuse,
+		RenderMode_Lit,
+	} RenderMode;
 
-	Transform3D Transform;
+	bool8 CastShadow;
+};
+
+struct R3D_SceneNode_t {
+	R3D_SceneNode *Children;
+	u32 NumChildren;
+
+	Transform3D LocalTransform;
 
 	enum R3D_SceneNode_Type Type;
 
 	union {
-		Camera Camera;
-		void *StaticMesh;
-		void *SkinnedMesh;
-		void *Particles;
-		Light *Light;
+		struct Camera Camera;
+		struct R3D_Actor Actor;
+		struct R3D_Light Light;
 	};
 };
 
 typedef struct R3D_Scene_t {
 	R3D_SceneNode Root;
+	Camera *ActiveCamera;
 } R3D_Scene;
 
 void R3D_Init();
-void R3D_UseShader(enum R3D_ShaderType type);
-void R3D_Render();
-void R3D_SetScene(R3D_Scene *Scene);
-void R3D_DebugMode(i32 mode);
+void R3D_RenderScene(R3D_Scene *Scene);
 
 #endif

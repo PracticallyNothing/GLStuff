@@ -6,7 +6,6 @@
 
 #include "Common.h"
 #include "Editor.h"
-#include "FakeViM.h"
 #include "Math3D.h"
 #include "Render.h"
 #include "Shader.h"
@@ -68,7 +67,7 @@ typedef struct Entity {
 
 struct Level {
 	Entity *Entities;
-	Light *Lights;
+	struct R3D_Light *Lights;
 };
 
 int main(int argc, char *argv[]) {
@@ -111,7 +110,7 @@ int main(int argc, char *argv[]) {
 				case SDL_QUIT: goto end;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
-						default: FakeVIM_Input(&e); break;
+						default: Editor_HandleInput(&e); break;
 					}
 					break;
 				case SDL_WINDOWEVENT:
@@ -126,8 +125,7 @@ int main(int argc, char *argv[]) {
 					}
 					break;
 				default: {
-					FakeVIM_Input(&e);
-					// Editor_HandleInput(&e);
+					Editor_HandleInput(&e);
 					break;
 				}
 			}
@@ -135,7 +133,7 @@ int main(int argc, char *argv[]) {
 
 		// Render frame to back buffer.
 		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			FakeVIM_Render();
+			Editor_Render();
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();
