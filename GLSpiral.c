@@ -41,11 +41,11 @@ Vec3 g_CubePos[] = {
 i32 g_CubeInds[] = {0, 2, 1, 3, 0, 1, 7, 4, 3, 4, 0, 3, 1, 2, 5, 2, 6, 5,
                     7, 5, 6, 7, 6, 4, 3, 1, 7, 1, 5, 7, 0, 6, 2, 0, 4, 6};
 
-GLuint Texture_FromFile(const char *filename);
 void RenderLines(Vec3 *linePoints, i32 numLines);
 void RenderLineCircle(r32 radius);
 
 void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj);
+void GPUModel_Draw(const GPUModel *model);
 
 GLuint WireframeCube_VAO = 0;
 GLuint WireframeCube_Pos;
@@ -70,37 +70,56 @@ struct Level {
 	struct R3D_Light *Lights;
 };
 
+void printMat4(const Mat4 m) {
+	printf(
+	    "-------------\n"
+	    "%.2f %.2f %.2f %.2f\n"
+	    "%.2f %.2f %.2f %.2f\n"
+	    "%.2f %.2f %.2f %.2f\n"
+	    "%.2f %.2f %.2f %.2f\n"
+	    "-------------\n",
+	    m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10],
+	    m[11], m[12], m[13], m[14], m[15]);
+}
+
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 
-	RSys_Init(1280, 720);
-	R2D_Init();
+	WObj_Library *lib =
+	    WObj_FromFile("/home/void-linux/Art/Blender/Revolver.obj");
 
-	const u32 W = 100;
-	const u32 H = 100;
-	const RGBA Colors[] = {
-	    V4C(1, 0, 0, 0.1), V4C(0, 1, 0, 0.1), V4C(0, 0, 1, 0.1),
-	    V4C(1, 1, 0, 0.1), V4C(0, 1, 1, 0.1), V4C(1, 1, 1, 0.1),
-	};
-	struct R2D_Rect *Rects = malloc(sizeof(struct R2D_Rect) * W * H);
-	for(u32 y = 0; y < H; y++) {
-		for(u32 x = 0; x < W; x++) {
-			struct R2D_Rect *r = &Rects[x + y * W];
-			r->Position = V2(x * 10, y * 10);
-			r->Size = V2(10, 10);
-			r->Color = Colors[(x + y) % (sizeof(Colors) / sizeof(RGBA))];
-		}
-	}
+	RSys_Init(1280, 720);
+
+	struct Shader *s = Shader_FromFile("res/shaders/3d/unlit-col.glsl");
+
+	GPUModel *models = malloc(sizeof(GPUModel) * lib->NumObjects);
+	for(u32 i = 0; i < lib->NumObjects; i++)
+		WObj_ToGPUModel(&models[i], &lib->Objects[i]);
 
 	SDL_Event e;
 	u32 Ticks = 0;
 
-	printf("Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
+	Log(Log_Info, "Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	Editor_Init();
+
+	float Time = 0;
+	Camera cam = {
+		.Mode = CameraMode_Perspective,
+
+		.Position = V3(0, 2, -2),
+		.Target = V3(0, 0, 0),
+		.Up = V3(0, 1, 0),
+
+		.AspectRatio = RSys_GetSize().AspectRatio,
+		.VerticalFoV = Pi_Half + Pi_Quarter,
+
+		.ZNear = 0.01,
+		.ZFar = 1000,
+	};
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -133,10 +152,46 @@ int main(int argc, char *argv[]) {
 
 		// Render frame to back buffer.
 		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			Editor_Render();
+			// Editor_Render();
+
+			cam.AspectRatio = RSys_GetSize().AspectRatio;
+			cam.Position.x = sin(Time) * 6;
+			cam.Position.z = cos(Time) * 6;
+			Mat4 vp;
+			{
+				Transform3D transf = {
+					.Position = V3(0,0,0),
+					.Rotation = Quat_Identity,
+					.Scale = V3(1,1,1)
+				};
+				Mat4 model;
+				Transform3D_Mat4(transf, model);
+
+				Mat4 view;
+				Camera_Mat4(cam, view, vp);
+				Mat4_MultMat(vp, view);
+				Mat4_MultMat(vp, model);
+			}
+
+			Shader_Use(s);
+			Shader_UniformMat4(s, "MVP", vp);
+			
+			//RSys_Size sz = RSys_GetSize();
+			//Shader_Uniform2f(s, "screenSize", V2(sz.Width, sz.Height));
+
+			for(u32 i = 0; i < lib->NumObjects; i++) {
+				Shader_Uniform4f(
+					s, "color", 
+					V4_V3(lib->Objects[i].Material->DiffuseColor, 
+						  lib->Objects[i].Material->Opacity)
+				);
+
+				GPUModel_Draw(&models[i]);
+			}
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();
+			Time += 1e-2;
 		}
 
 		Ticks = SDL_GetTicks();
@@ -184,6 +239,11 @@ void RenderLineCircle(r32 radius) {
 #define VBO_NORM 2
 
 void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj) {
+	if(!GL_Initialized) {
+		Log(ERR, "OpenGL hasn't been initialized yet. Call RSys_Init().", "");
+		return;
+	}
+
 	glGenVertexArrays(1, &out->VAO);
 	glBindVertexArray(out->VAO);
 	glGenBuffers(3, out->VBOs);
@@ -227,4 +287,12 @@ void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj) {
 	Array_Free(Positions);
 	Array_Free(UVs);
 	Array_Free(Normals);
+}
+
+void GPUModel_Draw(const GPUModel *model) {
+	if(!model) return;
+
+	glBindVertexArray(model->VAO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model->ElementBuffer);
+	glDrawElements(GL_TRIANGLES, model->NumIndices, GL_UNSIGNED_INT, NULL);
 }

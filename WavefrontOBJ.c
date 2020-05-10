@@ -135,8 +135,7 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 			READ_NEXT_WORD(value);
 			CurrMat->IllumMode = String_ToI32(value);
 		} else {
-			// TODO: Better error reporting.
-			fprintf(stderr, "WObj ERROR: unknown command %s", Command);
+			Log(Log_Error, "Unknown MTL command %s", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}
@@ -219,7 +218,9 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			CurrObject = (struct Object *) Array_GetLast(Objects);
 		} else if(strncmp(Command, "mtllib", 6) == 0) {
 			char MtlFilename[256] = {0};
-			READ_NEXT_WORD(MtlFilename);
+			strncpy(MtlFilename, filename, 256);
+			char *Dir = strrchr(MtlFilename, '/');
+			READ_NEXT_WORD(Dir + 1);
 			WObj_ReadMtl(MtlFilename, Materials);
 		} else if(strncmp(Command, "usemtl", 6) == 0) {
 			char MaterialName[256] = {0};
@@ -234,13 +235,12 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				}
 			}
 
-			if(!FoundMaterial) {
-				// TODO: Better error reporting.
-				fprintf(stderr, "WObj ERROR: material \"%s\" not found\n",
-				        MaterialName);
-			} else {
+			if(!FoundMaterial)
+				Log(Log_Error, "OBJ with nonexistent material \"%s\"",
+				    MaterialName);
+			else
 				CurrObject->Material = FoundMaterial;
-			}
+
 		} else if(strncmp(Command, "v\0", 2) == 0) {
 			Vec3 pos;
 			char x[32] = {0};
@@ -330,8 +330,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			READ_NEXT_WORD(word);
 			// SmoothingEnabled = (strncmp(word, "on", 2) == 0);
 		} else {
-			// TODO: Better error reporting.
-			fprintf(stderr, "WObj ERROR: unknown command %s", Command);
+			Log(Log_Error, "Unknown OBJ directive %s.", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}

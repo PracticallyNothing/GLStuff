@@ -50,15 +50,15 @@ static GLuint _Shader_GenShader(GLenum type, const char *src) {
 	glGetShaderiv(Shader, GL_COMPILE_STATUS, &ShaderOK);
 	if(ShaderOK != GL_TRUE) {
 		i32 LogLength;
-		char *Log;
+		char *LogStr;
 
 		glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
-		Log = malloc(sizeof(char) * LogLength);
-		glGetShaderInfoLog(Shader, LogLength, NULL, Log);
+		LogStr = malloc(sizeof(char) * LogLength);
+		glGetShaderInfoLog(Shader, LogLength, NULL, LogStr);
 
-		Log_Error("%s shader compilation failed.\n%s\n",
-		          (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), Log);
-		free(Log);
+		Log(Log_Error, "%s shader compilation failed.\n%s",
+		    (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), LogStr);
+		free(LogStr);
 	}
 
 	return Shader;
@@ -76,14 +76,14 @@ GLuint _Shader_Link(struct Shader *s) {
 	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &ShaderProgramOK);
 	if(ShaderProgramOK != GL_TRUE) {
 		i32 LogLength;
-		char *Log;
+		char *LogStr;
 
 		glGetProgramiv(ShaderProgram, GL_INFO_LOG_LENGTH, &LogLength);
-		Log = malloc(sizeof(char) * LogLength);
-		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, Log);
+		LogStr = malloc(sizeof(char) * LogLength);
+		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, LogStr);
 
-		Log_Error("Shader program linking failed.\n%s\n", Log);
-		free(Log);
+		Log(Log_Error, "Shader program linking failed.\n%s", LogStr);
+		free(LogStr);
 	}
 	return ShaderProgram;
 }

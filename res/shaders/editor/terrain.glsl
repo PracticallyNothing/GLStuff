@@ -22,7 +22,7 @@ in vec2 fUV;
 out vec4 fColor;
 
 void main() {
-	float thickness = 0.5;
+	float thickness = 0.10;
 
 	if((fUV.x > -1 + thickness && fUV.x < 1 - thickness) && 
 	   (fUV.y > -1 + thickness && fUV.y < 1 - thickness)) {

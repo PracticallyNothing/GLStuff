@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "Common.h"
 #include "stb_image.h"
 
 struct RSys_State {
@@ -24,6 +25,8 @@ RSys_Size RSys_GetSize() {
 	sz.AspectRatio = (r32) sz.Width / sz.Height;
 	return sz;
 }
+
+void R2D_Init();
 
 void RSys_Init(u32 Width, u32 Height) {
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
@@ -58,36 +61,25 @@ void RSys_Init(u32 Width, u32 Height) {
 	                     SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	// If it wasn't created, error and exit.
-	if(!RSys_State.Window) {
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-		                         "SDL_CreateWindow() failed", SDL_GetError(),
-		                         NULL);
-		exit(EXIT_FAILURE);
-	}
+	if(!RSys_State.Window)
+		Log(Log_Fatal, "SDL_CreateWindow() failed: %s", SDL_GetError());
 
 	// Create an OpenGL context for the window,
 	// according to the earlier parameters.
 	RSys_State.GLContext = SDL_GL_CreateContext(RSys_State.Window);
 
 	// If our parameters couldn't be met, error and exit.
-	if(!RSys_State.GLContext) {
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-		                         "SDL_GL_CreateContext() failed",
-		                         SDL_GetError(), NULL);
-		exit(EXIT_FAILURE);
-	}
+	if(!RSys_State.GLContext)
+		Log(Log_Fatal, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
 
 	// Load OpenGL functions.
-	if(!gladLoadGL()) {
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "gladLoadGL() failed",
-		                         "OpenGL couldn't be loaded.", NULL);
-		exit(EXIT_FAILURE);
-	}
+	if(!gladLoadGL())
+		Log(Log_Fatal, "%s", "gladLoadGL() failed, OpenGL couldn't be loaded.");
 
 	// Set a few default parameters.
 
 	// Set the clear color to black.
-	glClearColor(0, 0, 0, 1);
+	glClearColor(1, 1, 1, 1);
 
 	// Enable depth testing and set less than or equal mode
 	// for more stable rendering.
@@ -114,6 +106,10 @@ void RSys_Init(u32 Width, u32 Height) {
 	memset((void *) RSys_State.VAOIsTaken, 0, sizeof(bool8) * NUM_VAOS);
 
 	glGenVertexArrays(RSys_State.NumVAOs, RSys_State.TempVAOs);
+
+	GL_Initialized = 1;
+
+	R2D_Init();
 }
 
 void RSys_AllocMoreVAOs() {
@@ -140,7 +136,7 @@ GLuint RSys_GetTempVAO() {
 	}
 
 	// Uh oh...
-	Log_Error("Could not find temp VAO, even though there should be.");
+	Log(Log_Error, "Could not find temp VAO, even though there should be.", "");
 	return 0;
 }
 
@@ -153,7 +149,8 @@ void RSys_FreeTempVAO(GLuint VAO) {
 		}
 	}
 
-	Log_Warning("Attempted to free temp VAO %d, which doesn't exist.", VAO);
+	Log(Log_Warning, "Attempted to free temp VAO %d, which doesn't exist.",
+	    VAO);
 }
 
 void RSys_FinishFrame() {

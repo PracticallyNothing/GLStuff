@@ -13,9 +13,15 @@ void main() {
 #version 330
 
 out vec4 fColor;
-uniform vec4 color;
+
+uniform vec2 screenSize = vec2(1920, 1080);
 
 void main() {
-	fColor = color;
+	fColor = vec4(
+		gl_FragCoord.x / screenSize.x,
+		gl_FragCoord.y / screenSize.y,
+		gl_FragCoord.z,
+		1
+	);
 }
 @@

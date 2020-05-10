@@ -7,8 +7,8 @@
 
 // --- Vector operations --- //
 
-Vec2 V2(r32 x, r32 y) { return (Vec2) V2C(x, y); }
-Vec3 V3(r32 x, r32 y, r32 z) { return (Vec3) V3C(x, y, z); }
+Vec2 V2(r32 x, r32 y)               { return (Vec2) V2C(x, y); }
+Vec3 V3(r32 x, r32 y, r32 z)        { return (Vec3) V3C(x, y, z); }
 Vec4 V4(r32 x, r32 y, r32 z, r32 w) { return (Vec4) V4C(x, y, z, w); }
 
 Vec2 Vec2_Neg(Vec2 v) { return V2(-v.x, -v.y); }
@@ -17,15 +17,11 @@ Vec4 Vec4_Neg(Vec4 v) { return V4(-v.x, -v.y, -v.z, -v.w); }
 
 Vec2 Vec2_Add(Vec2 a, Vec2 b) { return V2(a.x + b.x, a.y + b.y); }
 Vec3 Vec3_Add(Vec3 a, Vec3 b) { return V3(a.x + b.x, a.y + b.y, a.z + b.z); }
-Vec4 Vec4_Add(Vec4 a, Vec4 b) {
-	return V4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
-}
+Vec4 Vec4_Add(Vec4 a, Vec4 b) { return V4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 
 Vec2 Vec2_Sub(Vec2 a, Vec2 b) { return V2(a.x - b.x, a.y - b.y); }
 Vec3 Vec3_Sub(Vec3 a, Vec3 b) { return V3(a.x - b.x, a.y - b.y, a.z - b.z); }
-Vec4 Vec4_Sub(Vec4 a, Vec4 b) {
-	return V4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
-}
+Vec4 Vec4_Sub(Vec4 a, Vec4 b) { return V4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
 Vec2 Vec2_MultScal(Vec2 v, r32 s) { return V2(v.x * s, v.y * s); }
 Vec3 Vec3_MultScal(Vec3 v, r32 s) { return V3(v.x * s, v.y * s, v.z * s); }
@@ -40,18 +36,12 @@ Vec4 Vec4_DivScal(Vec4 v, r32 s) {
 }
 
 Vec2 Vec2_MultVec(Vec2 a, Vec2 b) { return V2(a.x * b.x, a.y * b.y); }
-Vec3 Vec3_MultVec(Vec3 a, Vec3 b) {
-	return V3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-Vec4 Vec4_MultVec(Vec4 a, Vec4 b) {
-	return V4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
-}
+Vec3 Vec3_MultVec(Vec3 a, Vec3 b) { return V3(a.x * b.x, a.y * b.y, a.z * b.z); }
+Vec4 Vec4_MultVec(Vec4 a, Vec4 b) { return V4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); }
 
 Vec2 Vec2_DivVec(Vec2 a, Vec2 b) { return V2(a.x / b.x, a.y / b.y); }
 Vec3 Vec3_DivVec(Vec3 a, Vec3 b) { return V3(a.x / b.x, a.y / b.y, a.z / b.z); }
-Vec4 Vec4_DivVec(Vec4 a, Vec4 b) {
-	return V4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
-}
+Vec4 Vec4_DivVec(Vec4 a, Vec4 b) { return V4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); }
 
 r32 Vec2_Len2(Vec2 v) { return v.x * v.x + v.y * v.y; }
 r32 Vec3_Len2(Vec3 v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
@@ -61,18 +51,9 @@ r32 Vec2_Len(Vec2 v) { return sqrtf(Vec2_Len2(v)); }
 r32 Vec3_Len(Vec3 v) { return sqrtf(Vec3_Len2(v)); }
 r32 Vec4_Len(Vec4 v) { return sqrtf(Vec4_Len2(v)); }
 
-Vec2 Vec2_Norm(Vec2 v) {
-	r32 l = Vec2_Len(v);
-	return Vec2_DivScal(v, l);
-}
-Vec3 Vec3_Norm(Vec3 v) {
-	r32 l = Vec3_Len(v);
-	return Vec3_DivScal(v, l);
-}
-Vec4 Vec4_Norm(Vec4 v) {
-	r32 l = Vec4_Len(v);
-	return Vec4_DivScal(v, l);
-}
+Vec2 Vec2_Norm(Vec2 v) { r32 l = Vec2_Len(v); return Vec2_DivScal(v, l); }
+Vec3 Vec3_Norm(Vec3 v) { r32 l = Vec3_Len(v); return Vec3_DivScal(v, l); }
+Vec4 Vec4_Norm(Vec4 v) { r32 l = Vec4_Len(v); return Vec4_DivScal(v, l); }
 
 r32 Vec2_Dot(Vec2 a, Vec2 b) { return Vec2_Len2(Vec2_MultVec(a, b)); }
 r32 Vec3_Dot(Vec3 a, Vec3 b) { return Vec3_Len2(Vec3_MultVec(a, b)); }
@@ -80,24 +61,16 @@ r32 Vec4_Dot(Vec4 a, Vec4 b) { return Vec4_Len2(Vec4_MultVec(a, b)); }
 
 r32 Vec2_Cross(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
 Vec3 Vec3_Cross(Vec3 a, Vec3 b) {
-	return V3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
+	return V3(a.y * b.z - a.z * b.y, 
+			  a.z * b.x - a.x * b.z,
 	          a.x * b.y - a.y * b.x);
 }
 
 // --- Matrix operations --- //
 
-void Mat2_Identity(Mat2 m) {
-	memset(m, 0, sizeof(Mat2));
-	m[0] = m[2] = 1;
-}
-void Mat3_Identity(Mat3 m) {
-	memset(m, 0, sizeof(Mat3));
-	m[0] = m[4] = m[8] = 1;
-}
-void Mat4_Identity(Mat4 m) {
-	memset(m, 0, sizeof(Mat4));
-	m[0] = m[5] = m[10] = m[15] = 1;
-}
+void Mat2_Identity(Mat2 m) { memset(m, 0, sizeof(Mat2)); m[0] = m[2] = 1; }
+void Mat3_Identity(Mat3 m) { memset(m, 0, sizeof(Mat3)); m[0] = m[4] = m[8] = 1; }
+void Mat4_Identity(Mat4 m) { memset(m, 0, sizeof(Mat4)); m[0] = m[5] = m[10] = m[15] = 1; }
 
 
 void Mat2_FromMat3(Mat2 out, const Mat3 m) {
@@ -113,68 +86,33 @@ void Mat3_FromMat4(Mat3 out, const Mat4 m) {
 		for(i32 x = 0; x < 3; x++) out[x + y * 3] = m[x + y * 4];
 }
 
-void Mat2_Copy(Mat2 out, const Mat2 m) {
-	for(i32 i = 0; i < 4; ++i) out[i] = m[i];
-}
-void Mat3_Copy(Mat3 out, const Mat3 m) {
-	for(i32 i = 0; i < 9; ++i) out[i] = m[i];
-}
-void Mat4_Copy(Mat4 out, const Mat4 m) {
-	for(i32 i = 0; i < 16; ++i) out[i] = m[i];
-}
+void Mat2_Copy(Mat2 out, const Mat2 m) { for(i32 i = 0; i < 4; ++i) out[i] = m[i]; }
+void Mat3_Copy(Mat3 out, const Mat3 m) { for(i32 i = 0; i < 9; ++i) out[i] = m[i]; }
+void Mat4_Copy(Mat4 out, const Mat4 m) { for(i32 i = 0; i < 16; ++i) out[i] = m[i]; }
 
-void Mat2_Neg(Mat2 m) {
-	for(i32 i = 0; i < 4; ++i) m[i] = -m[i];
-}
-void Mat3_Neg(Mat3 m) {
-	for(i32 i = 0; i < 9; ++i) m[i] = -m[i];
-}
-void Mat4_Neg(Mat4 m) {
-	for(i32 i = 0; i < 16; ++i) m[i] = -m[i];
-}
+void Mat2_Neg(Mat2 m) { for(i32 i = 0; i < 4; ++i) m[i] = -m[i]; }
+void Mat3_Neg(Mat3 m) { for(i32 i = 0; i < 9; ++i) m[i] = -m[i]; }
+void Mat4_Neg(Mat4 m) { for(i32 i = 0; i < 16; ++i) m[i] = -m[i]; }
 
-void Mat2_Add(Mat2 a, const Mat2 b) {
-	for(i32 i = 0; i < 4; ++i) a[i] += b[i];
-}
-void Mat3_Add(Mat3 a, const Mat3 b) {
-	for(i32 i = 0; i < 9; ++i) a[i] += b[i];
-}
-void Mat4_Add(Mat4 a, const Mat4 b) {
-	for(i32 i = 0; i < 16; ++i) a[i] += b[i];
-}
+void Mat2_Add(Mat2 a, const Mat2 b) { for(i32 i = 0; i < 4; ++i) a[i] += b[i]; }
+void Mat3_Add(Mat3 a, const Mat3 b) { for(i32 i = 0; i < 9; ++i) a[i] += b[i]; }
+void Mat4_Add(Mat4 a, const Mat4 b) { for(i32 i = 0; i < 16; ++i) a[i] += b[i]; }
 
-void Mat2_Sub(Mat2 a, const Mat2 b) {
-	for(i32 i = 0; i < 4; ++i) a[i] -= b[i];
-}
-void Mat3_Sub(Mat3 a, const Mat3 b) {
-	for(i32 i = 0; i < 9; ++i) a[i] -= b[i];
-}
-void Mat4_Sub(Mat4 a, const Mat4 b) {
-	for(i32 i = 0; i < 16; ++i) a[i] -= b[i];
-}
+void Mat2_Sub(Mat2 a, const Mat2 b) { for(i32 i = 0; i < 4; ++i) a[i] -= b[i]; }
+void Mat3_Sub(Mat3 a, const Mat3 b) { for(i32 i = 0; i < 9; ++i) a[i] -= b[i]; }
+void Mat4_Sub(Mat4 a, const Mat4 b) { for(i32 i = 0; i < 16; ++i) a[i] -= b[i]; }
 
-void Mat2_MultScal(Mat2 a, r32 s) {
-	for(i32 i = 0; i < 4; ++i) a[i] *= s;
-}
-void Mat3_MultScal(Mat3 a, r32 s) {
-	for(i32 i = 0; i < 9; ++i) a[i] *= s;
-}
-void Mat4_MultScal(Mat4 a, r32 s) {
-	for(i32 i = 0; i < 16; ++i) a[i] *= s;
-}
+void Mat2_MultScal(Mat2 a, r32 s) { for(i32 i = 0; i < 4; ++i) a[i] *= s; }
+void Mat3_MultScal(Mat3 a, r32 s) { for(i32 i = 0; i < 9; ++i) a[i] *= s; }
+void Mat4_MultScal(Mat4 a, r32 s) { for(i32 i = 0; i < 16; ++i) a[i] *= s; }
 
-void Mat2_DivScal(Mat2 a, r32 s) {
-	for(i32 i = 0; i < 4; ++i) a[i] /= s;
-}
-void Mat3_DivScal(Mat3 a, r32 s) {
-	for(i32 i = 0; i < 9; ++i) a[i] /= s;
-}
-void Mat4_DivScal(Mat4 a, r32 s) {
-	for(i32 i = 0; i < 16; ++i) a[i] /= s;
-}
+void Mat2_DivScal(Mat2 a, r32 s) { for(i32 i = 0; i < 4; ++i) a[i] /= s; }
+void Mat3_DivScal(Mat3 a, r32 s) { for(i32 i = 0; i < 9; ++i) a[i] /= s; }
+void Mat4_DivScal(Mat4 a, r32 s) { for(i32 i = 0; i < 16; ++i) a[i] /= s; }
 
 extern Vec2 Mat2_MultVec2(const Mat2 m, Vec2 v) {
-	return V2(v.x * m[0] + v.y * m[1], v.x * m[2] + v.y * m[3]);
+	return V2(v.x * m[0] + v.y * m[1], 
+			  v.x * m[2] + v.y * m[3]);
 }
 extern Vec3 Mat3_MultVec3(const Mat3 m, Vec3 v) {
 	return V3(v.x * m[0] + v.y * m[1] + v.z * m[2],
@@ -189,13 +127,15 @@ extern Vec4 Mat4_MultVec4(const Mat4 m, Vec4 v) {
 }
 
 r32 Mat2_Determinant(const Mat2 m) {
-	r32 A = m[0], B = m[1], C = m[2], D = m[3];
+	r32 A = m[0], B = m[1],
+		C = m[2], D = m[3];
 	return A * D - B * C;
 }
 
 r32 Mat3_Determinant(const Mat3 m) {
-	r32 A = m[0], B = m[1], C = m[2], D = m[3], E = m[4], F = m[5], G = m[6],
-	    H = m[7], I = m[8];
+	r32 A = m[0], B = m[1], C = m[2], 
+		D = m[3], E = m[4], F = m[5],
+		G = m[6], H = m[7], I = m[8];
 
 	return A * (E * I - F * H) - B * (D * I - F * G) + C * (D * H - E * G);
 }
@@ -203,9 +143,10 @@ r32 Mat3_Determinant(const Mat3 m) {
 r32 Mat4_Determinant(const Mat4 m) {
 	// Thank you, Excel and Libreoffice Calc.
 
-	r32 A = m[0], B = m[1], C = m[2], D = m[3], E = m[4], F = m[5], G = m[6],
-	    H = m[7], I = m[8], J = m[9], K = m[10], L = m[11], M = m[12],
-	    N = m[13], O = m[14], P = m[15];
+	r32 A = m[0], B = m[1], C = m[2], D = m[3], 
+		E = m[4], F = m[5], G = m[6], H = m[7], 
+		I = m[8], J = m[9], K = m[10], L = m[11], 
+		M = m[12], N = m[13], O = m[14], P = m[15];
 
 	r32 Det[4] = {
 	    F * (K * P - O * L) - G * (J * P - N * L) + H * (J * O - N * K),
@@ -252,16 +193,17 @@ static void _Swap(r32 *a, r32 *b) {
 }
 
 void Mat2_Transpose(Mat2 m) {
-	for(i32 y = 0; y < 1; y++)
-		for(i32 x = 0; x < 1; x++) _Swap(m + (x + y * 2), m + (y + x * 2));
+	_Swap(&m[1], &m[2]);
 }
 void Mat3_Transpose(Mat3 m) {
 	for(i32 y = 0; y < 2; y++)
-		for(i32 x = 0; x < 2; x++) _Swap(m + (x + y * 3), m + (y + x * 3));
+		for(i32 x = 0; x < y; x++) 
+			_Swap(&m[x + y*3], &m[y + x*3]);
 }
 void Mat4_Transpose(Mat4 m) {
 	for(i32 y = 0; y < 3; y++)
-		for(i32 x = 0; x < 3; x++) _Swap(m + (x + y * 4), m + (y + x * 4));
+		for(i32 x = 0; x < y; x++) 
+			_Swap(&m[x + y*4], &m[y + x*4]);
 }
 
 void Mat4_OrthoProj(Mat4 out, r32 left, r32 right, r32 top, r32 bottom,

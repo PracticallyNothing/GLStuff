@@ -106,7 +106,6 @@ struct R2D_Spritesheet {
 
 extern struct R2D_Spritesheet R2D_DefaultFont;
 
-extern void R2D_Init();
 extern void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects,
                           bool8 Fill);
 extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
@@ -116,6 +115,8 @@ extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
                          ...);
 extern Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font,
                                const char *fmt, ...);
+
+extern void R2D_DrawConsole();
 // ---===##############===---
 
 // ---=== 3D rendering ===---

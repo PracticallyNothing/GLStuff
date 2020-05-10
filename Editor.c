@@ -36,6 +36,8 @@ void Editor_HandleInput(SDL_Event *e) {
 	Vec3 camRight = Vec3_Norm(Vec3_Cross(V3(0, 1, 0), camDir));
 	Vec3 camUp = Vec3_Norm(Vec3_Cross(camRight, camDir));
 
+	Vec3 camDirXZ = Vec3_Norm(V3(camDir.x, 0, camDir.z));
+
 	switch(e->type) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
@@ -90,7 +92,7 @@ void Editor_HandleInput(SDL_Event *e) {
 					Cam.Pitch = Clamp_R32((-dy) * Pi_Half + InitialYawPitch.y,
 					                      DegToRad(1), DegToRad(89));
 				} else if(DragMode == Drag_Move) {
-					DragMoveOffset = Vec3_Add(Vec3_MultScal(camUp, -dy * 2),
+					DragMoveOffset = Vec3_Add(Vec3_MultScal(camDirXZ, dy * 2),
 					                          Vec3_MultScal(camRight, -dx * 4));
 				}
 			}
@@ -136,7 +138,7 @@ void Editor_Render() {
 	glBufferData(GL_ARRAY_BUFFER, sizeof(pos), pos, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
-	Vec2 uv[4] = {V2C(0, 1), V2C(0, 0), V2C(1, 1), V2C(1, 0)};
+	Vec2 uv[4] = {V2C(-1, 1), V2C(-1, -1), V2C(1, 1), V2C(1, -1)};
 	glEnableVertexAttribArray(1);
 	glBindBuffer(GL_ARRAY_BUFFER, vbos[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(uv), uv, GL_STATIC_DRAW);
@@ -151,7 +153,7 @@ void Editor_Render() {
 	RSys_FreeTempVAO(vao);
 
 	const char *fmt =
-	    "[Camera]         X: %.2f, Y: %.2f, Z: %.2f\n"
+	    "        [Camera] X: %.2f, Y: %.2f, Z: %.2f\n"
 	    "[DragMoveOffset] X: %.2f, Y: %.2f, Z: %.2f";
 
 	RSys_Size sz = RSys_GetSize();

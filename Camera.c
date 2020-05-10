@@ -25,7 +25,8 @@ void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
 	};
 
 	if(c.Outwards)
-		cc.Target = Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
+		cc.Target =
+		    Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
 
 	Camera_Mat4(cc, out_view, out_proj);
 }
@@ -46,7 +47,17 @@ void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 	Vec3 U = Vec3_Norm(Vec3_Cross(c.Up, tgt));
 	Vec3 V = Vec3_Cross(N, U);
 
-	// printf("%.2f %.2f %.2f\n", N.x, N.y, N.z);
+#define X(V) V.x, V.y, V.z
+
+#if 0
+	Log(Log_Info,
+	    "\n"
+	    "tgt: %.2f %.2f %.2f\n"
+	    "N: %.2f %.2f %.2f\n"
+	    "U: %.2f %.2f %.2f\n"
+	    "V: %.2f %.2f %.2f",
+	    X(tgt), X(N), X(U), X(V));
+#endif
 
 	// N points towards the target point
 	// U points to the right of the camera

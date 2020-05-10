@@ -68,9 +68,9 @@ extern Vec4 V4(r32 x, r32 y, r32 z, r32 w);
 #define V4C(X, Y, Z, W) \
 	{ .x = (X), .y = (Y), .z = (Z), .w = (W) }
 
-#define V3_V2(v, z) ((Vec3){(v).x, (v).y, (z)})
-#define V4_V3(v, w) ((Vec4){(v).x, (v).y, (v).z, (w)})
-#define V4_V2(v, z, w) ((Vec4){(v).x, (v).y, (z), (w)})
+#define V3_V2(v, z)    V3((v).x, (v).y, (z))
+#define V4_V3(v, w)    V4((v).x, (v).y, (v).z, (w))
+#define V4_V2(v, z, w) V4((v).x, (v).y, (z), (w))
 
 #define V3_V4(v) ((Vec3){(v).x, (v).y, (v).z})
 #define V2_V4(v) ((Vec2){(v).x, (v).y})

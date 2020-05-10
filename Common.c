@@ -11,6 +11,8 @@ const r64 Pi = 3.14159265358979323846;
 const r64 Pi_Half = 1.57079632679489661923;
 const r64 Pi_Quarter = 0.78539816339744830962;
 
+bool8 GL_Initialized = 0;
+
 r64 DegToRad(r64 degrees) { return degrees * (Pi / 180.0); }
 r64 RadToDeg(r64 radians) { return radians * (180.0 / Pi); }
 
@@ -83,7 +85,10 @@ i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize,
 	u32 Size;
 
 	File = fopen(filename, "rb");
-	if(!File) { return 0; }
+	if(!File) {
+		Log(Log_Error, "File \"%s\" doesn't exist.", filename);
+		return 0;
+	}
 
 	Size = File_GetSize(File);
 	Size = (Size > bufSize ? bufSize : Size);
@@ -301,7 +306,6 @@ void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
 
 const char *RESET = "\033[0m";
 
-
 const char *CYAN = "\033[36m";
 const char *BLUE = "\033[34m";
 const char *GREEN = "\033[32m";
@@ -309,45 +313,36 @@ const char *YELLOW = "\033[33m";
 const char *RED = "\033[31m";
 const char *BOLDRED = "\033[31;1m";
 
-#define VA_PRINT                     \
-	do {                             \
-		va_list args;                \
-		va_start(args, fmt);         \
-		vfprintf(stdout, fmt, args); \
-		va_end(args);                \
-	} while(0)
+#undef Log
 
 enum Log_Level Log_Level;
+void Log(const char *__func, const char *__file, u32 __line,
+         enum Log_Level level, const char *fmt, ...) {
+	if(level < Log_Level && level != Log_Fatal) { return; }
 
-void Log_Debug(const char *fmt, ...) {
-	if(Log_Level > Log_Level_Debug) { return; }
+	switch(level) {
+		case Log_Debug:
+			fprintf(stdout, "%sDEBUG%s [%s:%d %s()]: ", BLUE, RESET, __file,
+			        __line, __func);
+			break;
+		case Log_Info:
+			fprintf(stdout, "INFO [%s:%d %s()]: ", __file, __line, __func);
+			break;
+		case Log_Warning:
+			fprintf(stdout, "%sWARNING%s [%s:%d %s()]: ", YELLOW, RESET, __file,
+			        __line, __func);
+			break;
+		case Log_Error:
+			fprintf(stdout, "%sERROR%s [%s:%d %s()]: ", RED, RESET, __file,
+			        __line, __func);
+			break;
 
-	fprintf(stdout, "%sDEBUG%s: ", BLUE, RESET);
-	VA_PRINT;
-	fprintf(stdout, "\n");
-}
+		case Log_Fatal:
+			fprintf(stderr, "%sFATAL ERROR%s [%s:%d %s()]: ", BOLDRED, RESET,
+			        __file, __line, __func);
+			break;
+	}
 
-void Log_Info(const char *fmt, ...) {
-	if(Log_Level > Log_Level_Info) { return; }
-
-	fprintf(stdout, "INFO: ");
-	VA_PRINT;
-	fprintf(stdout, "\n");
-}
-
-void Log_Warning(const char *fmt, ...) {
-	if(Log_Level > Log_Level_Warning) { return; }
-
-	fprintf(stdout, "%sWARNING%s: ", YELLOW, RESET);
-	VA_PRINT;
-	fprintf(stdout, "\n");
-}
-void Log_Error(const char *fmt, ...) {
-	fprintf(stdout, "%sERROR%s: ", RED, RESET);
-	VA_PRINT;
-	fprintf(stdout, "\n");
-}
-void Log_FatalError(const char *fmt, ...) {
 	char msg[512] = {0};
 
 	va_list args;
@@ -355,8 +350,14 @@ void Log_FatalError(const char *fmt, ...) {
 	vsprintf(msg, fmt, args);
 	va_end(args);
 
-	fprintf(stderr, "%sFATAL ERROR%s: %s\n", BOLDRED, RESET, msg);
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal error", msg, NULL);
-	exit(EXIT_FAILURE);
-}
+	if(level == Log_Fatal) {
+		fprintf(stderr, "%s", msg);
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fatal error", msg,
+		                         NULL);
+		exit(EXIT_FAILURE);
+	} else {
+		fprintf(stdout, "%s", msg);
+	}
 
+	fprintf(stdout, "\n");
+}

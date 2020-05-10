@@ -202,19 +202,30 @@ extern void Util_Quicksort_r32(r32 *arr, u32 size);
 extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
                                 Util_CompFunc compFunc);
 
+// --- GL Initialized --- //
+
+extern bool8 GL_Initialized;
+
 // --- Logging --- //
 
 extern enum Log_Level {
-	Log_Level_Debug = 0,
-	Log_Level_Info = 1,
-	Log_Level_Warning = 2,
-	Log_Level_Error = 3,
+	Log_Debug = 0,
+	Log_Info = 1,
+	Log_Warning = 2,
+	Log_Error = 3,
+	Log_Fatal = 4,
+
+	DBG = Log_Debug,
+	INFO = Log_Info,
+	WARN = Log_Warning,
+	ERR = Log_Error,
+	FATAL = Log_Fatal
 } Log_Level;
 
-extern void Log_Debug(const char *fmt, ...);
-extern void Log_Info(const char *fmt, ...);
-extern void Log_Warning(const char *fmt, ...);
-extern void Log_Error(const char *fmt, ...);
-extern void Log_FatalError(const char *fmt, ...);
+extern void Log(const char *__func, const char *__file, u32 __line,
+                enum Log_Level level, const char *fmt, ...);
+
+#define Log(level, fmt, ...) \
+	Log(__FUNCTION__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
 #endif
