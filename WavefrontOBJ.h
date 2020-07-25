@@ -15,7 +15,7 @@ enum WObj_IllumMode {
 };
 
 typedef struct WObj_Material {
-	char Name[256];  // newmtl matName
+	char *Name;  // newmtl matName
 
 	RGB AmbientColor;      // Ka <r> [<g> <b>]
 	RGB DiffuseColor;      // Kd <r> [<g> <b>]
@@ -29,12 +29,12 @@ typedef struct WObj_Material {
 	r32 OpticalDensity;  // Ni <value>
 	r32 Sharpness;       // sharpness <value>
 
-	char AmbientMapFile[256];           // map_Ka <file>
-	char DiffuseMapFile[256];           // map_Kd <file>
-	char SpecularMapFile[256];          // map_Ks <file>
-	char SpecularExponentMapFile[256];  // map_Ns <file>
-	char OpacityMapFile[256];           // map_d <file>
-	char NormalMapFile[256];            // bump <file>
+	char *AmbientMapFile;           // map_Ka <file>
+	char *DiffuseMapFile;           // map_Kd <file>
+	char *SpecularMapFile;          // map_Ks <file>
+	char *SpecularExponentMapFile;  // map_Ns <file>
+	char *OpacityMapFile;           // map_d <file>
+	char *NormalMapFile;            // bump <file>
 
 	enum WObj_IllumMode IllumMode;  // illum <mode>
 } WObj_Material;
@@ -46,13 +46,15 @@ typedef struct WObj_Vertex {
 } WObj_Vertex;
 
 typedef struct WObj_Object {
+	char *Name;
+
 	WObj_Material *Material;
 
-	u32 NumVertices;
+	u32       NumVertices;
 	WObj_Vertex *Vertices;
 
-	u32 NumIndices;
-	u32 *Indices;
+	u32  NumIndices;
+	u32*    Indices;
 } WObj_Object;
 
 typedef struct WObj_Library {

@@ -57,7 +57,7 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	// Create the actual window.
 	RSys_State.Window =
-	    SDL_CreateWindow("GL Spiral", 0, 0, Width, Height,
+	    SDL_CreateWindow("Boyan's Game", 0, 0, Width, Height,
 	                     SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	// If it wasn't created, error and exit.
@@ -213,7 +213,9 @@ static struct R2D_State {
 	GLuint TextTexture;
 } R2D_State;
 
-struct R2D_Spritesheet R2D_DefaultFont;
+struct R2D_Spritesheet R2D_DefaultFont_Small,
+					   R2D_DefaultFont_Medium,
+					   R2D_DefaultFont_Large;
 struct Shader *RectShader = NULL;
 struct Shader *TextShader = NULL;
 
@@ -228,15 +230,33 @@ void R2D_Init() {
 	RectShader = Shader_FromFile("res/shaders/ui/rect.glsl");
 	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
 
-	struct RSys_Texture t =
-	    RSys_TextureFromFile("res/textures/font_mono_6x12.png");
+	struct RSys_Texture 
+		small  = RSys_TextureFromFile("res/textures/font_mono_6x12.png"),
+		medium = RSys_TextureFromFile("res/textures/font_mono_7x15.png"),
+		large  = RSys_TextureFromFile("res/textures/font_mono_15x29.png");
 
-	R2D_DefaultFont = (struct R2D_Spritesheet){
-	    .TextureId = t.Id,
-	    .Width = t.Width,
-	    .Height = t.Height,
+	R2D_DefaultFont_Small = (struct R2D_Spritesheet){
+	    .TextureId = small.Id,
+	    .Width = small.Width,
+	    .Height = small.Height,
 	    .SpriteWidth = 6,
 	    .SpriteHeight = 12,
+	};
+
+	R2D_DefaultFont_Medium = (struct R2D_Spritesheet){
+	    .TextureId = medium.Id,
+	    .Width = medium.Width,
+	    .Height = medium.Height,
+	    .SpriteWidth = 7,
+	    .SpriteHeight = 15,
+	};
+
+	R2D_DefaultFont_Large = (struct R2D_Spritesheet){
+	    .TextureId = large.Id,
+	    .Width = large.Width,
+	    .Height = large.Height,
+	    .SpriteWidth = 15,
+	    .SpriteHeight = 29,
 	};
 }
 
@@ -360,6 +380,8 @@ Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt,
 		width++;
 	}
 
+	maxWidth = MAX(maxWidth, width);
+
 	return V2(font->SpriteWidth * maxWidth, font->SpriteHeight * height);
 }
 
@@ -376,6 +398,16 @@ void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2), NULL);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2),
 	                      (void *) (sizeof(Vec2) * 4));
+
+	const Vec2 UVs[4] = { 
+		V2C(0,0), 
+		V2C(0,1), 
+		V2C(1,0),
+		V2C(1,1), 
+	};
+
+	if(!TextureUVs) 
+		TextureUVs = UVs;
 
 	Vec2 PosAndUV[8] = {
 	    V2(Position.x, Position.y),                    // Top left

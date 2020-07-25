@@ -5,28 +5,28 @@
 
 Vec3 OrbitCamera_GetOffset(OrbitCamera c) {
 	return (Vec3){.x = c.Radius * sinf(c.Pitch) * cosf(c.Yaw),
-	              .z = c.Radius * sinf(c.Pitch) * sinf(c.Yaw),
-	              .y = c.Radius * cosf(c.Pitch)};
+		          .z = c.Radius * sinf(c.Pitch) * sinf(c.Yaw),
+		          .y = c.Radius * cosf(c.Pitch)};
 }
 
 void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
 	Camera cc = {
-	    .Position = Vec3_Add(c.Center, OrbitCamera_GetOffset(c)),
-	    .Target = c.Center,
-	    .Up = V3(0, 1, 0),
+		.Position = Vec3_Add(c.Center, OrbitCamera_GetOffset(c)),
+		.Target = c.Center,
+		.Up = V3(0, 1, 0),
 
-	    .ZNear = c.ZNear,
-	    .ZFar = c.ZFar,
+		.ZNear = c.ZNear,
+		.ZFar = c.ZFar,
 
-	    .Mode = CameraMode_Perspective,
+		.Mode = CameraMode_Perspective,
 
-	    .AspectRatio = c.AspectRatio,
-	    .VerticalFoV = c.VerticalFoV,
+		.AspectRatio = c.AspectRatio,
+		.VerticalFoV = c.VerticalFoV,
 	};
 
 	if(c.Outwards)
 		cc.Target =
-		    Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
+			Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
 
 	Camera_Mat4(cc, out_view, out_proj);
 }
@@ -43,25 +43,26 @@ void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 
 	Vec3 tgt = Vec3_Sub(c.Target, c.Position);
 
+	// N points towards the target point
+	// U points to the right of the camera
+	// V points towards the sky
+
 	Vec3 N = Vec3_Norm(tgt);
 	Vec3 U = Vec3_Norm(Vec3_Cross(c.Up, tgt));
 	Vec3 V = Vec3_Cross(N, U);
 
-#define X(V) V.x, V.y, V.z
-
 #if 0
-	Log(Log_Info,
-	    "\n"
-	    "tgt: %.2f %.2f %.2f\n"
-	    "N: %.2f %.2f %.2f\n"
-	    "U: %.2f %.2f %.2f\n"
-	    "V: %.2f %.2f %.2f",
-	    X(tgt), X(N), X(U), X(V));
+#define X(V) V.x, V.y, V.z
+	Log(Log_Info, 
+		"\n"
+		"tgt: %.2f %.2f %.2f\n"
+		"N: %.2f %.2f %.2f\n"
+		"U: %.2f %.2f %.2f\n"
+		"V: %.2f %.2f %.2f",
+		X(tgt), X(N), X(U), X(V));
+#undef X
 #endif
 
-	// N points towards the target point
-	// U points to the right of the camera
-	// V points towards the sky
 
 	Rotation[0] = U.x;
 	Rotation[1] = U.y;
@@ -80,14 +81,13 @@ void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 
 	switch(c.Mode) {
 		case CameraMode_Orthographic:
-			Mat4_OrthoProj(out_proj, 0, c.ScreenWidth, 0, c.ScreenHeight,
-			               c.ZNear, c.ZFar);
+			Mat4_OrthoProj(out_proj, 0, c.ScreenWidth, 0, c.ScreenHeight, c.ZNear, c.ZFar);
 			break;
 		case CameraMode_Perspective:
-			Mat4_RectProj(out_proj, c.VerticalFoV, c.AspectRatio, c.ZNear,
-			              c.ZFar);
+			Mat4_RectProj(out_proj, c.VerticalFoV, c.AspectRatio, c.ZNear, c.ZFar);
 			break;
-
-		default: exit(EXIT_FAILURE);
+		default: 
+			Log(ERR, "Unknown camera mode value %d", c.Mode);
+			break;
 	}
 }

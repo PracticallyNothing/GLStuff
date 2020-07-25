@@ -158,3 +158,6 @@ Sessionx.vim
 .vs/
 
 .clangd/
+json/
+JSON.c
+JSON.h

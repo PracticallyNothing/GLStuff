@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#define SWAP_I8       \
-	(a, b) do {       \
+#define SWAP_I8(a, b) \
+	do {              \
 		i8 tmp = (a); \
 		(a) = (b);    \
 		(b) = tmp;    \
@@ -29,8 +29,8 @@
 		(b) = tmp;     \
 	} while(0)
 
-#define SWAP_U8       \
-	(a, b) do {       \
+#define SWAP_U8(a, b) \
+	do {              \
 		u8 tmp = (a); \
 		(a) = (b);    \
 		(b) = tmp;    \
@@ -131,30 +131,9 @@ extern i32 Clamp_I32(i32 value, i32 min, i32 max);
 
 // --- File operations --- //
 
-extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize,
-                             u32 *realSize);
+extern u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size);
+extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize, u32 *realSize);
 extern void File_DumpBuffer(const char *filename, const u8 *buf, u32 bufSize);
-
-#if 0
-// --- Map --- //
-
-typedef struct HashMap {
-	u64 *HashedKeys;
-	void *Values;
-	u32 ValueSize;
-	u32 ArraySize;
-	u32 ArrayCapacity;
-} HashMap;
-
-typedef void (*FreeElem_Func)(void *);
-
-void HashMap_Init(HashMap *hm, u32 itemSize);
-void HashMap_Add(HashMap *hm, const char *key, const void *value);
-void HashMap_Remove(HashMap *hm, const char *key);
-void *HashMap_Find(const HashMap *hm, const char *key);
-void HashMap_Free(HashMap *hm);
-void HashMap_FreePerElement(HashMap *hm, FreeElem_Func func);
-#endif
 
 // --- Array --- //
 
@@ -177,6 +156,111 @@ u8 *Array_GetLast(const Array *arr);
 void Array_Clear(Array *);
 void Array_Reverse(Array *);
 void Array_Free(Array *);
+
+#define DEF_ARRAY(name, type)                                                \
+struct Array_##name { u32 Size, Capacity; type *Data; };                     \
+                                                                             \
+void Array_##name##_SizeToFit(struct Array_##name *);                        \
+void Array_##name##_Free(struct Array_##name *);                             \
+                                                                             \
+ i32 Array_##name##_Find(struct Array_##name *, const type *);               \
+                                                                             \
+void Array_##name##_Push(struct Array_##name *, const type *);               \
+void Array_##name##_PushVal(struct Array_##name *, const type);              \
+void Array_##name##_Pop(struct Array_##name *);                              \
+                                                                             \
+void Array_##name##_Insert(struct Array_##name *, u32 idx, const type *);    \
+void Array_##name##_InsertVal(struct Array_##name *, u32 idx, const type);   \
+void Array_##name##_Remove(struct Array_##name *, u32 idx);                  \
+                                                                             \
+void Array_##name##_Reverse(struct Array_##name *);
+
+#define DECL_ARRAY(name, type)                                                \
+i32 Array_##name##_Find(struct Array_##name *a, const type *t)                \
+{                                                                             \
+	if(!a->Size) return -1;                                                   \
+	for(u32 i = 0; i < a->Size; i++) {                                        \
+	    if(memcmp(&a->Data[i], t, sizeof(type)) == 0)                         \
+	        return i;                                                         \
+    }                                                                         \
+	return -1;                                                                \
+}                                                                             \
+void Array_##name##_Push(struct Array_##name *a, const type *t)               \
+{                                                                             \
+    if(!t) return;                                                            \
+    if(a->Size == a->Capacity) {                                              \
+		if(!a->Capacity) a->Capacity = 1;                                     \
+	    a->Capacity *= 2;                                                     \
+	    a->Data = realloc(a->Data, sizeof(type) * a->Capacity);               \
+	}                                                                         \
+    memcpy(a->Data + a->Size, t, sizeof(type));                               \
+    a->Size++;                                                                \
+}                                                                             \
+void Array_##name##_PushVal(struct Array_##name *a, const type t) {           \
+    Array_##name##_Push(a, &t);                                               \
+}                                                                             \
+void Array_##name##_Free(struct Array_##name *a) {                            \
+	free(a->Data);                                                            \
+	a->Data = NULL;                                                           \
+	a->Size = 0;                                                              \
+	a->Capacity = 0;                                                          \
+}                                                                             \
+void Array_##name##_Remove(struct Array_##name *a, u32 idx)                   \
+{                                                                             \
+	if(idx >= a->Size) return;                                                \
+	memmove(&a->Data[idx  ],                                                  \
+			&a->Data[idx+1],                                                  \
+			sizeof(type)*(a->Size-idx));                                      \
+	a->Size--;                                                                \
+}                                                                             \
+void Array_##name##_Insert(struct Array_##name *a, u32 idx, const type* t)    \
+{                                                                             \
+	if(idx >= a->Size || !t) return;                                          \
+    if(a->Size == a->Capacity) {                                              \
+		if(!a->Capacity) a->Capacity = 1;                                     \
+	    a->Capacity *= 2;                                                     \
+	    a->Data = realloc(a->Data, sizeof(type) * a->Capacity);               \
+	}                                                                         \
+	memmove(&a->Data[idx+1],                                                  \
+			&a->Data[idx  ],                                                  \
+			sizeof(type)*(a->Size-idx));                                      \
+    memcpy(a->Data + idx, t, sizeof(type));                                   \
+    a->Size++;                                                                \
+}                                                                             \
+void Array_##name##_InsertVal(struct Array_##name *a, u32 idx, const type t)  \
+{                                                                             \
+    Array_##name##_Insert(a, idx, &t);                                        \
+}                                                                             \
+void Array_##name##_Pop(struct Array_##name *a)                               \
+{                                                                             \
+    if(!a || !a->Size) return;                                                \
+    a->Size--;                                                                \
+}                                                                             \
+void Array_##name##_SizeToFit(struct Array_##name *a)                         \
+{                                                                             \
+    a->Data = realloc(a->Data, a->Size * sizeof(type));                       \
+    a->Capacity = a->Size;                                                    \
+}                                                                             \
+void Array_##name##_Reverse(struct Array_##name *a)                           \
+{                                                                             \
+    for(u32 i = 0; i < a->Size/2; ++i) {                                      \
+		type tmp = a->Data[i];                                                \
+		a->Data[i] = a->Data[a->Size-1-i];                                    \
+		a->Data[a->Size-1-i] = tmp;                                           \
+	}                                                                         \
+}
+DEF_ARRAY(u8, u8);
+DEF_ARRAY(u16, u16);
+DEF_ARRAY(u32, u32);
+DEF_ARRAY(u64, u64);
+
+DEF_ARRAY(i8, i8);
+DEF_ARRAY(i16, i16);
+DEF_ARRAY(i32, i32);
+DEF_ARRAY(i64, i64);
+
+DEF_ARRAY(r32, r32);
+DEF_ARRAY(r64, r64);
 
 // --- Size units --- //
 
@@ -228,4 +312,8 @@ extern void Log(const char *__func, const char *__file, u32 __line,
 #define Log(level, fmt, ...) \
 	Log(__FUNCTION__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
+typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
+u128 Hash_MD5(const u8 *bytes, u32 length);
+
 #endif
+

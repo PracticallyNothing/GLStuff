@@ -158,11 +158,11 @@ void Editor_Render() {
 
 	RSys_Size sz = RSys_GetSize();
 	Vec2 textSz = R2D_GetTextExtents(
-	    &R2D_DefaultFont, fmt, Cam.Center.x, Cam.Center.y, Cam.Center.z,
+	    &R2D_DefaultFont_Small, fmt, Cam.Center.x, Cam.Center.y, Cam.Center.z,
 	    DragMoveOffset.x, DragMoveOffset.y, DragMoveOffset.z);
 
 	R2D_DrawText(V2(sz.Width - textSz.x - 20, sz.Height - textSz.y - 20),
-	             V4(1, 1, 1, 1), V4(0, 0, 0, 0), &R2D_DefaultFont, fmt,
+	             V4(1, 1, 1, 1), V4(0, 0, 0, 0), &R2D_DefaultFont_Small, fmt,
 	             Cam.Center.x, Cam.Center.y, Cam.Center.z, DragMoveOffset.x,
 	             DragMoveOffset.y, DragMoveOffset.z);
 }

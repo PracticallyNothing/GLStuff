@@ -6,31 +6,34 @@
 
 // TODO: Replace atof() with custom function.
 
-#define READ_NEXT_WORD(tgt)                                                   \
-	{                                                                         \
-		while(Char_IsNewline(Buffer[i]) || Char_IsWhitespace(Buffer[i])) ++i; \
-		if(i >= Size) break;                                                  \
-		i32 j = i;                                                            \
-		while(!Char_IsNewline(Buffer[++j]) && !Char_IsWhitespace(Buffer[j]))  \
-			;                                                                 \
-		strncpy(tgt, (char *) Buffer + i, j - i);                             \
-		i = j;                                                                \
-	}
-#define SKIP_TO_NEXT_LINE()                 \
-	{                                       \
-		while(!Char_IsNewline(Buffer[++i])) \
-			;                               \
-		++i;                                \
-		continue;                           \
-	}
+#define READ_NEXT_WORD(tgt) {                                             \
+	while(Char_IsNewline(Buffer[i]) || Char_IsWhitespace(Buffer[i])) ++i; \
+	if(i >= Size) break;                                                  \
+	i32 j = i;                                                            \
+	while(!Char_IsNewline(Buffer[++j]) && !Char_IsWhitespace(Buffer[j])); \
+	strncpy(tgt, (char *) Buffer + i, j - i);                             \
+	i = j;                                                                \
+}
+
+#define READ_ALLOC_NEXT_WORD(tgt) {                                       \
+	while(Char_IsNewline(Buffer[i]) || Char_IsWhitespace(Buffer[i])) ++i; \
+	if(i >= Size) break;                                                  \
+	i32 j = i;                                                            \
+	while(!Char_IsNewline(Buffer[++j]) && !Char_IsWhitespace(Buffer[j])); \
+	tgt = calloc(sizeof(char), j-i+1);                                    \
+	strncpy(tgt, (char *) Buffer + i, j - i);                             \
+	i = j;                                                                \
+}
+#define SKIP_TO_NEXT_LINE() {           \
+	while(!Char_IsNewline(Buffer[++i]));\
+	++i;                                \
+	continue;                           \
+}
 
 bool32 Char_IsWhitespace(char c) { return c == '\t' || c == ' '; }
-bool32 Char_IsNewline(char c) { return c == '\r' || c == '\n'; }
-
-bool32 Char_IsLetter(char c) {
-	return ('A' >= c && c <= 'Z') || ('a' >= c && c <= 'z');
-}
-bool32 Char_IsDigit(char c) { return '0' >= c && c <= '9'; }
+bool32 Char_IsNewline(char c)    { return c == '\r' || c == '\n'; }
+bool32 Char_IsLetter(char c)     { return ('A' >= c && c <= 'Z') || ('a' >= c && c <= 'z'); }
+bool32 Char_IsDigit(char c)      { return '0' >= c && c <= '9'; }
 
 void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 	u8 *Buffer = malloc(Kilobytes(256));
@@ -48,7 +51,7 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 		if(strncmp(Command, "newmtl", 6) == 0) {
 			WObj_Material NewMaterial;
 			memset(&NewMaterial, 0, sizeof(WObj_Material));
-			READ_NEXT_WORD(NewMaterial.Name);
+			READ_ALLOC_NEXT_WORD(NewMaterial.Name);
 			Array_Push(MaterialsArray, (u8 *) &NewMaterial);
 			CurrMat = (WObj_Material *) Array_GetLast(MaterialsArray);
 		} else if(strncmp(Command, "Ka", 2) == 0) {
@@ -118,24 +121,19 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 			CurrMat->TransmissionFilter.r = atof(r);
 			CurrMat->TransmissionFilter.g = atof(g);
 			CurrMat->TransmissionFilter.b = atof(b);
-		} else if(strncmp(Command, "map_Ka", 6) == 0) {
-			READ_NEXT_WORD(CurrMat->AmbientMapFile);
-		} else if(strncmp(Command, "map_Kd", 6) == 0) {
-			READ_NEXT_WORD(CurrMat->DiffuseMapFile);
-		} else if(strncmp(Command, "map_Ks", 6) == 0) {
-			READ_NEXT_WORD(CurrMat->SpecularMapFile);
-		} else if(strncmp(Command, "map_Ns", 6) == 0) {
-			READ_NEXT_WORD(CurrMat->SpecularExponentMapFile);
-		} else if(strncmp(Command, "map_d", 5) == 0) {
-			READ_NEXT_WORD(CurrMat->OpacityMapFile);
-		} else if(strncmp(Command, "bump", 6) == 0) {
-			READ_NEXT_WORD(CurrMat->NormalMapFile);
-		} else if(strncmp(Command, "illum", 5) == 0) {
+		} 
+		else if(strncmp(Command, "map_Ka", 6) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->AmbientMapFile); } 
+		else if(strncmp(Command, "map_Kd", 6) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->DiffuseMapFile); }
+		else if(strncmp(Command, "map_Ks", 6) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->SpecularMapFile); }
+		else if(strncmp(Command, "map_Ns", 6) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->SpecularExponentMapFile); }
+		else if(strncmp(Command, "map_d",  5) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->OpacityMapFile); } 
+		else if(strncmp(Command, "bump",   6) == 0) { READ_ALLOC_NEXT_WORD(CurrMat->NormalMapFile); } 
+		else if(strncmp(Command, "illum", 5) == 0) {
 			char value[8] = {0};
 			READ_NEXT_WORD(value);
 			CurrMat->IllumMode = String_ToI32(value);
 		} else {
-			Log(Log_Error, "Unknown MTL command %s", Command);
+			Log(Log_Error, "Unknown MTL directive %s", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}
@@ -145,14 +143,14 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 
 struct FaceVertex {
 	i32 PosId;
-	bool32 HasUV;
 	i32 UVId;
-	bool32 HasNormal;
 	i32 NormalId;
+
+	bool32 HasUV;
+	bool32 HasNormal;
 };
-struct Face {
-	Array *FaceVertices;
-};
+struct Face { Array *FaceVertices; };
+
 struct Object {
 	WObj_Material *Material;
 
@@ -237,7 +235,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 			if(!FoundMaterial)
 				Log(Log_Error, "OBJ with nonexistent material \"%s\"",
-				    MaterialName);
+						MaterialName);
 			else
 				CurrObject->Material = FoundMaterial;
 
@@ -246,7 +244,6 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			char x[32] = {0};
 			char y[32] = {0};
 			char z[32] = {0};
-
 			READ_NEXT_WORD(x);
 			READ_NEXT_WORD(y);
 			READ_NEXT_WORD(z);
@@ -256,30 +253,23 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 			Array_Push(Positions, (u8 *) &pos);
 		} else if(strncmp(Command, "vt", 2) == 0) {
-			Vec2 UV;
 			char u[32] = {0};
 			char v[32] = {0};
-
 			READ_NEXT_WORD(u);
 			READ_NEXT_WORD(v);
-			UV.u = atof(u);
-			UV.v = atof(v);
 
+			Vec2 UV = V2(atof(u), atof(v));
 			Array_Push(UVs, (u8 *) &UV);
 		} else if(strncmp(Command, "vn", 2) == 0) {
-			Vec3 normal;
 			char x[32] = {0};
 			char y[32] = {0};
 			char z[32] = {0};
-
 			READ_NEXT_WORD(x);
 			READ_NEXT_WORD(y);
 			READ_NEXT_WORD(z);
-			normal.x = atof(x);
-			normal.y = atof(y);
-			normal.z = atof(z);
 
-			Array_Push(Normals, (u8 *) &normal);
+			Vec3 Normal = V3(atof(x), atof(y), atof(z));
+			Array_Push(Normals, (u8 *) &Normal);
 		} else if(strncmp(Command, "f", 1) == 0) {
 			struct Face Face;
 			Face.FaceVertices = Array_Init(sizeof(struct FaceVertex));
@@ -293,8 +283,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 				i32 j = -1, q = 0;
 				// First pass, read position index
-				while(Vertex[++j] && Vertex[j] != '/')
-					;
+				while(Vertex[++j] && Vertex[j] != '/');
 				FV.PosId = String_ToI32_N(Vertex, j) - 1;
 
 				// There's no point in going further, skip to end.
@@ -302,8 +291,8 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 				// Second pass, check to see if there's a UV index.
 				q = j;
-				while(Vertex[++j] && Vertex[j] != '/')
-					;
+				while(Vertex[++j] && Vertex[j] != '/');
+
 				if(q + 1 != j) {
 					q++;
 					FV.HasUV = 1;
@@ -315,12 +304,16 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 				// Third and final pass, check for normals.
 				q = ++j;
-				while(Vertex[++j])
-					;
+				while(Vertex[++j]);
+
 				FV.HasNormal = 1;
 				FV.NormalId = String_ToI32_N(Vertex + q, j - q) - 1;
 
-			face_vertex_end:
+face_vertex_end:
+				if(Face.FaceVertices->ArraySize == 3)
+				{
+					Log(ERR, "OBJ file \"%s\" has a non-triangulated face.", filename);
+				}
 				Array_Push(Face.FaceVertices, (u8 *) &FV);
 			}
 
@@ -351,7 +344,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 		for(u32 i = 0; i < obj->Faces->ArraySize; i++) {
 			Array *FVs =
-			    ((struct Face *) Array_Get(obj->Faces, i))->FaceVertices;
+				((struct Face *) Array_Get(obj->Faces, i))->FaceVertices;
 
 			for(u32 j = 0; j < FVs->ArraySize; j++) {
 				struct FaceVertex *v = (struct FaceVertex *) Array_Get(FVs, j);
@@ -360,7 +353,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				// Check to see if this vertex exists.
 				for(u32 q = 0; q < j; q++) {
 					struct FaceVertex *v2 =
-					    (struct FaceVertex *) Array_Get(FVs, q);
+						(struct FaceVertex *) Array_Get(FVs, q);
 					if(v->PosId == v2->PosId) {
 						FoundVertexId = q;
 						break;
@@ -375,7 +368,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 					if(v->HasUV) vtx.UV = *((Vec2 *) Array_Get(UVs, v->UVId));
 					if(v->HasNormal)
 						vtx.Normal =
-						    *((Vec3 *) Array_Get(Normals, v->NormalId));
+							*((Vec3 *) Array_Get(Normals, v->NormalId));
 
 					Array_Push(Vertices, (u8 *) &vtx);
 					Array_Push(Indices, (u8 *) &NextIndex);
@@ -389,6 +382,8 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		}
 
 		WObj_Object Object;
+		Object.Name = malloc(strlen(obj->Name));
+		strcpy(Object.Name, obj->Name);
 		Object.Material = obj->Material;
 		Object.NumVertices = Vertices->ArraySize;
 		Object.NumIndices = Indices->ArraySize;
