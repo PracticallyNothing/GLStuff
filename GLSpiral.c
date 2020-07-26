@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "Common.h"
-#include "Editor.h"
 #include "Math3D.h"
 #include "Render.h"
 #include "SDL_keycode.h"
@@ -268,20 +267,10 @@ void HexGrid_DrawTile(i32 tile, bool8 used)
 	R2D_DrawRectImage(pos, size, used ? tileUsed.Id : tileSelect.Id, NULL);
 }
 
-
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 
 	RSys_Init(1280, 720);
-
-	//struct Shader *s = Shader_FromFile("res/shaders/3d/depth.glsl");
-
-	/*
-	WObj_Library *lib = WObj_FromFile("/home/void-linux/Art/Blender/Revolver.obj");
-	GPUModel *models = malloc(sizeof(GPUModel) * lib->NumObjects);
-	for(u32 i = 0; i < lib->NumObjects; i++)
-		WObj_ToGPUModel(&models[i], &lib->Objects[i]);
-	*/
 
 	SDL_Event e;
 	u32 Ticks = 0;
@@ -297,24 +286,6 @@ int main(int argc, char *argv[]) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	float Time = 0;
-	/*
-	Camera cam = {
-		.Mode = CameraMode_Orthographic,
-
-		.Position = V3(0, 0, -2),
-		.Target = V3(0, 0, 0),
-		.Up = V3(0, 1, 0),
-
-		.ScreenWidth = RSys_GetSize().Width,
-		.ScreenHeight = RSys_GetSize().Height,
-		
-		//.AspectRatio = RSys_GetSize().AspectRatio,
-		//.VerticalFoV = Pi_Half + Pi_Quarter,
-
-		.ZNear = 0.01,
-		.ZFar = 1000,
-	};
-	*/
 
 	u32 MouseX = 0, MouseY = 0;
 	enum Mode {
@@ -380,7 +351,6 @@ int main(int argc, char *argv[]) {
 							if(e.key.keysym.mod | KMOD_SHIFT)
 								ShowControls = !ShowControls;
 							break;
-						//default: Editor_HandleInput(&e); break;
 					}
 					break;
 				case SDL_WINDOWEVENT:
@@ -452,7 +422,6 @@ int main(int argc, char *argv[]) {
 					}
 					break;
 				default: {
-					//Editor_HandleInput(&e);
 					break;
 				}
 			}
@@ -460,45 +429,6 @@ int main(int argc, char *argv[]) {
 
 		// Render frame to back buffer.
 		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			// Editor_Render();
-			/*
-
-			cam.AspectRatio = RSys_GetSize().AspectRatio;
-			cam.Position.x = sin(Time) * 6;
-			cam.Position.z = cos(Time) * 6;
-			Mat4 vp;
-			{
-				Transform3D transf = {
-					.Position = V3(0,0,0),
-					.Rotation = Quat_Identity,
-					.Scale = V3(1,1,1)
-				};
-				Mat4 model;
-				Transform3D_Mat4(transf, model);
-
-				Mat4 view;
-				Camera_Mat4(cam, view, vp);
-				Mat4_MultMat(vp, view);
-				Mat4_MultMat(vp, model);
-			}
-
-			Shader_Use(s);
-			Shader_UniformMat4(s, "MVP", vp);
-			
-			RSys_Size sz = RSys_GetSize();
-			Shader_Uniform2f(s, "screenSize", V2(sz.Width, sz.Height));
-
-			for(u32 i = 0; i < lib->NumObjects; i++) {
-				Shader_Uniform4f(
-					s, "color", 
-					V4_V3(lib->Objects[i].Material->DiffuseColor, 
-						  lib->Objects[i].Material->Opacity)
-				);
-
-				GPUModel_Draw(&models[i]);
-			}
-			*/
-
 			R2D_DrawRectImage(V2(0,0), V2(RSys_GetSize().Width, RSys_GetSize().Height), map.Id, NULL);
 			
 			i32 tile = HexGrid_SelectTile(V2(MouseX, MouseY));

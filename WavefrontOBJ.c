@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "Common.h"
 
 // TODO: Replace atof() with custom function.
 
@@ -35,7 +36,15 @@ bool32 Char_IsNewline(char c)    { return c == '\r' || c == '\n'; }
 bool32 Char_IsLetter(char c)     { return ('A' >= c && c <= 'Z') || ('a' >= c && c <= 'z'); }
 bool32 Char_IsDigit(char c)      { return '0' >= c && c <= '9'; }
 
-void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
+DEF_ARRAY(WMat,  struct WObj_Material);
+DEF_ARRAY(WObj,  struct WObj_Object);
+DEF_ARRAY(WVert, struct WObj_Vertex);
+
+DECL_ARRAY(WMat,  struct WObj_Material);
+DECL_ARRAY(WObj,  struct WObj_Object);
+DECL_ARRAY(WVert, struct WObj_Vertex);
+
+void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
 	u8 *Buffer = malloc(Kilobytes(256));
 	u32 Size = 0;
 	File_ReadToBuffer(filename, Buffer, Kilobytes(256), &Size);
@@ -52,8 +61,8 @@ void WObj_ReadMtl(const char *filename, Array *MaterialsArray) {
 			WObj_Material NewMaterial;
 			memset(&NewMaterial, 0, sizeof(WObj_Material));
 			READ_ALLOC_NEXT_WORD(NewMaterial.Name);
-			Array_Push(MaterialsArray, (u8 *) &NewMaterial);
-			CurrMat = (WObj_Material *) Array_GetLast(MaterialsArray);
+			Array_WMat_Push(Mats, &NewMaterial);
+			CurrMat = (WObj_Material *) Mats->Data + (Mats->Size - 1);
 		} else if(strncmp(Command, "Ka", 2) == 0) {
 			char r[32] = {0};
 			char g[32] = {0};
@@ -149,31 +158,37 @@ struct FaceVertex {
 	bool32 HasUV;
 	bool32 HasNormal;
 };
-struct Face { Array *FaceVertices; };
+DEF_ARRAY(FaceVert, struct FaceVertex);
+DECL_ARRAY(FaceVert, struct FaceVertex);
+
+DEF_ARRAY(Face, struct Array_FaceVert);
+DECL_ARRAY(Face, struct Array_FaceVert);
 
 struct Object {
 	WObj_Material *Material;
 
 	char Name[256];
-	Array *Faces;
+	struct Array_Face Faces;
 };
+ DEF_ARRAY(Obj, struct Object);
+DECL_ARRAY(Obj, struct Object);
+
 
 void Object_Init(struct Object *o) {
 	memset(o, 0, sizeof(struct Object));
-	o->Faces = Array_Init(sizeof(struct Face));
 }
 void Object_Free(struct Object *o) {
 	if(!o) return;
-	for(u32 j = 0; j < o->Faces->ArraySize; j++) {
-		struct Face *f = (struct Face *) Array_Get(o->Faces, j);
-		Array_Free(f->FaceVertices);
-	}
-	Array_Free(o->Faces);
+	for(u32 j = 0; j < o->Faces.Size; j++)
+		Array_FaceVert_Free(o->Faces.Data + j);
+	Array_Face_Free(&o->Faces);
 }
 
-void Face_Init(struct Face *f) {
-	f->FaceVertices = Array_Init(sizeof(struct FaceVertex));
-}
+DEF_ARRAY(Vec2, Vec2);
+DEF_ARRAY(Vec3, Vec3);
+
+DECL_ARRAY(Vec2, Vec2);
+DECL_ARRAY(Vec3, Vec3);
 
 // TODO: Fix memory leaks
 WObj_Library *WObj_FromFile(const char *filename) {
@@ -187,19 +202,15 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 	struct Object *CurrObject = NULL;
 
-	Array *Positions = NULL;
-	Array *Normals = NULL;
-	Array *UVs = NULL;
-
-	Positions = Array_Init(sizeof(Vec3));
-	Normals = Array_Init(sizeof(Vec3));
-	UVs = Array_Init(sizeof(Vec2));
+	struct Array_Vec3 Positions;
+	struct Array_Vec3 Normals;
+	struct Array_Vec2 UVs;
 
 	// TODO: Figure out what this is supposed to do.
 	// bool32 SmoothingEnabled = 0;
 
-	Array *Materials = Array_Init(sizeof(WObj_Material));
-	Array *Objects = Array_Init(sizeof(struct Object));
+	struct Array_WMat Materials; 
+	struct Array_Obj Objects;
 
 	u32 i = 0;
 	while(i < Size) {
@@ -212,21 +223,21 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			struct Object obj;
 			Object_Init(&obj);
 			READ_NEXT_WORD(obj.Name);
-			Array_Push(Objects, (u8 *) &obj);
-			CurrObject = (struct Object *) Array_GetLast(Objects);
+			Array_Obj_Push(&Objects, &obj);
+			CurrObject = Objects.Data + (Objects.Size - 1);
 		} else if(strncmp(Command, "mtllib", 6) == 0) {
 			char MtlFilename[256] = {0};
 			strncpy(MtlFilename, filename, 256);
 			char *Dir = strrchr(MtlFilename, '/');
 			READ_NEXT_WORD(Dir + 1);
-			WObj_ReadMtl(MtlFilename, Materials);
+			WObj_ReadMtl(MtlFilename, &Materials);
 		} else if(strncmp(Command, "usemtl", 6) == 0) {
 			char MaterialName[256] = {0};
 			READ_NEXT_WORD(MaterialName);
 
 			WObj_Material *FoundMaterial = NULL;
-			for(u32 i = 0; i < Materials->ArraySize; i++) {
-				WObj_Material *mat = (WObj_Material *) Array_Get(Materials, i);
+			for(u32 i = 0; i < Materials.Size; i++) {
+				WObj_Material *mat = Materials.Data + i;
 				if(strcmp(mat->Name, MaterialName) == 0) {
 					FoundMaterial = mat;
 					break;
@@ -251,7 +262,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			pos.y = atof(y);
 			pos.z = atof(z);
 
-			Array_Push(Positions, (u8 *) &pos);
+			Array_Vec3_Push(&Positions, &pos);
 		} else if(strncmp(Command, "vt", 2) == 0) {
 			char u[32] = {0};
 			char v[32] = {0};
@@ -259,7 +270,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			READ_NEXT_WORD(v);
 
 			Vec2 UV = V2(atof(u), atof(v));
-			Array_Push(UVs, (u8 *) &UV);
+			Array_Vec2_Push(&UVs, &UV);
 		} else if(strncmp(Command, "vn", 2) == 0) {
 			char x[32] = {0};
 			char y[32] = {0};
@@ -269,10 +280,9 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			READ_NEXT_WORD(z);
 
 			Vec3 Normal = V3(atof(x), atof(y), atof(z));
-			Array_Push(Normals, (u8 *) &Normal);
+			Array_Vec3_Push(&Normals, &Normal);
 		} else if(strncmp(Command, "f", 1) == 0) {
-			struct Face Face;
-			Face.FaceVertices = Array_Init(sizeof(struct FaceVertex));
+			struct Array_FaceVert FaceVerts;
 
 			while(!Char_IsNewline(Buffer[i])) {
 				struct FaceVertex FV;
@@ -310,14 +320,13 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				FV.NormalId = String_ToI32_N(Vertex + q, j - q) - 1;
 
 face_vertex_end:
-				if(Face.FaceVertices->ArraySize == 3)
-				{
+				if(FaceVerts.Size == 3) {
 					Log(ERR, "OBJ file \"%s\" has a non-triangulated face.", filename);
 				}
-				Array_Push(Face.FaceVertices, (u8 *) &FV);
+				Array_FaceVert_Push(&FaceVerts, &FV);
 			}
 
-			Array_Push(CurrObject->Faces, (u8 *) &Face);
+			Array_Face_Push(&CurrObject->Faces, &FaceVerts);
 		} else if(strncmp(Command, "s", 1) == 0) {
 			char word[64] = {0};
 			READ_NEXT_WORD(word);
@@ -333,28 +342,26 @@ face_vertex_end:
 	// Take all the vertices with IDs and convert them to vertices with values.
 	// If a vertex already exists, add an index to it.
 
-	Array *Vertices = Array_Init(sizeof(WObj_Vertex));
-	Array *Indices = Array_Init(sizeof(u32));
+	struct Array_WVert Vertices;
+	struct Array_u32 Indices;
 
-	Array *FinalObjects = Array_Init(sizeof(WObj_Object));
+	struct Array_WObj FinalObjects;
 
-	for(u32 i = 0; i < Objects->ArraySize; i++) {
-		struct Object *obj = (struct Object *) Array_Get(Objects, i);
+	for(u32 i = 0; i < Objects.Size; i++) {
+		struct Object *obj = Objects.Data + i;
 		u32 NextIndex = 0;
 
-		for(u32 i = 0; i < obj->Faces->ArraySize; i++) {
-			Array *FVs =
-				((struct Face *) Array_Get(obj->Faces, i))->FaceVertices;
+		for(u32 i = 0; i < obj->Faces.Size; i++) {
+			struct Array_FaceVert FVs = obj->Faces.Data[i];
 
-			for(u32 j = 0; j < FVs->ArraySize; j++) {
-				struct FaceVertex *v = (struct FaceVertex *) Array_Get(FVs, j);
+			for(u32 j = 0; j < FVs.Size; j++) {
+				struct FaceVertex v = FVs.Data[j];
 
 				i32 FoundVertexId = -1;
 				// Check to see if this vertex exists.
 				for(u32 q = 0; q < j; q++) {
-					struct FaceVertex *v2 =
-						(struct FaceVertex *) Array_Get(FVs, q);
-					if(v->PosId == v2->PosId) {
+					struct FaceVertex v2 = FVs.Data[q];
+					if(v.PosId == v2.PosId) {
 						FoundVertexId = q;
 						break;
 					}
@@ -364,63 +371,58 @@ face_vertex_end:
 				if(FoundVertexId == -1) {
 					WObj_Vertex vtx;
 
-					vtx.Position = *((Vec3 *) Array_Get(Positions, v->PosId));
-					if(v->HasUV) vtx.UV = *((Vec2 *) Array_Get(UVs, v->UVId));
-					if(v->HasNormal)
-						vtx.Normal =
-							*((Vec3 *) Array_Get(Normals, v->NormalId));
+					vtx.Position = Positions.Data[v.PosId];
+					if(v.HasUV) vtx.UV = UVs.Data[v.UVId];
+					if(v.HasNormal) vtx.Normal = Normals.Data[v.NormalId];
 
-					Array_Push(Vertices, (u8 *) &vtx);
-					Array_Push(Indices, (u8 *) &NextIndex);
+					Array_WVert_Push(&Vertices, &vtx);
+					Array_u32_Push(&Indices, &NextIndex);
 					NextIndex++;
 				}
 				// Else, just add an index to the original.
 				else {
-					Array_Push(Indices, (u8 *) &NextIndex);
+					Array_u32_Push(&Indices, &NextIndex);
 				}
 			}
 		}
+		Array_WVert_SizeToFit(&Vertices);
+		Array_u32_SizeToFit(&Indices);
 
 		WObj_Object Object;
 		Object.Name = malloc(strlen(obj->Name));
 		strcpy(Object.Name, obj->Name);
 		Object.Material = obj->Material;
-		Object.NumVertices = Vertices->ArraySize;
-		Object.NumIndices = Indices->ArraySize;
-		Object.Vertices = malloc(Vertices->ArraySize * sizeof(WObj_Vertex));
-		Object.Indices = malloc(Indices->ArraySize * sizeof(u32));
-		Array_CopyData((u8 *) Object.Vertices, Vertices);
-		Array_CopyData((u8 *) Object.Indices, Indices);
+		Object.NumVertices = Vertices.Size;
+		Object.NumIndices = Indices.Size;
+		Object.Vertices = Vertices.Data;
+		Object.Indices = Indices.Data;
 
-		Array_Push(FinalObjects, (u8 *) &Object);
+		Array_WObj_Push(&FinalObjects, &Object);
 
-		Array_Clear(Vertices);
-		Array_Clear(Indices);
+		Vertices.Data = NULL;
+		Vertices.Size = 0;
+		Vertices.Capacity = 0;
+
+		Indices.Data = NULL;
+		Indices.Size = 0;
+		Indices.Capacity = 0;
 	}
 
-	res->NumObjects = Objects->ArraySize;
-	res->NumMaterials = Materials->ArraySize;
-	res->Materials = (WObj_Material *) Materials->Data;
-	res->Objects = (WObj_Object *) FinalObjects->Data;
+	Array_WObj_SizeToFit(&FinalObjects);
+	Array_WMat_SizeToFit(&Materials);
 
-	Materials->Data = NULL;
-	Array_Free(Materials);
+	res->NumObjects = FinalObjects.Size;
+	res->NumMaterials = Materials.Size;
+	res->Materials = Materials.Data;
+	res->Objects = FinalObjects.Data;
 
-	FinalObjects->Data = NULL;
-	Array_Free(FinalObjects);
+	Array_Vec3_Free(&Positions);
+	Array_Vec2_Free(&UVs);
+	Array_Vec3_Free(&Normals);
 
-	Array_Free(Vertices);
-	Array_Free(Indices);
-	Array_Free(Positions);
-	Array_Free(UVs);
-	Array_Free(Normals);
-
-	for(u32 i = 0; i < Objects->ArraySize; i++) {
-		struct Object *o = (struct Object *) Array_Get(Objects, i);
-		Object_Free(o);
-	}
-	Array_Free(Objects);
-
+	for(u32 i = 0; i < Objects.Size; i++)
+		Object_Free(Objects.Data + i);
+	Array_Obj_Free(&Objects);
 
 	return res;
 }

@@ -136,47 +136,31 @@ extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize, u32 *re
 extern void File_DumpBuffer(const char *filename, const u8 *buf, u32 bufSize);
 
 // --- Array --- //
-
-typedef struct Array {
-	u8 *Data;
-	u32 ItemSize;
-	u32 ArraySize;
-	u32 ArrayCapacity;
-} Array;
-
-Array *Array_Init(u32 itemSize);
-Array *Array_Prealloc(u32 itemSize, u32 capacity);
-void Array_Push(Array *, const u8 *);
-void Array_Pop(Array *);
-void Array_Copy(Array *out, const Array *src);
-void Array_CopyData(u8 *out, const Array *src);
-u8 *Array_Get(const Array *, i32 idx);
-u8 *Array_GetFirst(const Array *arr);
-u8 *Array_GetLast(const Array *arr);
-void Array_Clear(Array *);
-void Array_Reverse(Array *);
-void Array_Free(Array *);
-
-#define DEF_ARRAY(name, type)                                                \
-struct Array_##name { u32 Size, Capacity; type *Data; };                     \
-                                                                             \
-void Array_##name##_SizeToFit(struct Array_##name *);                        \
-void Array_##name##_Free(struct Array_##name *);                             \
-                                                                             \
- i32 Array_##name##_Find(struct Array_##name *, const type *);               \
-                                                                             \
-void Array_##name##_Push(struct Array_##name *, const type *);               \
-void Array_##name##_PushVal(struct Array_##name *, const type);              \
-void Array_##name##_Pop(struct Array_##name *);                              \
-                                                                             \
-void Array_##name##_Insert(struct Array_##name *, u32 idx, const type *);    \
-void Array_##name##_InsertVal(struct Array_##name *, u32 idx, const type);   \
-void Array_##name##_Remove(struct Array_##name *, u32 idx);                  \
-                                                                             \
-void Array_##name##_Reverse(struct Array_##name *);
+#define DEF_ARRAY(name, type)                                               \
+struct Array_##name { u32 Size, Capacity; type *Data; };                    \
+                                                                            \
+ void Array_##name##_SizeToFit(struct Array_##name *);                      \
+ void Array_##name##_Free(struct Array_##name *);                           \
+                                                                            \
+  i32 Array_##name##_Find(const struct Array_##name *, const type *);       \
+bool8 Array_##name##_Has(const struct Array_##name *, const type *);        \
+                                                                            \
+ void Array_##name##_Push(struct Array_##name *, const type *);             \
+ void Array_##name##_PushVal(struct Array_##name *, const type);            \
+ void Array_##name##_Pop(struct Array_##name *);                            \
+                                                                            \
+ void Array_##name##_Insert(struct Array_##name *, u32 idx, const type *);  \
+ void Array_##name##_InsertVal(struct Array_##name *, u32 idx, const type); \
+ void Array_##name##_Remove(struct Array_##name *, u32 idx);                \
+                                                                            \
+ void Array_##name##_Reverse(struct Array_##name *);
 
 #define DECL_ARRAY(name, type)                                                \
-i32 Array_##name##_Find(struct Array_##name *a, const type *t)                \
+bool8 Array_##name##_Has(const struct Array_##name *a, const type *t)         \
+{                                                                             \
+    return Array_##name##_Find(a, t) < 0 ? 0 : 1;                             \
+}                                                                             \
+i32 Array_##name##_Find(const struct Array_##name *a, const type *t)          \
 {                                                                             \
 	if(!a->Size) return -1;                                                   \
 	for(u32 i = 0; i < a->Size; i++) {                                        \
