@@ -23,6 +23,21 @@ Vec2 Vec2_Sub(Vec2 a, Vec2 b) { return V2(a.x - b.x, a.y - b.y); }
 Vec3 Vec3_Sub(Vec3 a, Vec3 b) { return V3(a.x - b.x, a.y - b.y, a.z - b.z); }
 Vec4 Vec4_Sub(Vec4 a, Vec4 b) { return V4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
+// a + (a-b)/2
+// a + a*0.5 - b*0.5
+// 1.5 * a - 0.5 * b
+Vec2 Vec2_Center(Vec2 a, Vec2 b) { return Vec2_DivScal(Vec2_Add(a, b), 2); }
+Vec3 Vec3_Center(Vec3 a, Vec3 b) { return Vec3_DivScal(Vec3_Add(a, b), 2); }
+Vec4 Vec4_Center(Vec4 a, Vec4 b) { return Vec4_DivScal(Vec4_Add(a, b), 2); }
+
+Vec2 Vec2_TriCenter(Vec2 a, Vec2 b, Vec2 c) { return Vec2_DivScal(Vec2_Add(a,Vec2_Add(b,c)),3); }
+Vec3 Vec3_TriCenter(Vec3 a, Vec3 b, Vec3 c) { return Vec3_DivScal(Vec3_Add(a,Vec3_Add(b,c)),3); }
+Vec4 Vec4_TriCenter(Vec4 a, Vec4 b, Vec4 c) { return Vec4_DivScal(Vec4_Add(a,Vec4_Add(b,c)),3); }
+
+Vec2 Vec2_QuadCenter(Vec2 a, Vec2 b, Vec2 c, Vec2 d) { return Vec2_DivScal(Vec2_Add(Vec2_Add(a, b),Vec2_Add(c, d)), 4); }
+Vec3 Vec3_QuadCenter(Vec3 a, Vec3 b, Vec3 c, Vec3 d) { return Vec3_DivScal(Vec3_Add(Vec3_Add(a, b),Vec3_Add(c, d)), 4); }
+Vec4 Vec4_QuadCenter(Vec4 a, Vec4 b, Vec4 c, Vec4 d) { return Vec4_DivScal(Vec4_Add(Vec4_Add(a, b),Vec4_Add(c, d)), 4); }
+
 Vec2 Vec2_MultScal(Vec2 v, r32 s) { return V2(v.x * s, v.y * s); }
 Vec3 Vec3_MultScal(Vec3 v, r32 s) { return V3(v.x * s, v.y * s, v.z * s); }
 Vec4 Vec4_MultScal(Vec4 v, r32 s) {
@@ -86,8 +101,8 @@ void Mat3_FromMat4(Mat3 out, const Mat4 m) {
 		for(i32 x = 0; x < 3; x++) out[x + y * 3] = m[x + y * 4];
 }
 
-void Mat2_Copy(Mat2 out, const Mat2 m) { for(i32 i = 0; i < 4; ++i) out[i] = m[i]; }
-void Mat3_Copy(Mat3 out, const Mat3 m) { for(i32 i = 0; i < 9; ++i) out[i] = m[i]; }
+void Mat2_Copy(Mat2 out, const Mat2 m) { for(i32 i = 0; i <  4; ++i) out[i] = m[i]; }
+void Mat3_Copy(Mat3 out, const Mat3 m) { for(i32 i = 0; i <  9; ++i) out[i] = m[i]; }
 void Mat4_Copy(Mat4 out, const Mat4 m) { for(i32 i = 0; i < 16; ++i) out[i] = m[i]; }
 
 void Mat2_Neg(Mat2 m) { for(i32 i = 0; i < 4; ++i) m[i] = -m[i]; }
@@ -437,16 +452,82 @@ static i32 HexToInt(char c) {
 }
 
 RGB HexToRGB(const char str[6]) {
-	return V3((HexToInt(str[0]) * 16 + HexToInt(str[1])) / 255.0,
-	          (HexToInt(str[2]) * 16 + HexToInt(str[3])) / 255.0,
-	          (HexToInt(str[4]) * 16 + HexToInt(str[5])) / 255.0);
+	Vec3 res;
+	for(u32 i = 0; i < 3; i++)
+		res.d[i] = (HexToInt(str[i*2  ]) * 16 + 
+				    HexToInt(str[i*2+1])) / 255.0;
+	return res;
 }
 
 RGBA HexToRGBA(const char str[8]) {
-	return V4((HexToInt(str[0]) * 16 + HexToInt(str[1])) / 255.0,
-	          (HexToInt(str[2]) * 16 + HexToInt(str[3])) / 255.0,
-	          (HexToInt(str[4]) * 16 + HexToInt(str[5])) / 255.0,
-	          (HexToInt(str[6]) * 16 + HexToInt(str[7])) / 255.0);
+	Vec4 res;
+	for(u32 i = 0; i < 4; i++)
+		res.d[i] = (HexToInt(str[i*2  ]) * 16 + 
+				    HexToInt(str[i*2+1])) / 255.0;
+	return res;
+}
+
+// Thank you,
+// https://www.rapidtables.com/convert/color/hsv-to-rgb.html
+RGB HSVToRGB(Vec3 hsv)
+{
+	r32 c = hsv.y * hsv.z;
+	r32 x = c * (1 - fabs(fmod(hsv.x / (Pi/3), 2) - 1));
+	r32 m = hsv.z - c;
+
+	r32 H = hsv.x / (Pi/3);
+
+	Vec3 rgb;
+
+	     if(H < 1.0) rgb = V3(c, x, 0);
+	else if(H < 2.0) rgb = V3(x, c, 0);
+	else if(H < 3.0) rgb = V3(0, c, x);
+	else if(H < 4.0) rgb = V3(0, x, c);
+	else if(H < 5.0) rgb = V3(x, 0, c);
+	else             rgb = V3(c, 0, x);
+
+	return Vec3_Add(rgb, V3(m, m, m));
+}
+
+// Thank you,
+// https://www.rapidtables.com/convert/color/rgb-to-hsv.html
+Vec3 RGBToHSV(RGB rgb)
+{
+	r32 cMax = 
+		(rgb.r > rgb.g
+		 ? (rgb.r > rgb.b
+			 ? rgb.r
+			 : rgb.b)
+		 : (rgb.g > rgb.b
+			 ? rgb.g
+			 : rgb.b));
+
+	r32 cMin =
+		(rgb.r < rgb.g
+		 ? (rgb.r < rgb.b
+			 ? rgb.r
+			 : rgb.b)
+		 : (rgb.g < rgb.b
+			 ? rgb.g
+			 : rgb.b));
+
+	r32 delta = cMax - cMin;
+
+	Vec3 hsv;
+	// ---- Calculate H ----
+	     if(cMax == cMin)  hsv.x = 0;
+	else if(cMax == rgb.r) hsv.x = (Pi/3) * fmod((rgb.g - rgb.b) / delta, 6);
+	else if(cMax == rgb.g) hsv.x = (Pi/3) * ((rgb.b - rgb.r) / delta + 2);
+	else                   hsv.x = (Pi/3) * ((rgb.r - rgb.g) / delta + 4);
+
+	// ---- Calculate S ----
+    if(cMax == 0) hsv.y = 0;
+	else          hsv.y = delta / cMax;
+
+	// ---- Assign V -----
+	hsv.z = cMax;
+
+	return hsv;
 }
 
 r32 Lerp_Linear(r32 start, r32 end, r32 amt) {

@@ -2,6 +2,19 @@
 
 #include <math.h>
 
+const Transform2D Transform2D_Default = {
+	.Position = V2C(0,0),
+	.Rotation = 0,
+	.Scale    = V2C(1,1),
+	.Parent   = NULL
+};
+const Transform3D Transform3D_Default = {
+	.Position = V3C(0,0,0),
+	.Rotation = V4C(0, 0, 0, 1),
+	.Scale    = V3C(1,1,1),
+	.Parent   = NULL
+};
+
 void Transform2D_Mat3(Transform2D t, Mat3 out) {
 	Mat3 translate, rotate, scale, parent;
 
@@ -33,7 +46,7 @@ void Transform2D_Mat3(Transform2D t, Mat3 out) {
 	Mat3_Copy(out, parent);
 }
 
-void Transform3D_Mat4(Transform3D t, Mat4 out) {
+	void Transform3D_Mat4(Transform3D t, Mat4 out) {
 	Mat4 translate, rotate, scale, parent;
 
 	Mat4_Identity(translate);

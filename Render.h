@@ -98,42 +98,36 @@ struct R2D_Rect {
 	};
 };
 
+struct R2D_Triangle {
+	Vec2 Points[3];
+	union {
+		Vec2 UVs[3];
+		RGBA Color;
+	};
+};
+
 struct R2D_Spritesheet {
 	GLuint TextureId;
 	u32 Width, Height;
 	u32 SpriteWidth, SpriteHeight;
 };
 
+
 extern struct R2D_Spritesheet 
 	R2D_DefaultFont_Small,
 	R2D_DefaultFont_Medium,
 	R2D_DefaultFont_Large;
 
-extern void R2D_DrawRects(
-	const struct R2D_Rect *Rects, 
-	u32 NumRects, 
-	bool8 Fill
-);
+extern void R2D_DrawTriangle (const struct R2D_Triangle *triangle);
+extern void R2D_DrawTriangles(const struct R2D_Triangle *triangles, u32 NumTriangles);
 
-extern void R2D_DrawRectImage(
-	Vec2 Position, 
-	Vec2 Size, 
-	GLuint TextureID,
-	const Vec2 *TextureUVs
-);
+extern void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill);
 
-extern void R2D_DrawText(
-	Vec2 pos, 
-	RGBA fg, 
-	RGBA bg,
-	const struct R2D_Spritesheet *font, 
-	const char *fmt, ...
-);
+extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs);
 
-extern Vec2 R2D_GetTextExtents(
-	const struct R2D_Spritesheet *font,
-	const char *fmt, ...
-);
+extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const struct R2D_Spritesheet *font, const char *fmt, ...);
+
+extern Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt, ...);
 
 extern void R2D_DrawConsole();
 // ---===##############===---

@@ -7,38 +7,24 @@
 struct Vec2_t {
 	union {
 		r32 d[2];
-		struct {
-			r32 x, y;
-		};
-		struct {
-			r32 u, v;
-		};
+		struct { r32 x, y; };
+		struct { r32 u, v; };
 	};
 };
 
 struct Vec3_t {
 	union {
 		r32 d[3];
-		struct {
-			r32 x, y, z;
-		};
-		struct {
-			r32 r, g, b;
-		};
-		struct {
-			r32 u, v, w;
-		};
+		struct { r32 x, y, z; };
+		struct { r32 r, g, b; };
+		struct { r32 u, v, w; };
 	};
 };
 struct Vec4_t {
 	union {
 		r32 d[4];
-		struct {
-			r32 x, y, z, w;
-		};
-		struct {
-			r32 r, g, b, a;
-		};
+		struct { r32 x, y, z, w; };
+		struct { r32 r, g, b, a; };
 	};
 };
 
@@ -87,6 +73,18 @@ extern Vec4 Vec4_Add(Vec4 a, Vec4 b);
 extern Vec2 Vec2_Sub(Vec2 a, Vec2 b);
 extern Vec3 Vec3_Sub(Vec3 a, Vec3 b);
 extern Vec4 Vec4_Sub(Vec4 a, Vec4 b);
+
+extern Vec2 Vec2_Center(Vec2 a, Vec2 b);
+extern Vec3 Vec3_Center(Vec3 a, Vec3 b);
+extern Vec4 Vec4_Center(Vec4 a, Vec4 b);
+
+extern Vec2 Vec2_TriCenter(Vec2 a, Vec2 b, Vec2 c);
+extern Vec3 Vec3_TriCenter(Vec3 a, Vec3 b, Vec3 c);
+extern Vec4 Vec4_TriCenter(Vec4 a, Vec4 b, Vec4 c);
+
+extern Vec2 Vec2_QuadCenter(Vec2 a, Vec2 b, Vec2 c, Vec2 d);
+extern Vec3 Vec3_QuadCenter(Vec3 a, Vec3 b, Vec3 c, Vec3 d);
+extern Vec4 Vec4_QuadCenter(Vec4 a, Vec4 b, Vec4 c, Vec4 d);
 
 extern Vec2 Vec2_MultScal(Vec2 v, r32 scalar);
 extern Vec3 Vec3_MultScal(Vec3 v, r32 scalar);
@@ -208,8 +206,14 @@ extern Quat Quat_Mult(Quat a, Quat b);
 extern Quat Quat_Norm(Quat q);
 
 // --- Extra color utilities --- //
-extern RGB HexToRGB(const char str[6]);
+extern RGB  HexToRGB(const char str[6]);
 extern RGBA HexToRGBA(const char str[8]);
+
+/** Converts an HSV vector to a clamped (0.0 to 1.0) RGB vector. */
+extern RGB HSVToRGB(Vec3 HSV);
+
+/** Converts a clamped (0.0 to 1.0) RGB vector to an HSV vector. */
+extern Vec3 RGBToHSV(RGB RGB);
 
 // --- Value Interpolation --- //
 

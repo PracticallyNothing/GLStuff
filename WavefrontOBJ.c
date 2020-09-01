@@ -47,7 +47,12 @@ DECL_ARRAY(WVert, struct WObj_Vertex);
 void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
 	u8 *Buffer = malloc(Kilobytes(256));
 	u32 Size = 0;
-	File_ReadToBuffer(filename, Buffer, Kilobytes(256), &Size);
+	if(!File_ReadToBuffer(filename, Buffer, Kilobytes(256), &Size))
+	{
+		Log(WARN, ".Mat file \"%s\" couldn't be opened.", filename);
+		free(Buffer);
+		return;
+	}
 	WObj_Material *CurrMat = NULL;
 
 	u32 i = 0;
@@ -195,22 +200,25 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	u8 *Buffer = malloc(Megabytes(1));
 	u32 Size;
 	if(!File_ReadToBuffer(filename, Buffer, Megabytes(1), &Size)) {
+		Log(ERR, "File \"%s\" couldn't be read.", filename);
+		free(Buffer);
 		return NULL;
 	}
 
 	WObj_Library *res = malloc(sizeof(WObj_Library));
+	bool8 HasMTL = 0;
 
 	struct Object *CurrObject = NULL;
 
-	struct Array_Vec3 Positions;
-	struct Array_Vec3 Normals;
-	struct Array_Vec2 UVs;
+	struct Array_Vec3 Positions = { .Capacity = 0, .Size = 0, .Data = NULL };
+	struct Array_Vec3 Normals   = { .Capacity = 0, .Size = 0, .Data = NULL };
+	struct Array_Vec2 UVs       = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 	// TODO: Figure out what this is supposed to do.
 	// bool32 SmoothingEnabled = 0;
 
-	struct Array_WMat Materials; 
-	struct Array_Obj Objects;
+	struct Array_WMat Materials = { .Capacity = 0, .Size = 0, .Data = NULL }; 
+	struct Array_Obj  Objects   = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 	u32 i = 0;
 	while(i < Size) {
@@ -231,25 +239,29 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			char *Dir = strrchr(MtlFilename, '/');
 			READ_NEXT_WORD(Dir + 1);
 			WObj_ReadMtl(MtlFilename, &Materials);
+			HasMTL = 1;
 		} else if(strncmp(Command, "usemtl", 6) == 0) {
-			char MaterialName[256] = {0};
-			READ_NEXT_WORD(MaterialName);
+			if(HasMTL) {
+				char MaterialName[256] = {0};
+				READ_NEXT_WORD(MaterialName);
 
-			WObj_Material *FoundMaterial = NULL;
-			for(u32 i = 0; i < Materials.Size; i++) {
-				WObj_Material *mat = Materials.Data + i;
-				if(strcmp(mat->Name, MaterialName) == 0) {
-					FoundMaterial = mat;
-					break;
+				WObj_Material *FoundMaterial = NULL;
+				for(u32 i = 0; i < Materials.Size; i++) {
+					WObj_Material *mat = Materials.Data + i;
+					if(strcmp(mat->Name, MaterialName) == 0) {
+						FoundMaterial = mat;
+						break;
+					}
 				}
+
+				if(!FoundMaterial)
+					Log(WARN, "File \"%s\": Object \"%s\" wants material \"%s\", but that material isn't defined.", 
+					    filename, CurrObject->Name, MaterialName);
+				else
+					CurrObject->Material = FoundMaterial;
+			} else {
+				Log(WARN, "File \"%s\": usemtl without any materials file.", filename);
 			}
-
-			if(!FoundMaterial)
-				Log(Log_Error, "OBJ with nonexistent material \"%s\"",
-						MaterialName);
-			else
-				CurrObject->Material = FoundMaterial;
-
 		} else if(strncmp(Command, "v\0", 2) == 0) {
 			Vec3 pos;
 			char x[32] = {0};
@@ -282,7 +294,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			Vec3 Normal = V3(atof(x), atof(y), atof(z));
 			Array_Vec3_Push(&Normals, &Normal);
 		} else if(strncmp(Command, "f", 1) == 0) {
-			struct Array_FaceVert FaceVerts;
+			struct Array_FaceVert FaceVerts = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 			while(!Char_IsNewline(Buffer[i])) {
 				struct FaceVertex FV;
@@ -323,8 +335,14 @@ face_vertex_end:
 				if(FaceVerts.Size == 3) {
 					Log(ERR, "OBJ file \"%s\" has a non-triangulated face.", filename);
 				}
+
 				Array_FaceVert_Push(&FaceVerts, &FV);
 			}
+
+			// Flip faces to correspond to OpenGL CCW front face requirements.
+			struct FaceVertex tmp = FaceVerts.Data[0];
+			FaceVerts.Data[0] = FaceVerts.Data[1];
+			FaceVerts.Data[1] = tmp;
 
 			Array_Face_Push(&CurrObject->Faces, &FaceVerts);
 		} else if(strncmp(Command, "s", 1) == 0) {
@@ -342,10 +360,10 @@ face_vertex_end:
 	// Take all the vertices with IDs and convert them to vertices with values.
 	// If a vertex already exists, add an index to it.
 
-	struct Array_WVert Vertices;
-	struct Array_u32 Indices;
+	struct Array_WVert Vertices = { .Capacity = 0, .Size = 0, .Data = NULL };
+	struct Array_u32   Indices  = { .Capacity = 0, .Size = 0, .Data = NULL };
 
-	struct Array_WObj FinalObjects;
+	struct Array_WObj FinalObjects = { .Capacity = 0, .Size = 0, .Data = NULL }; 
 
 	for(u32 i = 0; i < Objects.Size; i++) {
 		struct Object *obj = Objects.Data + i;
@@ -415,6 +433,27 @@ face_vertex_end:
 	res->NumMaterials = Materials.Size;
 	res->Materials = Materials.Data;
 	res->Objects = FinalObjects.Data;
+
+	Vec3 Min = res->Objects[0].Vertices[0].Position;
+	Vec3 Max = Min;
+	for(u32 i = 0; i < res->NumObjects; i++) {
+		for(u32 j = 0; j < res->Objects[i].NumVertices; j++) {
+			Vec3 v = res->Objects[i].Vertices[j].Position;
+			Min = V3(MIN(Min.x, v.x), MIN(Min.y, v.y), MIN(Min.z, v.z));
+			Max = V3(MAX(Max.x, v.x), MAX(Max.y, v.y), MAX(Max.z, v.z));
+		}
+	}
+	Vec3 HalfDist = Vec3_DivScal(Vec3_Sub(Max, Min), 2);
+	Vec3 Center = Vec3_Add(Min, HalfDist);
+	Log(INFO, "File \"%s\" is offset by (%.2f, %.2f, %.2f).", filename, Center.x, Center.y, Center.z);
+	Log(INFO, "File \"%s\" is bounded between (%.2f, %.2f, %.2f) and (%.2f, %.2f, %.2f).", 
+			filename, 
+			Min.x, Min.y, Min.z,
+			Max.x, Max.y, Max.z);
+
+	for(u32 i = 0; i < res->NumObjects; i++)
+		for(u32 j = 0; j < res->Objects[i].NumVertices; j++)
+			res->Objects[i].Vertices[j].Position = Vec3_Sub(res->Objects[i].Vertices[j].Position, Center);
 
 	Array_Vec3_Free(&Positions);
 	Array_Vec2_Free(&UVs);

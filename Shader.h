@@ -8,11 +8,12 @@
 struct Shader {
 	GLuint ProgramID;
 	GLuint VertexID, FragmentID;
-	const char *VertexFile, *FragmentFile;
+	char *SrcFile;
 };
 extern struct Shader *Shader_FromFile(const char *file);
 extern struct Shader *Shader_FromSrc(const char *vertexSrc,
-                                     const char *fragmentSrc);
+                                     const char *fragmentSrc,
+									 const char* filename);
 
 extern void Shader_Use(struct Shader *);
 
@@ -32,5 +33,7 @@ extern void Shader_UniformMat3(struct Shader *, const char *name, const Mat3);
 extern void Shader_UniformMat4(struct Shader *, const char *name, const Mat4);
 
 extern void Shader_Free(struct Shader *);
+
+extern void Shader_Reload(struct Shader *);
 
 #endif

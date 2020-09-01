@@ -20,7 +20,11 @@ struct Transform3D {
 	Transform3D *Parent;
 };
 
-void Transform2D_Mat3(Transform2D t, Mat3 out);
-void Transform3D_Mat4(Transform3D t, Mat4 out);
+
+extern const Transform2D Transform2D_Default;
+extern const Transform3D Transform3D_Default;
+
+extern void Transform2D_Mat3(Transform2D t, Mat3 out);
+extern void Transform3D_Mat4(Transform3D t, Mat4 out);
 
 #endif

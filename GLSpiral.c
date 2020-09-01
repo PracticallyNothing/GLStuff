@@ -12,296 +12,120 @@
 #include "WavefrontOBJ.h"
 #include "stb_image.h"
 
-const Vec2 HexGrid_Pos = V2C(-57/1920.0, 425 / 1080.0);
-const Vec2 HexGrid_Size = V2C(1885 / 1920.0, 644 / 1080.0);
-const Vec2 HexGrid_TileSize = V2C(243 / 1920.0, 147 / 1080.0);
-const r32  HexGrid_TileColumnYOffset = (147 / 1080.0) / 2;
-
-const r32 HexGrid_TileCenterXOffset = 69/1920.0;
-const Vec2 HexGrid_TileCenterSize = V2C(106/1920.0, 147/1080.0);
-
-Vec2 HexGrid_GetTilePos(i32 tile)
-{
-	const r32 xColSize = (HexGrid_TileSize.x + HexGrid_TileCenterSize.x) / 2;
-
-	u32 row = tile % 4, 
-		col = tile / 4;
-
-	u32 w = RSys_GetSize().Width,
-		h = RSys_GetSize().Height;
-
-	r32 yOffset = (col % 2 ? HexGrid_TileColumnYOffset : 0) * h - (col % 2 ? 2 : 0); 
-
-	return Vec2_Add(
-		V2(col * (xColSize * HexGrid_Size.x * w - 1.5), 
-		   row * HexGrid_TileSize.y * h + yOffset - row * 5), 
-		Vec2_MultVec(HexGrid_Pos, V2(w, h))
-	); 
-}
-
-i32 HexGrid_SelectTile(Vec2 Pos) {
-	Pos.x /= RSys_GetSize().Width;
-	Pos.y /= RSys_GetSize().Height;
-
-	if(Pos.x < HexGrid_Pos.x ||
-	   Pos.x > HexGrid_Pos.x + HexGrid_Size.x ||
-	   Pos.y < HexGrid_Pos.y ||
-	   Pos.y > HexGrid_Pos.y + HexGrid_Size.y)
-		return -1;
-
-	// What is considered a column here is the left triangle of the hexagon plus its rectangular center.
-	r32 xColSize = (HexGrid_TileSize.x + HexGrid_TileCenterSize.x) / 2;
-	r32 xx = fmod(Pos.x, xColSize);
-	i32 xCol = Pos.x / xColSize;
-
-	// Case 1: The point is in the rectangular middle area of a hexagon column.
-	if(xx <= HexGrid_TileCenterSize.x)
-	{
-		r32 yy = Pos.y - HexGrid_Pos.y - (xCol % 2 ? HexGrid_TileColumnYOffset : 0);
-		// Early exit if the point is above or below the tiles.
-		if(yy < 0 || yy > HexGrid_TileSize.y * 4)
-			return -1;
-		return xCol * 4 + yy / HexGrid_TileSize.y;
-	}
-	// Case 2: The point is in one of the right triangles of the hexagons.
-	else {
-		r32 len = HexGrid_TileSize.x - HexGrid_TileCenterSize.x;
-		r32 xNorm = (xx - HexGrid_TileCenterSize.x) / len * 2;
-
-		r32 leftTriHeight  = (1.0 - xNorm) * HexGrid_TileSize.y;
-		r32 rightTriHeight =        xNorm  * HexGrid_TileSize.y;
-
-		r32 yy = Pos.y - HexGrid_Pos.y;
-
-		     if(!xCol % 2 && yy < rightTriHeight / 2) return -1;
-		else if( xCol % 2 && yy <  leftTriHeight / 2) return -1;
-
-		i32 yRow = yy / HexGrid_TileSize.y;
-		yy = fmod(yy, HexGrid_TileSize.y);
-
-		if(xCol % 2) {
-			if(yy < (HexGrid_TileSize.y - rightTriHeight) / 2)       return  xCol    * 4 + (yRow-1); 
-			else if(yy <= (HexGrid_TileSize.y + rightTriHeight) / 2) return (xCol+1) * 4 +  yRow;
-			else                                                     return  xCol    * 4 +  yRow;
-		} else {
-			if(yy < (HexGrid_TileSize.y - leftTriHeight) / 2)       return (xCol+1) * 4 + (yRow-1); 
-			else if(yy <= (HexGrid_TileSize.y + leftTriHeight) / 2) return  xCol    * 4 +  yRow;
-			else                                                    return (xCol+1) * 4 +  yRow;
-		}
-	}
-	
-	return -1;
-}
-struct State {
-	i32 PlayerTile;
-	struct Array_i32 EnemyTiles;
-	struct Array_i32 UsedTiles;
-}; 
-
-enum TileMoveIsValid {
-	TileMove_NotValid = 0,
-	TileMove_Valid = 1,
-	TileMove_JumpOverEnemy = 2
-};
-
-enum TileDir {
-	TileDir_Up = 0,
-	TileDir_LeftUp,
-	TileDir_RightUp,
-	TileDir_Down,
-	TileDir_LeftDown,
-	TileDir_RightDown,
-
-	TileDir_Total
-};
-
-const enum TileDir TileDir_Reverse[TileDir_Total] = {
-	TileDir_Down,
-	TileDir_RightDown,
-	TileDir_LeftDown,
-	TileDir_Up,
-	TileDir_RightUp,
-	TileDir_LeftUp
-};
-
-const u32 
-	MAX_TILE = 43,
-	MAX_TILE_X = 10,
-	MAX_TILE_Y = 3;
-
-i32 HexGrid_GetNeighbouringTile(i32 tile, enum TileDir dir) {
-	u32 x = tile / (MAX_TILE_Y+1), 
-		y = tile % (MAX_TILE_Y+1);
-
-	switch(dir)
-	{
-		case TileDir_Up:
-			if(y == 0) return -1;
-			else       return tile - 1;
-
-		case TileDir_Down:
-			if(y == MAX_TILE_Y) return -1;
-			else                return tile + 1;
-
-		case TileDir_LeftDown:
-			if(x == 0 || (x % 2 == 1 && y == MAX_TILE_Y)) 
-				return -1;
-			else 
-				return tile - 4 + (x % 2 ? 1 : 0);
-
-		case TileDir_RightDown:
-			if(x == MAX_TILE_X || (x % 2 == 1 && y == MAX_TILE_Y)) 
-				return -1;
-			else 
-				return tile + 4 + (x % 2 ? 1 : 0);
-
-		case TileDir_LeftUp:
-			if(x == 0 || (x % 2 == 0 && y == 0)) 
-				return -1;
-			else 
-				return tile - 4 - (x % 2 ? 0 : 1);
-
-		case TileDir_RightUp:
-			if(x == MAX_TILE_X || (x % 2 == 0 && y == 0))
-				return -1;
-			else
-				return tile + 4 - (x % 2 ? 0 : 1);
-
-		default:
-			Log(WARN, "Unknown value %d for enum TileDir.", dir);
-			return -1;
-	}
-}
-enum TileDir HexGrid_GetDir(i32 t1, i32 t2)
-{
-	for(enum TileDir i = TileDir_Up; i < TileDir_Total; ++i)
-		if(HexGrid_GetNeighbouringTile(t1, i) == t2)
-			return i;
-
-	return TileDir_Total;
-}
-
-bool8 HexGrid_TilesAreNeighbours(i32 t1, i32 t2)
-{
-	for(enum TileDir i = TileDir_Up; i < TileDir_Total; ++i)
-		if(HexGrid_GetNeighbouringTile(t1, i) == t2)
-			return 1;
-
-	return 0;
-}
-
-enum TileMoveIsValid
-HexGrid_TileIsValidMove(const struct State *state, i32 tile)
-{
-	if(!state || state->PlayerTile < 0) {
-		return TileMove_NotValid;
-	}
-
-	// FIXME: The upper value for this is hardcoded.
-	//        This will probably need fixing if there is to be
-	//        more than one level for this game.
-	if(tile < 0 || tile > MAX_TILE)
-		return TileMove_NotValid;
-
-	if(!HexGrid_TilesAreNeighbours(tile, state->PlayerTile))
-		return TileMove_NotValid;
-
-	bool8 tileOccupied = 0;
-	for(u32 i = 0; i < state->EnemyTiles.Size; ++i)
-	{
-		if(tile == state->EnemyTiles.Data[i]) {
-			tileOccupied = 1;
-			break;
-		}
-	}
-
-	if(!tileOccupied) {
-		for(u32 i = 0; i < state->UsedTiles.Size; ++i){
-			if(tile == state->UsedTiles.Data[i])
-				return TileMove_NotValid;
-		}
-		return TileMove_Valid;
-	}
-
-	// If the tile is occupied, check if there's a possible move 
-	// beyond it in the same direction.
-	enum TileDir dir = TileDir_Up;
-	for(; dir < TileDir_Total; ++dir)
-		if(HexGrid_GetNeighbouringTile(tile, dir) == state->PlayerTile)
-			break;
-
-	dir = TileDir_Reverse[dir];
-
-	i32 neighbour = HexGrid_GetNeighbouringTile(tile, dir);
-	if(neighbour < 0)
-		return TileMove_NotValid;
-
-	tileOccupied = 0;
-	for(u32 i = 0; i < state->EnemyTiles.Size; ++i)
-	{
-		if(neighbour == state->EnemyTiles.Data[i]) {
-			tileOccupied = 1;
-			break;
-		}
-	}
-
-	for(u32 i = 0; i < state->UsedTiles.Size; ++i){
-		if(neighbour == state->UsedTiles.Data[i])
-			return TileMove_NotValid;
-	}
-	return (tileOccupied ? TileMove_NotValid : TileMove_JumpOverEnemy);
-}
-
-struct RSys_Texture tileSelect;
-struct RSys_Texture tileUsed;
-void HexGrid_DrawTile(i32 tile, bool8 used)
-{
-	if(tile < 0)
-		return;
-
-	u32 w = RSys_GetSize().Width,
-		h = RSys_GetSize().Height;
-
-	Vec2 pos = HexGrid_GetTilePos(tile);
-	Vec2 size = Vec2_MultVec(HexGrid_TileSize, V2(w, h));
-	R2D_DrawRectImage(pos, size, used ? tileUsed.Id : tileSelect.Id, NULL);
-}
-
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 
 	RSys_Init(1280, 720);
+	RGB ClearColor = HexToRGB("52a9e0");
+	Vec3 HSV = RGBToHSV(ClearColor);
+	HSV.z -= 0.4;
+	ClearColor = HSVToRGB(HSV);
+	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
 	SDL_Event e;
 	u32 Ticks = 0;
 
+	// Wavefront OBJ to OpenGL setup
+	WObj_Library *Speedboat = WObj_FromFile("res/models/speedboat_2.obj");
+	if(!Speedboat)
+	{
+		Log(FATAL, "speedboat.obj couldn't load.", "");
+		return -1;
+	}
+
+	u32 *VAOs         = malloc(sizeof(u32) * Speedboat->NumObjects);
+	u32 *IndexBuffers = malloc(sizeof(u32) * Speedboat->NumObjects);
+	glGenVertexArrays(Speedboat->NumObjects, VAOs);
+	glGenBuffers(Speedboat->NumObjects, IndexBuffers);
+
+	struct RSys_Texture testUV = RSys_TextureFromFile("res/textures/test-uv.jpg");
+
+	struct RSys_Texture noise      = RSys_TextureFromFile("res/textures/noise.jpg");
+	struct RSys_Texture foam       = RSys_TextureFromFile("res/textures/Foam002_2K_Color.jpg");
+	struct RSys_Texture waveHeight = RSys_TextureFromFile("res/textures/wave_height.png");
+
+	for(u32 i = 0; i < Speedboat->NumObjects; i++)
+	{
+		glBindVertexArray(VAOs[i]);
+		u32 VBO;
+		glGenBuffers(1, &VBO);
+
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		glEnableVertexAttribArray(2);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(
+			GL_ARRAY_BUFFER,
+			Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
+			Speedboat->Objects[i].Vertices,
+			GL_STATIC_DRAW
+		);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Position));
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, UV));
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Normal));
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
+		glBufferData(
+			GL_ELEMENT_ARRAY_BUFFER,
+			Speedboat->Objects[i].NumIndices * sizeof(u32),
+			Speedboat->Objects[i].Indices,
+			GL_STATIC_DRAW
+		);
+	}
+
+	// Generate water tile.
+	const u32 w = 20;
+	const u32 l = 20;
+	const u32 sz = w*l;
+	Vec3 *pos = malloc(sizeof(Vec3) * sz * 6);
+	for(u32 z = 0; z < w; z++)
+		for(u32 x = 0; x < l; x++)
+		{
+			pos[(x + z*w)*6 + 0] = V3(1.0/w *  x   , 0, 1.0/l * (z+1));
+			pos[(x + z*w)*6 + 1] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
+			pos[(x + z*w)*6 + 2] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
+			pos[(x + z*w)*6 + 3] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
+			pos[(x + z*w)*6 + 4] = V3(1.0/w * (x+1), 0, 1.0/l *  z   );
+			pos[(x + z*w)*6 + 5] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
+		}
+	u32 WaterTileVAO = 0;
+	u32 WaterTileVBO = 0;
+	glGenVertexArrays(1, &WaterTileVAO);
+	glBindVertexArray(WaterTileVAO);
+	glGenBuffers(1, &WaterTileVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, WaterTileVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3)*sz*6, pos, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	free(pos);
+
+	struct Shader 
+		*s      = Shader_FromFile("res/shaders/3d/unlit-tex.glsl"),
+		*sWire  = Shader_FromFile("res/shaders/3d/unlit-col.glsl"),
+		*sWater = Shader_FromFile("res/shaders/3d/water.glsl");
+
 	Log(Log_Info, "Startup time: %u ms\n", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
-	struct RSys_Texture map = RSys_TextureFromFile("Map.png");
-	tileSelect = RSys_TextureFromFile("res/textures/tile_select.png");
-	tileUsed   = RSys_TextureFromFile("res/textures/tile_used.png");
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
 	float Time = 0;
 
-	u32 MouseX = 0, MouseY = 0;
-	enum Mode {
-		Mode_Play,
-		Mode_Edit
-	} Mode = Mode_Play;
+	Vec2 InitialDragMousePos = V2C(0, 0);
+	Vec2 InitialYawPitch = V2C(0, 0);
+	bool8 MouseDragging = 0;
 
-	bool8 ShowControls = 0;
-
-	struct State EditState, GameState, *CurrState;
-	CurrState = &EditState;
-
-	memset(&EditState, 0, sizeof(struct State));
-	memset(&GameState, 0, sizeof(struct State));
-
-	EditState.PlayerTile = -1;
+	OrbitCamera Cam = {
+		.Center = V3C(0,0,0),
+		.ZNear = 1e-2,
+		.ZFar = 1e10,
+		.VerticalFoV = Pi_Half + Pi_Quarter,
+		.Yaw = DegToRad(290),
+		.Pitch = DegToRad(45),
+		.Radius = 20,
+		.AspectRatio = RSys_GetSize().AspectRatio
+	};
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -311,46 +135,15 @@ int main(int argc, char *argv[]) {
 				case SDL_QUIT: goto end;
 				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
-						case SDLK_ESCAPE: 
-							if(Mode == Mode_Edit) {
-								Mode = Mode_Play; 
-								break;
-							} else  {
-								goto end;
-							}
-						case SDLK_e:
-							switch(Mode)
-							{
-								case Mode_Edit:
-									Mode = Mode_Play;
-									CurrState = &GameState;
-									GameState.PlayerTile = EditState.PlayerTile;
-									for(u32 i = 0; i < EditState.EnemyTiles.Size; i++)
-										Array_i32_Push(&GameState.EnemyTiles, EditState.EnemyTiles.Data + i);
-									break;
-								case Mode_Play:
-									Mode = Mode_Edit;
-									CurrState = &EditState;
-
-									Array_i32_Free(&GameState.EnemyTiles);
-									Array_i32_Free(&GameState.UsedTiles);
-									break;
-							}
-							break;
+						case SDLK_ESCAPE:
+							goto end;
 						case SDLK_r:
-							// TODO: Break this out into seperate function.
-							Array_i32_Free(&GameState.EnemyTiles);
-							Array_i32_Free(&GameState.UsedTiles);
-
-							GameState.PlayerTile = EditState.PlayerTile;
-							for(u32 i = 0; i < EditState.EnemyTiles.Size; i++)
-								Array_i32_Push(&GameState.EnemyTiles, EditState.EnemyTiles.Data + i);
+							Shader_Reload(sWater);
+							Shader_Reload(sWire);
+							Shader_Reload(s);
+							Log(INFO, "Shaders reloaded.", "");
 							break;
-
-						case SDLK_SLASH:
-							if(e.key.keysym.mod | KMOD_SHIFT)
-								ShowControls = !ShowControls;
-							break;
+						default: break;
 					}
 					break;
 				case SDL_WINDOWEVENT:
@@ -360,183 +153,127 @@ int main(int argc, char *argv[]) {
 						case SDL_WINDOWEVENT_RESIZED: {
 							i32 w = e.window.data1, h = e.window.data2;
 							glViewport(0, 0, w, h);
+							Cam.AspectRatio = (r32) w/h;
 							break;
 						}
 					}
 					break;
 				case SDL_MOUSEMOTION:
-					MouseX = e.motion.x;
-					MouseY = e.motion.y;
-					break;
-				case SDL_MOUSEBUTTONDOWN:
-					if(e.button.button == SDL_BUTTON_LEFT) {
-						i32 tile = HexGrid_SelectTile(V2(MouseX, MouseY));
-						if(Mode == Mode_Edit) {
-							bool8 tileTaken = 0;
-							for(u32 i = 0; tile >= 0 && i < EditState.EnemyTiles.Size; i++) {
-								if(EditState.EnemyTiles.Data[i] == tile) { 
-									tileTaken = 1;
-									break;
-								}
-							}
-							EditState.PlayerTile = (!tileTaken && tile >= 0 ? tile : EditState.PlayerTile);
-						} else {
-							enum TileMoveIsValid move = HexGrid_TileIsValidMove(&GameState, tile);
-							switch(move) {
-								case TileMove_NotValid: break;
-								case TileMove_Valid:
-									Array_i32_PushVal(&GameState.UsedTiles, GameState.PlayerTile);
-									GameState.PlayerTile = tile;
-									break;
-								case TileMove_JumpOverEnemy:
-									Array_i32_PushVal(&GameState.UsedTiles, GameState.PlayerTile);
-									for(u32 i = 0; i < GameState.EnemyTiles.Size; ++i)
-									{
-										if(tile == GameState.EnemyTiles.Data[i]) {
-											Array_i32_Remove(&GameState.EnemyTiles, i);
-											break;
-										}
-									}
-									GameState.PlayerTile = HexGrid_GetNeighbouringTile(tile, HexGrid_GetDir(GameState.PlayerTile, tile));
-									break;
-							}
-						}
-					} else if(e.button.button == SDL_BUTTON_RIGHT && Mode == Mode_Edit) {
-						i32 tile = HexGrid_SelectTile(V2(MouseX, MouseY));
-						if(tile == -1 || tile == EditState.PlayerTile )
-							break;
+					if(MouseDragging) {
+						r32 dx = (e.motion.x - InitialDragMousePos.x) / 512.0;
+						r32 dy = (e.motion.y - InitialDragMousePos.y) / 256.0;
 
-						bool8 removed = 0;
-						for(u32 i = 0; i < EditState.EnemyTiles.Size; i++)
-						{
-							if(EditState.EnemyTiles.Data[i] == tile)
-							{
-								Array_i32_Remove(&EditState.EnemyTiles, i);
-								removed = 1;
-								break;
-							}
-						}
-						if(!removed && EditState.EnemyTiles.Size < 5) 
-							Array_i32_Push(&EditState.EnemyTiles, &tile);
-						break;
+						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
+						Cam.Pitch = Clamp_R32(
+							(-dy) * Pi_Half + InitialYawPitch.y,
+							DegToRad(0.1), 
+							DegToRad(179.9)
+						);
+						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
 					}
 					break;
-				default: {
+				case SDL_MOUSEBUTTONDOWN:
+					if(e.button.button == SDL_BUTTON_RIGHT) {
+						// Begin camera drag if it hasn't been started yet.
+						MouseDragging = 1;
+
+						InitialDragMousePos = V2(e.button.x, e.button.y);
+						InitialYawPitch     = V2(Cam.Yaw, Cam.Pitch);
+					}
 					break;
-				}
+				case SDL_MOUSEWHEEL:
+					//Cam.VerticalFoV = MAX(Pi_Quarter + 0.05, MIN(Pi, Cam.VerticalFoV - e.wheel.y * 0.1));
+					Cam.Radius = MAX(2, MIN(50, Cam.Radius - e.wheel.y));
+					break;
+				case SDL_MOUSEBUTTONUP:
+					if(e.button.button == SDL_BUTTON_RIGHT)
+						MouseDragging = 0;
+					break;
+				default:
+					break;
 			}
 		}
 
 		// Render frame to back buffer.
 		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			R2D_DrawRectImage(V2(0,0), V2(RSys_GetSize().Width, RSys_GetSize().Height), map.Id, NULL);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, testUV.Id);
+
+			Mat4 view, VP;
+
+			OrbitCamera_Mat4(Cam, view, VP);
+			Mat4_MultMat(VP, view);
+
+			// Draw the actual speedboat.
+			Shader_Use(s);
+			{
+				Mat4 model;
+				Transform3D t = Transform3D_Default;
+				t.Position = V3(0, 0.3, 0);
+				Transform3D_Mat4(t, model);
+				Mat4 MVP;
+				Mat4_Copy(MVP, VP);
+				Mat4_MultMat(MVP, model);
+				Shader_UniformMat4(s, "MVP", MVP);
+			}
+			for(u32 i = 0; i < Speedboat->NumObjects; i++)
+			{
+				glBindVertexArray(VAOs[i]);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
+				glDrawElements(GL_TRIANGLES, Speedboat->Objects[i].NumIndices, GL_UNSIGNED_INT, NULL);
+			}
 			
-			i32 tile = HexGrid_SelectTile(V2(MouseX, MouseY));
-			enum TileMoveIsValid move = HexGrid_TileIsValidMove(&GameState, tile);
-			switch(move) {
-				case TileMove_NotValid:
-					HexGrid_DrawTile(tile, 1);
-					break;
-				case TileMove_Valid:
-					HexGrid_DrawTile(tile, 0);
-					break;
-				case TileMove_JumpOverEnemy:
-					HexGrid_DrawTile(tile, 0);
-					HexGrid_DrawTile(
-							HexGrid_GetNeighbouringTile(tile, HexGrid_GetDir(GameState.PlayerTile, tile)),
-							0);
-					break;
-			}
-			u32 w = RSys_GetSize().Width,
-				h = RSys_GetSize().Height;
-
-			if(!ShowControls) {
-				u32 w = RSys_GetSize().Width;
-				Vec2 sz = R2D_GetTextExtents(&R2D_DefaultFont_Large, "? for controls");
-				R2D_DrawText(V2(w - sz.x - 10, 10), V4(1,1,1,1), V4(0,0,0,1), &R2D_DefaultFont_Large, "? for controls");
-			} else {
-				const char* PlayControls =
-					" E - Edit mode \n"
-					" R - Reset     \n"
-					" ESC - Quit    \n"
-					" LMB - Move    \n";
-
-				const char* EditControls =
-					" E or ESC - Play mode        \n"
-					" LMB - Place player          \n"
-					" RMB - Place or remove enemy ";
-
-				u32 w = RSys_GetSize().Width;
-				Vec2 sz;
-				sz = R2D_GetTextExtents(&R2D_DefaultFont_Large, Mode == Mode_Play ? PlayControls : EditControls);
-				R2D_DrawText(V2(w - sz.x - 10, 10), V4(1,1,1,1), V4(0,0,0,1), &R2D_DefaultFont_Large, Mode == Mode_Play ? PlayControls : EditControls);
-			}
-
-			if(Mode == Mode_Edit) 
+			// Now draw the water underneath.
+			Shader_Use(sWater);
+			Shader_UniformMat4(sWater, "VP", VP);
+			Transform3D t = Transform3D_Default;
+			t.Position = V3(0,0,0);
+			t.Scale = V3(10, 1, 10);
 			{
-				u32 w = RSys_GetSize().Width;
-				Vec2 sz = R2D_GetTextExtents(&R2D_DefaultFont_Large, " EDIT MODE ");
-				R2D_DrawText(V2((w - sz.x)/2, 10), V4(1,1,1,1), V4(0,0,0,1), &R2D_DefaultFont_Large, " EDIT MODE ");
-				R2D_DrawText(
-					V2(10, 10), V4(1,1,1,1), V4(0,0,0,1), &R2D_DefaultFont_Large, 
-					" Num enemies: %d/%d \n"
-					" Player tile: %d \n",
-					EditState.EnemyTiles.Size, 5,
-					EditState.PlayerTile
-				);
+				Mat4 model;
+				Transform3D_Mat4(t, model);
+				Shader_UniformMat4(sWater, "model", model);
 			}
+			Shader_Uniform1f(sWater, "time", Time);
+			Shader_Uniform1i(sWater, "noise", 0);
+			Shader_Uniform1i(sWater, "foam", 1);
+			Shader_Uniform1i(sWater, "waveHeight", 2);
+			
+			glBindVertexArray(WaterTileVAO);
 
-			if(Mode == Mode_Play)
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, noise.Id);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, foam.Id);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, waveHeight.Id);
+
+			for(i32 x = -20; x < 20; x++)
 			{
-				for(u32 i = 0; i < GameState.UsedTiles.Size; ++i)
-					HexGrid_DrawTile(GameState.UsedTiles.Data[i], 1);
+				for(i32 z = -20; z < 20; z++)
+				{
+					t.Position = Vec3_MultVec(V3(x,0,z), t.Scale);
+					Mat4 model;
+					Transform3D_Mat4(t, model);
+					Shader_UniformMat4(sWater, "model", model);
+					glDrawArrays(GL_TRIANGLES, 0, sz*6);
+				}
 			}
 
-			if(CurrState->PlayerTile >= 0)
-			{
-				Vec2 pos = HexGrid_GetTilePos(CurrState->PlayerTile);
-				Vec2 size = Vec2_MultVec(HexGrid_TileSize, V2(w, h));
-				pos = Vec2_Add(pos, Vec2_MultScal(size, 0.5));
+			// Draw some debug info.
+			R2D_DrawText(
+				V2(0,0), V4(1,1,1,1), V4(0,0,0,0), &R2D_DefaultFont_Large, 
+				"         Yaw:   %.2f\n"
+				"[Camera] Pitch: %.2f\n"
+				"         FoV:   %.2f\n"
+				"         Radius:%.2f\n"
+				,
+				RadToDeg(Cam.Yaw),
+				RadToDeg(Cam.Pitch),
+				RadToDeg(Cam.VerticalFoV),
+				Cam.Radius
+			);
 
-				struct R2D_Rect PlayerRect;
-
-				PlayerRect.Size = V2(70, 110);
-				PlayerRect.Position = pos;
-				PlayerRect.Position.x -= PlayerRect.Size.x / 2;
-				PlayerRect.Position.y -= PlayerRect.Size.y - 5;
-				PlayerRect.Color = V4(0.3, 0.3, 0.3, 1);
-				R2D_DrawRects(&PlayerRect, 1, 1);
-
-				PlayerRect.Size = V2(60, 100);
-				PlayerRect.Position = pos;
-				PlayerRect.Position.x -= PlayerRect.Size.x / 2;
-				PlayerRect.Position.y -= PlayerRect.Size.y;
-				PlayerRect.Color = V4(0.3, 1, 0.3, 1);
-				R2D_DrawRects(&PlayerRect, 1, 1);
-			}
-
-			for(u32 i = 0; i < CurrState->EnemyTiles.Size; i++)
-			{
-				Vec2 pos = HexGrid_GetTilePos(CurrState->EnemyTiles.Data[i]);
-				Vec2 size = Vec2_MultVec(HexGrid_TileSize, V2(w, h));
-				pos = Vec2_Add(pos, Vec2_MultScal(size, 0.5));
-
-				struct R2D_Rect EnemyRect;
-
-				EnemyRect.Size = V2(70, 110);
-				EnemyRect.Position = pos;
-				EnemyRect.Position.x -= EnemyRect.Size.x / 2;
-				EnemyRect.Position.y -= EnemyRect.Size.y - 5;
-				EnemyRect.Color = V4(0.3, 0.3, 0.3, 1);
-				R2D_DrawRects(&EnemyRect, 1, 1);
-
-				EnemyRect.Size = V2(60, 100);
-				EnemyRect.Position = pos;
-				EnemyRect.Position.x -= EnemyRect.Size.x / 2;
-				EnemyRect.Position.y -= EnemyRect.Size.y;
-				EnemyRect.Color = V4(1.0, 0.6, 0.3, 1);
-				R2D_DrawRects(&EnemyRect, 1, 1);
-			}
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();

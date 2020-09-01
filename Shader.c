@@ -15,7 +15,7 @@ struct Shader *Shader_FromFile(const char *file) {
 
 	{ /* Read vertex segment */
 		char *start = strstr(src, "@vert") + strlen("@vert"),
-		     *end = strstr(start, "@@");
+		     *end   = strstr(start, "@@");
 
 		u32 len = end - start;
 		vertSrc = calloc(len + 1, sizeof(char));
@@ -31,7 +31,7 @@ struct Shader *Shader_FromFile(const char *file) {
 		strncpy(fragSrc, start, len);
 	}
 
-	Res = Shader_FromSrc(vertSrc, fragSrc);
+	Res = Shader_FromSrc(vertSrc, fragSrc, file);
 	free(vertSrc);
 	free(fragSrc);
 end:
@@ -39,7 +39,7 @@ end:
 	return Res;
 }
 
-static GLuint _Shader_GenShader(GLenum type, const char *src) {
+static GLuint _Shader_GenShader(GLenum type, const char *src, const char* filename) {
 	u32 Shader;
 	i32 ShaderOK;
 
@@ -82,26 +82,36 @@ GLuint _Shader_Link(struct Shader *s) {
 		LogStr = malloc(sizeof(char) * LogLength);
 		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, LogStr);
 
-		Log(Log_Error, "Shader program linking failed.\n%s", LogStr);
+		Log(Log_Error, "[%s] Shader program linking failed.\n%s", 
+			s->SrcFile ? s->SrcFile : "Unknown source", LogStr);
 		free(LogStr);
 	}
 	return ShaderProgram;
 }
 
-struct Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc) {
+struct Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc, const char* filename) {
 	struct Shader *Res = malloc(sizeof(struct Shader));
 	memset(Res, 0, sizeof(struct Shader));
-	Res->VertexFile = NULL;
-	Res->FragmentFile = NULL;
+	Res->SrcFile = NULL;
+	if(filename) {
+		Res->SrcFile = malloc(strlen(filename)+1);
+		strcpy(Res->SrcFile, filename);
+	}
 
-	Res->VertexID = _Shader_GenShader(GL_VERTEX_SHADER, vertexSrc);
-	Res->FragmentID = _Shader_GenShader(GL_FRAGMENT_SHADER, fragmentSrc);
+	Res->VertexID = _Shader_GenShader(GL_VERTEX_SHADER, vertexSrc, filename);
+	Res->FragmentID = _Shader_GenShader(GL_FRAGMENT_SHADER, fragmentSrc, filename);
 	Res->ProgramID = _Shader_Link(Res);
 
 	return Res;
 }
 
-void Shader_Use(struct Shader *s) { glUseProgram(s->ProgramID); }
+const struct Shader *ActiveShader = NULL;
+void Shader_Use(struct Shader *s) { 
+	if(ActiveShader != s) {
+		glUseProgram(s->ProgramID); 
+		ActiveShader = s;
+	}
+}
 
 void Shader_Uniform1i(struct Shader *s, const char *name, i32 v) {
 	glUniform1i(glGetUniformLocation(s->ProgramID, name), v);
@@ -153,4 +163,24 @@ void Shader_Free(struct Shader *s) {
 	glDeleteShader(s->FragmentID);
 	glDeleteProgram(s->ProgramID);
 	free(s);
+}
+
+void Shader_Reload(struct Shader *s)
+{
+	if(!s || !s->SrcFile) {
+		return;
+	}
+
+	glDeleteShader(s->VertexID);
+	glDeleteShader(s->FragmentID);
+	glDeleteProgram(s->ProgramID);
+
+	struct Shader *ss = Shader_FromFile(s->SrcFile);
+	s->VertexID = ss->VertexID;
+	s->FragmentID = ss->FragmentID;
+	s->ProgramID = ss->ProgramID;
+	free(ss);
+
+	if(ActiveShader == s)
+		Shader_Use(s);
 }

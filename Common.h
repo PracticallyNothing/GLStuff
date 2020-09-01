@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifndef NULL
+#  define NULL 0
+#endif
+
 #define SWAP_I8(a, b) \
 	do {              \
 		i8 tmp = (a); \
@@ -125,9 +129,9 @@ extern const r64 Pi_Quarter;
 extern r64 DegToRad(r64 degrees);
 extern r64 RadToDeg(r64 radians);
 
-extern r64 Clamp_R64(r64 value, r64 min, r64 max);
-extern r32 Clamp_R32(r32 value, r32 min, r32 max);
 extern i32 Clamp_I32(i32 value, i32 min, i32 max);
+extern r32 Clamp_R32(r32 value, r32 min, r32 max);
+extern r64 Clamp_R64(r64 value, r64 min, r64 max);
 
 // --- File operations --- //
 

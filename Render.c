@@ -79,7 +79,7 @@ void RSys_Init(u32 Width, u32 Height) {
 	// Set a few default parameters.
 
 	// Set the clear color to black.
-	glClearColor(1, 1, 1, 1);
+	glClearColor(0, 0, 0, 1);
 
 	// Enable depth testing and set less than or equal mode
 	// for more stable rendering.
@@ -89,7 +89,11 @@ void RSys_Init(u32 Width, u32 Height) {
 	// Enable face culling.
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
 	// Enable multisampling.
 	// glEnable(GL_MULTISAMPLE);
 
@@ -353,6 +357,73 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	free(Pos);
 	free(Color);
 	free(Inds);
+	RSys_FreeTempVAO(VAO);
+}
+
+void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
+{
+	Vec2 *Pos = malloc(sizeof(Vec2) * numTris * 3);
+	RGBA *Color = malloc(sizeof(RGBA) * numTris * 3);
+
+	// The vertices are assumed to be in the order
+	// top left,
+	// top right,
+	// bottom left,
+	// bottom right.
+
+	for(u32 i = 0; i < numTris; i++) {
+		struct R2D_Triangle t = tris[i];
+
+		Pos[i * 4 + 0] = t.Points[0];
+		Pos[i * 4 + 1] = t.Points[1];
+		Pos[i * 4 + 2] = t.Points[2];
+
+		Color[i * 4 + 0] = t.Color;
+		Color[i * 4 + 1] = t.Color;
+		Color[i * 4 + 2] = t.Color;
+	}
+
+	GLuint VAO = RSys_GetTempVAO();
+	glBindVertexArray(VAO);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
+	GLuint VBOs[2] = {0};
+	glGenBuffers(2, VBOs);
+	// Add positions
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * numTris * 3, Pos, GL_STREAM_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	// Add colors
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * numTris * 3, Color, GL_STREAM_DRAW);
+	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	// Drawing the rectangles
+	Mat4 view, proj;
+	RSys_Size size = RSys_GetSize();
+	Camera cam = {.Mode = CameraMode_Orthographic,
+	              .ScreenWidth = size.Width,
+	              .ScreenHeight = size.Height,
+	              .Position = V3(0, 0, -1),
+	              .Target = V3(0, 0, 0),
+	              .Up = V3(0, 1, 0),
+	              .ZNear = 0.01,
+	              .ZFar = 1000};
+
+	Camera_Mat4(cam, view, proj);
+	Shader_Use(RectShader);
+	Shader_Uniform1i(RectShader, "type", 0);
+	Shader_UniformMat4(RectShader, "proj", proj);
+	Shader_UniformMat4(RectShader, "view", view);
+
+	glDrawArrays(GL_TRIANGLES, 0, numTris * 3);
+
+	// Cleanup
+	glDeleteBuffers(2, VBOs);
+	free(Pos);
+	free(Color);
 	RSys_FreeTempVAO(VAO);
 }
 

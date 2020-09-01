@@ -4,6 +4,11 @@
 #include "Common.h"
 #include "Math3D.h"
 
+// WARNING:
+//   This importer assumes the following:
+//   	- All vertices, uv coordinates and normals are given before any face declarations
+//   	- 
+
 enum WObj_IllumMode {
 	WObj_IllumMode_ColorOnAmbientOff = 0,
 	WObj_IllumMode_ColorOnAmbientOn = 1,
