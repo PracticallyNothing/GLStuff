@@ -17,9 +17,9 @@ int main(int argc, char *argv[]) {
 
 	RSys_Init(1280, 720);
 	RGB ClearColor = HexToRGB("52a9e0");
-	Vec3 HSV = RGBToHSV(ClearColor);
-	HSV.z -= 0.4;
-	ClearColor = HSVToRGB(HSV);
+	// Vec3 HSV = RGBToHSV(ClearColor);
+	// HSV.z -= 0.4;
+	// ClearColor = HSVToRGB(HSV);
 	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
 	SDL_Event e;

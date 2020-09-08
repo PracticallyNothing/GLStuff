@@ -93,8 +93,6 @@
 		do { printf((fmt), __VA_ARGS__); } while(0)
 #endif
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -129,9 +127,34 @@ extern const r64 Pi_Quarter;
 extern r64 DegToRad(r64 degrees);
 extern r64 RadToDeg(r64 radians);
 
+// --- Util. maths --- //
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+#define CLAMP(v, min, max) ((v) <= (min) ? (min) : ((v) >= (max) ? (max) : (v)))
+
+#define INRANGE(v, min, max) (MIN(min,max) <= (v) && (v) <= MAX(min,max))
+
+#define RANGESOVERLAP(aMin, aMax, bMin, bMax) \
+	(   INRANGE(MIN(aMin, aMax), MIN(bMin, bMax), MAX(bMin, bMax)) \
+	 || INRANGE(MAX(aMin, aMax), MIN(bMin, bMax), MAX(bMin, bMax)) \
+	 || INRANGE(MIN(bMin, bMax), MIN(aMin, aMax), MAX(aMin, aMax)) \
+	 || INRANGE(MAX(bMin, bMax), MIN(aMin, aMax), MAX(aMin, aMax)))
+
+#define TRIEQ(a, b, c) ((a) == (b) && (a) == (c))
+#define TRINEQ(a, b, c) ((a) != (b) && (a) != (c) && (b) != (c))
+
 extern i32 Clamp_I32(i32 value, i32 min, i32 max);
 extern r32 Clamp_R32(r32 value, r32 min, r32 max);
 extern r64 Clamp_R64(r64 value, r64 min, r64 max);
+
+extern bool8 InRange_I32(i32 value, i32 min, i32 max);
+extern bool8 InRange_R32(r32 value, r32 min, r32 max);
+extern bool8 InRange_R64(r64 value, r64 min, r64 max);
+
+extern bool8 RangesOverlap_I32(i32 aMin, i32 aMax, i32 bMin, i32 bMax);
+extern bool8 RangesOverlap_R32(r32 aMin, r32 aMax, r32 bMin, r32 bMax);
+extern bool8 RangesOverlap_R64(r64 aMin, r64 aMax, r64 bMin, r64 bMax);
 
 // --- File operations --- //
 

@@ -57,7 +57,7 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	// Create the actual window.
 	RSys_State.Window =
-	    SDL_CreateWindow("Boyan's Game", 0, 0, Width, Height,
+	    SDL_CreateWindow("Boyan's Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width, Height,
 	                     SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	// If it wasn't created, error and exit.

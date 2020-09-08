@@ -415,6 +415,8 @@ face_vertex_end:
 		Object.Vertices = Vertices.Data;
 		Object.Indices = Indices.Data;
 
+		Log(INFO, "    Loaded object \"%s\" with %d faces.", Object.Name, obj->Faces.Size);
+
 		Array_WObj_Push(&FinalObjects, &Object);
 
 		Vertices.Data = NULL;

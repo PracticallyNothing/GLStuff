@@ -562,3 +562,41 @@ r32 Lerp_EaseInOut(r32 start, r32 end, r32 amt) {
 r32 Lerp_Spring(r32 start, r32 end, r32 amt) {
 	return Lerp_Bezier(start, end, amt / 2, V2(0.25, -0.5), V2(0.60, 2.5));
 }
+
+r32 Triangle_AreaAxisAligned(Vec3 A, Vec3 B, Vec3 C, enum Triangle_TargetAxis axis)
+{
+	Vec2 a, b, c;
+	switch(axis)
+	{
+		case Triangle_TargetAxis_XY:
+			a = A.xy;
+			b = B.xy;
+			c = C.xy;
+			break;
+		case Triangle_TargetAxis_XZ:
+			a = V2(A.x, A.z);
+			b = V2(B.x, B.z);
+			c = V2(C.x, C.z);
+			break;
+		case Triangle_TargetAxis_YZ:
+			a = V2(A.y, A.z);
+			b = V2(B.y, B.z);
+			c = V2(C.y, C.z);
+			break;
+	}
+
+	// Thank you,
+	// https://www.gamedev.net/forums/topic.asp?topic_id=295943
+	Mat3 m = { a.x, a.y, 1,
+	           b.x, b.y, 1,
+		       c.x, c.y, 1 };
+
+	return Mat3_Determinant(m) / 2.0f;
+}
+
+Vec3 Triangle_GetNormal(Vec3 a, Vec3 b, Vec3 c)
+{
+	Vec3 ba = Vec3_Sub(a, b);
+	Vec3 ca = Vec3_Sub(a, c);
+	return Vec3_Norm(Vec3_Cross(ba, ca));
+}

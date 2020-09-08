@@ -4,6 +4,10 @@
 #include "Common.h"
 
 // Vectors
+typedef struct Vec2_t Vec2;
+typedef struct Vec3_t Vec3;
+typedef struct Vec4_t Vec4;
+
 struct Vec2_t {
 	union {
 		r32 d[2];
@@ -18,6 +22,9 @@ struct Vec3_t {
 		struct { r32 x, y, z; };
 		struct { r32 r, g, b; };
 		struct { r32 u, v, w; };
+		
+		Vec2 xy;
+		Vec2 rg;
 	};
 };
 struct Vec4_t {
@@ -25,12 +32,15 @@ struct Vec4_t {
 		r32 d[4];
 		struct { r32 x, y, z, w; };
 		struct { r32 r, g, b, a; };
+
+		Vec2 xy;
+		Vec3 xyz;
+
+		Vec2 rg;
+		Vec3 rgb;
 	};
 };
 
-typedef struct Vec2_t Vec2;
-typedef struct Vec3_t Vec3;
-typedef struct Vec4_t Vec4;
 typedef Vec3 RGB;
 typedef Vec4 RGBA;
 
@@ -47,20 +57,13 @@ extern Vec2 V2(r32 x, r32 y);
 extern Vec3 V3(r32 x, r32 y, r32 z);
 extern Vec4 V4(r32 x, r32 y, r32 z, r32 w);
 
-#define V2C(X, Y) \
-	{ .x = (X), .y = (Y) }
-#define V3C(X, Y, Z) \
-	{ .x = (X), .y = (Y), .z = (Z) }
-#define V4C(X, Y, Z, W) \
-	{ .x = (X), .y = (Y), .z = (Z), .w = (W) }
+#define V2C(X, Y)       { .x = (X), .y = (Y) }
+#define V3C(X, Y, Z)    { .x = (X), .y = (Y), .z = (Z) }
+#define V4C(X, Y, Z, W) { .x = (X), .y = (Y), .z = (Z), .w = (W) }
 
 #define V3_V2(v, z)    V3((v).x, (v).y, (z))
 #define V4_V3(v, w)    V4((v).x, (v).y, (v).z, (w))
 #define V4_V2(v, z, w) V4((v).x, (v).y, (z), (w))
-
-#define V3_V4(v) ((Vec3){(v).x, (v).y, (v).z})
-#define V2_V4(v) ((Vec2){(v).x, (v).y})
-#define V2_V3(v) ((Vec2){(v).x, (v).y})
 
 extern Vec2 Vec2_Neg(Vec2 v);
 extern Vec3 Vec3_Neg(Vec3 v);
@@ -222,6 +225,18 @@ extern r32 Lerp_Cubic(r32 start, r32 end, r32 amt);
 extern r32 Lerp_Bezier(r32 start, r32 end, r32 amt, Vec2 P1, Vec2 P2);
 extern r32 Lerp_EaseInOut(r32 start, r32 end, r32 amt);
 extern r32 Lerp_Spring(r32 start, r32 end, r32 amt);
+
+// --- ------------------ --- //
+
+// --- Triangles --- //
+
+enum Triangle_TargetAxis {
+	Triangle_TargetAxis_XY,
+	Triangle_TargetAxis_XZ,
+	Triangle_TargetAxis_YZ
+};
+extern r32  Triangle_AreaAxisAligned(Vec3 a, Vec3 b, Vec3 c, enum Triangle_TargetAxis axis);
+extern Vec3 Triangle_GetNormal(Vec3 a, Vec3 b, Vec3 c);
 
 // --- ------------------ --- //
 

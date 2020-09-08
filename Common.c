@@ -30,32 +30,17 @@ bool8 GL_Initialized = 0;
 r64 DegToRad(r64 degrees) { return degrees * (Pi / 180.0); }
 r64 RadToDeg(r64 radians) { return radians * (180.0 / Pi); }
 
-r64 Clamp_R64(r64 value, r64 min, r64 max) {
-	if(value < min)
-		return min;
-	else if(value > max)
-		return max;
-	else
-		return value;
-}
+bool8 InRange_I32(i32 value, i32 min, i32 max){ return INRANGE(value, min, max); }
+bool8 InRange_R32(r32 value, r32 min, r32 max){ return INRANGE(value, min, max); }
+bool8 InRange_R64(r64 value, r64 min, r64 max){ return INRANGE(value, min, max); }
 
-r32 Clamp_R32(r32 value, r32 min, r32 max) {
-	if(value < min)
-		return min;
-	else if(value > max)
-		return max;
-	else
-		return value;
-}
+bool8 RangesOverlap_I32(i32 aMin, i32 aMax, i32 bMin, i32 bMax){ return RANGESOVERLAP(aMin, aMax, bMin, bMax); }
+bool8 RangesOverlap_R32(r32 aMin, r32 aMax, r32 bMin, r32 bMax){ return RANGESOVERLAP(aMin, aMax, bMin, bMax); }
+bool8 RangesOverlap_R64(r64 aMin, r64 aMax, r64 bMin, r64 bMax){ return RANGESOVERLAP(aMin, aMax, bMin, bMax); }
 
-i32 Clamp_I32(i32 value, i32 min, i32 max) {
-	if(value < min)
-		return min;
-	else if(value > max)
-		return max;
-	else
-		return value;
-}
+i32 Clamp_I32(i32 value, i32 min, i32 max) { return CLAMP(value, min, max); }
+r32 Clamp_R32(r32 value, r32 min, r32 max) { return CLAMP(value, min, max); }
+r64 Clamp_R64(r64 value, r64 min, r64 max) { return CLAMP(value, min, max); }
 
 // Thank you,
 // https://stackoverflow.com/a/101613
