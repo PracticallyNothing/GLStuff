@@ -39,11 +39,7 @@ struct AABB AABB_ApplyTransform3D (struct AABB aabb, Transform3D t)
 	return AABB_Fix(res);
 }
 
-static bool8 LineLine_Intersect(Vec3 a1, Vec3 a2, Vec3 b1, Vec3 b2)
-{
-}
-
-static bool8 getsign_r32(r32 s) { return signbit(s); }
+static bool8 GetSign_R32(r32 s) { return signbit(s); }
 
 // Thank you,
 // https://stackoverflow.com/a/2049593
@@ -63,45 +59,49 @@ static bool8 Triangle_PointInside(const Vec2 t[3], Vec2 p)
     return !(has_neg && has_pos);
 }
 
+
 // Thank you,
 // https://web.stanford.edu/class/cs277/resources/papers/Moller1997b.pdf
-static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
+static struct Intersection TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 {
-	const r32 epsilon = 0.000001;
+	const r32 epsilon = 1e-8;
 
 	Vec3 N2 = Vec3_Cross(Vec3_Sub(Tri2[1], Tri2[0]), Vec3_Sub(Tri2[2], Tri2[0]));
 	r32 d2 = Vec3_Dot(Vec3_Neg(N2), Tri2[0]);
-
 	r32 dist1[3] = {0};
+
+
 	for(u32 i = 0; i < 3; i++) {
 		dist1[i] = Vec3_Dot(N2, Tri1[i]) + d2;
 		if(fabs(dist1[i]) < epsilon) dist1[i] = 0;
 	}
 
 	if(dist1[0] != 0 && dist1[1] != 0 && dist1[2] != 0 &&
-	   TRIEQ(getsign_r32(dist1[0]), getsign_r32(dist1[1]), getsign_r32(dist1[2])))
+	   TRIEQ(GetSign_R32(dist1[0]), GetSign_R32(dist1[1]), GetSign_R32(dist1[2])))
 	{
-		return 0;
+		Log(DEBUG, "Early reject 1. dist1[%.2f, %.2f, %.2f]", dist1[0], dist1[1], dist1[2]);
+		return (struct Intersection) { .Occurred = 0 };
 	}
 
 	Vec3 N1 = Vec3_Cross(Vec3_Sub(Tri1[1], Tri1[0]), Vec3_Sub(Tri1[2], Tri1[0]));
 	r32 d1 = Vec3_Dot(Vec3_Neg(N1), Tri1[0]);
+	r32	dist2[3] = {0};
 
-	r32 dist2[3] = {0};
 	for(u32 i = 0; i < 3; i++) {
 		dist2[i] = Vec3_Dot(N1, Tri2[i]) + d1;
 		if(fabs(dist2[i]) < epsilon) dist2[i] = 0;
 	}
 
 	if(dist2[0] != 0 && dist2[1] != 0 && dist2[2] != 0 &&
-	   TRIEQ(getsign_r32(dist2[0]), getsign_r32(dist2[1]), getsign_r32(dist2[2]))) 
+	   TRIEQ(GetSign_R32(dist2[0]), GetSign_R32(dist2[1]), GetSign_R32(dist2[2])))
 	{
-		Log(INFO, "Quit at second if.", "");
-		return 0;
+		Log(DEBUG, "Early reject 2. dist2[%.2f, %.2f, %.2f]", dist2[0], dist2[1], dist2[2]);
+		return (struct Intersection) { .Occurred = 0 };
 	}
 
 	if(dist2[0] == 0 && TRIEQ(dist2[0], dist2[1], dist2[2])) {
 		// The triangles are co-planar.
+		Log(DEBUG, "Triangles are co-planar.", "");
 		
 		//
 		// TODO: This is most likely horrible code, but the document says that the triangles 
@@ -118,7 +118,7 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		r32 areaYZ = Triangle_AreaAxisAligned(Tri1[0], Tri1[1], Tri1[2], Triangle_TargetAxis_YZ)
 			       + Triangle_AreaAxisAligned(Tri2[0], Tri2[1], Tri2[2], Triangle_TargetAxis_YZ);
 
-		r32 max = MAX(areaXY, MAX(areaXZ, areaYZ));
+		r32 max = MAX3(areaXY, areaXZ, areaYZ);
 
 		Vec2 tri1[3];
 		Vec2 tri2[3];
@@ -150,7 +150,7 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		}
 
 		// Thank you,
-		// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line
+		// https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_Points_on_each_line
 		// Do line-line intersections for every edge of the two triangles.
 		for(u32 i = 0; i < 3; i++) {
 			Vec2 a1 = tri1[i];
@@ -167,12 +167,14 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 					   / ((a1.x - a2.x)*(b1.y - b2.y) - (a1.y-a2.y)*(b1.x-b2.x));
 
 				if(InRange_R32(t, 0, 1) && InRange_R32(u, 0, 1))
-					return 1;
+					return (struct Intersection) { 
+						.Occurred = 1,
+						.Point = Vec3_Add(Tri1[i], Vec3_MultScal(Vec3_Sub(Tri1[(i+1)%3], Tri1[i]), t)) 
+					};
 			}
 		}
 
 		// If the line-line tests fail, check if one of the triangles is fully within the other.
-
 		bool8 triInside = 1;
 		for(u32 i = 0; i < 3; i++) {
 			if(!Triangle_PointInside(tri1, tri2[i])) {
@@ -181,7 +183,10 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 			}
 		}
 		if(triInside)
-			return 1;
+			return (struct Intersection) {
+				.Occurred = 1,
+				.Point = Vec3_TriCenter(Tri2[0], Tri2[1], Tri2[2])
+			};
 
 		triInside = 1;
 		for(u32 i = 0; i < 3; i++) {
@@ -191,18 +196,18 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 			}
 		}
 
-		return triInside;
+		return (struct Intersection) {
+			.Occurred = 1,
+			.Point = Vec3_TriCenter(Tri1[0], Tri1[1], Tri1[2])
+		};
 	} else {
 		// The triangles are not co-planar.
+		Log(DEBUG, "Triangles are NOT co-planar.", "");
 
 		// Thank you,
 		// https://stackoverflow.com/a/32410473
 		Vec3 D = Vec3_Cross(N1, N2);
-
-		// TODO: Check if this determinant is really necessary,
-		//       since it should always be 1.
-		r32 det = Vec3_Len(D);
-		Log(DBG, "det: %.2f", det);
+		r32 det = Vec3_Len2(D);
 
 		Vec3 O = Vec3_DivScal(Vec3_Add(
 					Vec3_MultScal(Vec3_Cross(D, N2), d1),
@@ -212,45 +217,52 @@ static bool8 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 			Vec3_Dot(D, Vec3_Sub(Tri1[1], O)),
 			Vec3_Dot(D, Vec3_Sub(Tri1[2], O))
 		};
-		r32 t1 =
-		    pv1[0] + (pv1[1] - pv1[0]) * (dist1[0] / (dist1[0] - dist1[1]));
-		r32 t2 =
-		    pv1[1] + (pv1[2] - pv1[1]) * (dist1[1] / (dist1[1] - dist1[2]));
+		r32 t1 = pv1[0] + (pv1[1] - pv1[0]) * (dist1[0] / (dist1[0] - dist1[1]));
+		r32 t2 = pv1[1] + (pv1[2] - pv1[1]) * (dist1[1] / (dist1[1] - dist1[2]));
 
 		r32 pv2[3] = {
 			Vec3_Dot(D, Vec3_Sub(Tri2[0], O)),
 			Vec3_Dot(D, Vec3_Sub(Tri2[1], O)),
 			Vec3_Dot(D, Vec3_Sub(Tri2[2], O))
 		};
-		r32 t3 =
-		    pv2[0] + (pv2[1] - pv2[0]) * (dist2[0] / (dist2[0] - dist2[1]));
-		r32 t4 =
-		    pv2[1] + (pv2[2] - pv2[1]) * (dist2[1] / (dist2[1] - dist2[2]));
+		r32 t3 = pv2[0] + (pv2[1] - pv2[0]) * (dist2[0] / (dist2[0] - dist2[1]));
+		r32 t4 = pv2[1] + (pv2[2] - pv2[1]) * (dist2[1] / (dist2[1] - dist2[2]));
+		Log(DEBUG, "Ranges: t1 = %12.2f | t3 = %12.2f", t1, t3);
+		Log(DEBUG, "        t2 = %12.2f | t4 = %12.2f", t2, t4);
 
-		return RangesOverlap_R32(t1, t2, t3, t4);
+		bool8 Occurred = RangesOverlap_R32(t1, t2, t3, t4);
+
+		// TODO: Check the case where the collision Occurred again, it looks wrong...
+		if(!Occurred)
+			return (struct Intersection) { .Occurred = 0 };
+		else
+			return (struct Intersection) { .Occurred = 1, .Point = O };
 	}
 }
 
-Vec3 TriHull_Intersect(struct TriHull a, struct TriHull b, Transform3D t)
+struct Intersection 
+TriHull_Intersect(struct TriHull a, struct TriHull b, Transform3D t)
 {
 	// TODO: Optimizations go here.
 	
-	Log(INFO, "Checking triangle hulls with %d and %d triangles.", a.NumTris, b.NumTris);
 	for(u32 i = 0; i < a.NumTris; i++) {
-		Log(INFO, "i: %d", i);
 		for(u32 j = 0; j < b.NumTris; j++) {
-			Log(INFO, "    j: %d", j);
-			if(TriTri_Intersect(a.TriPoints+i*3, b.TriPoints+j*3))
-				Log(INFO, "    Triangles #%d and #%d intersect!", i, j);
+			struct Intersection res = TriTri_Intersect(a.TriPoints+i*3, b.TriPoints+j*3);
+			if(res.Occurred) {
+				Log(INFO, "Triangles #%d and #%d intersect at Point (%.2f, %.2f, %.2f)!", 
+					      i, j, res.Point.x, res.Point.y, res.Point.z);
+				return res;
+			}
 		}
 	}
 
-	return V3(0, 0, 0);
+	return (struct Intersection) { .Occurred = 0 };
 }
 
-Vec3 TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
+struct Intersection 
+TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
 {
-	return V3(0,0,0);
+	return (struct Intersection) { .Occurred = 0 };
 
 	Vec3 *triCenters = malloc(sizeof(Vec3) * hull.NumTris);
 
@@ -259,7 +271,7 @@ Vec3 TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
 				                       hull.TriPoints[i*3+1],
 									   hull.TriPoints[i*3+2]);
 
-	u32 *inds = malloc(sizeof(u32) * hull.NumTris);
+	//u32 *inds = malloc(sizeof(u32) * hull.NumTris);
 	r32 *rayDists = malloc(sizeof(r32) * hull.NumTris);
 
 	// Thank you,

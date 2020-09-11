@@ -113,6 +113,10 @@ extern r32 Vec2_Len(Vec2 v);
 extern r32 Vec3_Len(Vec3 v);
 extern r32 Vec4_Len(Vec4 v);
 
+extern r32 Vec2_SumValues(Vec2 v);
+extern r32 Vec3_SumValues(Vec3 v);
+extern r32 Vec4_SumValues(Vec4 v);
+
 extern Vec2 Vec2_Norm(Vec2 v);
 extern Vec3 Vec3_Norm(Vec3 v);
 extern Vec4 Vec4_Norm(Vec4 v);
@@ -235,8 +239,13 @@ enum Triangle_TargetAxis {
 	Triangle_TargetAxis_XZ,
 	Triangle_TargetAxis_YZ
 };
+
+extern r32  Triangle_Area(Vec3 a, Vec3 b, Vec3 c);
 extern r32  Triangle_AreaAxisAligned(Vec3 a, Vec3 b, Vec3 c, enum Triangle_TargetAxis axis);
 extern Vec3 Triangle_GetNormal(Vec3 a, Vec3 b, Vec3 c);
+
+extern Vec3 Triangle_CircumsphereCenter(Vec3 a, Vec3 b, Vec3 c);
+extern r32  Triangle_CircumsphereRadius(Vec3 a, Vec3 b, Vec3 c);
 
 // --- ------------------ --- //
 

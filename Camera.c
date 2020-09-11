@@ -9,7 +9,7 @@ Vec3 OrbitCamera_GetOffset(OrbitCamera c) {
 		          .y = c.Radius * cosf(c.Pitch)};
 }
 
-void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
+Camera OrbitCamera_ToCamera(OrbitCamera c) {
 	Camera cc = {
 		.Position = Vec3_Add(c.Center, OrbitCamera_GetOffset(c)),
 		.Target = c.Center,
@@ -25,10 +25,13 @@ void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
 	};
 
 	if(c.Outwards)
-		cc.Target =
-			Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
+		cc.Target = Vec3_Add(cc.Position, Vec3_Norm(Vec3_Sub(cc.Position, cc.Target)));
 
-	Camera_Mat4(cc, out_view, out_proj);
+	return cc;
+}
+
+void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj) {
+	Camera_Mat4(OrbitCamera_ToCamera(c), out_view, out_proj);
 }
 
 // Thank you,

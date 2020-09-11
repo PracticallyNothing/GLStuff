@@ -7,6 +7,7 @@
 #include "Common.h"
 #include "Math3D.h"
 #include "Shader.h"
+#include "Phys.h"
 #include "Transform.h"
 
 enum R3D_Light_Type {
@@ -51,6 +52,8 @@ struct RSys_Size_t {
 	i32 Width, Height;
 	r32 AspectRatio;
 };
+
+extern void RSys_LogVideoDriverInfo(void);
 
 extern void RSys_Init(u32 Width, u32 Height);
 extern void RSys_Quit();
@@ -151,19 +154,12 @@ struct R3D_State_t {
 	void *Scene;
 };
 
+extern struct Shader *R3D_Shader_UnlitColor,
+			         *R3D_Shader_UnlitTextured;
+
 extern struct R3D_State_t R3D_State;
 
 typedef struct R3D_SceneNode_t R3D_SceneNode;
-enum R3D_SceneNode_Type {
-	R3D_SceneNode_None = -1,
-
-	R3D_SceneNode_Camera,
-	R3D_SceneNode_Actor,
-	R3D_SceneNode_Particles,
-	R3D_SceneNode_Light,
-
-	R3D_SceneNode_NumTypes
-};
 
 struct R3D_Actor {
 	enum {
@@ -174,8 +170,19 @@ struct R3D_Actor {
 	} RenderMode;
 
 	bool8 CastShadow;
+	GLuint VAO, ElementBuffer;
 };
 
+enum R3D_SceneNode_Type {
+	R3D_SceneNode_None = -1,
+
+	R3D_SceneNode_Camera,
+	R3D_SceneNode_Actor,
+	R3D_SceneNode_Particles,
+	R3D_SceneNode_Light,
+
+	R3D_SceneNode_NumTypes
+};
 struct R3D_SceneNode_t {
 	R3D_SceneNode *Children;
 	u32 NumChildren;
@@ -196,7 +203,12 @@ typedef struct R3D_Scene_t {
 	Camera *ActiveCamera;
 } R3D_Scene;
 
-void R3D_Init();
-void R3D_RenderScene(R3D_Scene *Scene);
+extern void R3D_Init();
+extern void R3D_RenderScene(R3D_Scene *Scene);
+
+extern void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color);
+extern void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color);
+extern void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color);
+extern void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color);
 
 #endif

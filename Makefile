@@ -19,7 +19,7 @@ $(OBJS_REL): obj/release/%.o: %.c
 	$(CC) -c $< -o obj/release/$(shell echo '$@' | sed 's/.*\///') $(FLAGS) -O2
 
 GLSpiral_debug: $(OBJS_DBG)
-	$(CC) -o $@ $(OBJS_DBG_EX) $(LIBS) $(FLAGS) -g #-fsanitize=leak
+	$(CC) -o $@ $(OBJS_DBG_EX) $(LIBS) $(FLAGS) -g -fsanitize=leak
 $(OBJS_DBG): obj/debug/%.o: %.c
 	$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(FLAGS) -g
 

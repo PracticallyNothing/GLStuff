@@ -19,6 +19,19 @@ struct RSys_State {
 
 u64 RSys_GetLastFrameTime() { return RSys_State.LastFrameTime; }
 
+void RSys_LogVideoDriverInfo(void) {
+	i32 NumVideoDrivers = SDL_GetNumVideoDrivers();
+	if(NumVideoDrivers < 0) {
+		Log(ERROR, "SDL_GetNumVideoDrivers() failed: %s\n", SDL_GetError());
+		return;
+	}
+
+	Log(INFO, "Num video drivers: %d\n", NumVideoDrivers);
+
+	for(i32 i = 0; i < NumVideoDrivers; ++i)
+		Log(INFO, "#%d: %s\n", i, SDL_GetVideoDriver(i));
+}
+
 RSys_Size RSys_GetSize() {
 	RSys_Size sz = {-1, -1};
 	SDL_GetWindowSize(RSys_State.Window, &sz.Width, &sz.Height);
@@ -114,6 +127,7 @@ void RSys_Init(u32 Width, u32 Height) {
 	GL_Initialized = 1;
 
 	R2D_Init();
+	R3D_Init();
 }
 
 void RSys_AllocMoreVAOs() {
@@ -664,4 +678,103 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	free(UV);
 	free(Inds);
 	RSys_FreeTempVAO(VAO);
+}
+
+// ---=== 3D rendering ===---
+struct Shader *R3D_Shader_UnlitColor,
+			  *R3D_Shader_UnlitTextured;
+
+void R3D_Init()
+{
+	R3D_Shader_UnlitColor    = Shader_FromFile("res/shaders/3d/unlit-col.glsl");
+	R3D_Shader_UnlitTextured = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
+}
+
+void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color)
+{
+	Vec3 arr[2] = {start, end};
+	R3D_DrawLines(cam, arr, 1, color);
+}
+void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color)
+{
+	GLuint vao = RSys_GetTempVAO();
+	GLuint vbo = 0;
+	glGenBuffers(1, &vbo);
+
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3) * numLines * 2, linePoints, GL_STREAM_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	Mat4 model, view, MVP;
+	Transform3D_Mat4(Transform3D_Default, model);
+	Camera_Mat4(cam, view, MVP);
+	Mat4_MultMat(MVP, view);
+	Mat4_MultMat(MVP, model);
+
+	Shader_Use(R3D_Shader_UnlitColor);
+	Shader_UniformMat4(R3D_Shader_UnlitColor, "MVP", MVP);
+	Shader_Uniform4f(R3D_Shader_UnlitColor, "color", color);
+
+	glDrawArrays(GL_LINES, 0, numLines*2);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glDeleteBuffers(1, &vbo);
+	RSys_FreeTempVAO(vao);
+}
+
+void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
+{
+	// Two-sided triangle vertices.
+	Vec3 pos[6] = { a, b, c,
+	                b, a, c };
+
+	GLuint vao = RSys_GetTempVAO();
+	GLuint vbo = 0;
+	glGenBuffers(1, &vbo);
+
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3) * 6, pos, GL_STREAM_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	Mat4 model, view, MVP;
+	Transform3D_Mat4(Transform3D_Default, model);
+	Camera_Mat4(cam, view, MVP);
+	Mat4_MultMat(MVP, view);
+	Mat4_MultMat(MVP, model);
+
+	Shader_Use(R3D_Shader_UnlitColor);
+	Shader_UniformMat4(R3D_Shader_UnlitColor, "MVP", MVP);
+	Shader_Uniform4f(R3D_Shader_UnlitColor, "color", color);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glDeleteBuffers(1, &vbo);
+	RSys_FreeTempVAO(vao);
+}
+
+void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
+{
+	const u32 numPoints = 30;
+	Vec3 *points = malloc(sizeof(Vec3) * (numPoints+1) * 2 * 2);
+
+	// Generate a single ring.
+	for(u32 i = 0; i < numPoints+1; i++)
+	{
+		r32 f1 = Tau * ((r32)  i    / numPoints);
+		r32 f2 = Tau * ((r32) (i+1) / numPoints);
+		points[(i*2)]   = Vec3_Add(center, Vec3_MultScal(V3(sin(f1), 0, cos(f1)), radius));
+		points[(i*2)+1] = Vec3_Add(center, Vec3_MultScal(V3(sin(f2), 0, cos(f2)), radius));
+
+		points[(i*2)+(numPoints+1)*2]   = Vec3_Add(center, Vec3_MultScal(V3(sin(f1), cos(f1), 0), radius));
+		points[(i*2)+(numPoints+1)*2+1] = Vec3_Add(center, Vec3_MultScal(V3(sin(f2), cos(f2), 0), radius));
+	}
+
+	R3D_DrawLines(cam, points, (numPoints+1)*2, color);
+
+	free(points);
 }

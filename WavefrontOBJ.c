@@ -45,14 +45,14 @@ DECL_ARRAY(WObj,  struct WObj_Object);
 DECL_ARRAY(WVert, struct WObj_Vertex);
 
 void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
-	u8 *Buffer = malloc(Kilobytes(256));
 	u32 Size = 0;
-	if(!File_ReadToBuffer(filename, Buffer, Kilobytes(256), &Size))
-	{
-		Log(WARN, ".Mat file \"%s\" couldn't be opened.", filename);
-		free(Buffer);
+	u8 *Buffer = File_ReadToBuffer_Alloc(filename, &Size);
+	if(!Buffer) {
+		Log(ERROR, "MAT file \"%s\" couldn't be opened.", filename);
 		return;
 	}
+	Log(INFO, "Loading MAT file \"%s\"...", filename);
+
 	WObj_Material *CurrMat = NULL;
 
 	u32 i = 0;
@@ -68,6 +68,7 @@ void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
 			READ_ALLOC_NEXT_WORD(NewMaterial.Name);
 			Array_WMat_Push(Mats, &NewMaterial);
 			CurrMat = (WObj_Material *) Mats->Data + (Mats->Size - 1);
+			Log(INFO, "    Adding new material \"%s\".", NewMaterial.Name);
 		} else if(strncmp(Command, "Ka", 2) == 0) {
 			char r[32] = {0};
 			char g[32] = {0};
@@ -197,13 +198,14 @@ DECL_ARRAY(Vec3, Vec3);
 
 // TODO: Fix memory leaks
 WObj_Library *WObj_FromFile(const char *filename) {
-	u8 *Buffer = malloc(Megabytes(1));
 	u32 Size;
-	if(!File_ReadToBuffer(filename, Buffer, Megabytes(1), &Size)) {
-		Log(ERR, "File \"%s\" couldn't be read.", filename);
-		free(Buffer);
+	u8 *Buffer = File_ReadToBuffer_Alloc(filename, &Size);
+	if(!Buffer) {
+		Log(ERROR, "File \"%s\" couldn't be read.", filename);
 		return NULL;
 	}
+
+	Log(INFO, "Loading OBJ file \"%s\"...", filename);
 
 	WObj_Library *res = malloc(sizeof(WObj_Library));
 	bool8 HasMTL = 0;
@@ -445,8 +447,7 @@ face_vertex_end:
 			Max = V3(MAX(Max.x, v.x), MAX(Max.y, v.y), MAX(Max.z, v.z));
 		}
 	}
-	Vec3 HalfDist = Vec3_DivScal(Vec3_Sub(Max, Min), 2);
-	Vec3 Center = Vec3_Add(Min, HalfDist);
+	Vec3 Center = Vec3_Center(Min, Max);
 	Log(INFO, "File \"%s\" is offset by (%.2f, %.2f, %.2f).", filename, Center.x, Center.y, Center.z);
 	Log(INFO, "File \"%s\" is bounded between (%.2f, %.2f, %.2f) and (%.2f, %.2f, %.2f).", 
 			filename, 

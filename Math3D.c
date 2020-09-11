@@ -23,9 +23,6 @@ Vec2 Vec2_Sub(Vec2 a, Vec2 b) { return V2(a.x - b.x, a.y - b.y); }
 Vec3 Vec3_Sub(Vec3 a, Vec3 b) { return V3(a.x - b.x, a.y - b.y, a.z - b.z); }
 Vec4 Vec4_Sub(Vec4 a, Vec4 b) { return V4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }
 
-// a + (a-b)/2
-// a + a*0.5 - b*0.5
-// 1.5 * a - 0.5 * b
 Vec2 Vec2_Center(Vec2 a, Vec2 b) { return Vec2_DivScal(Vec2_Add(a, b), 2); }
 Vec3 Vec3_Center(Vec3 a, Vec3 b) { return Vec3_DivScal(Vec3_Add(a, b), 2); }
 Vec4 Vec4_Center(Vec4 a, Vec4 b) { return Vec4_DivScal(Vec4_Add(a, b), 2); }
@@ -40,15 +37,11 @@ Vec4 Vec4_QuadCenter(Vec4 a, Vec4 b, Vec4 c, Vec4 d) { return Vec4_DivScal(Vec4_
 
 Vec2 Vec2_MultScal(Vec2 v, r32 s) { return V2(v.x * s, v.y * s); }
 Vec3 Vec3_MultScal(Vec3 v, r32 s) { return V3(v.x * s, v.y * s, v.z * s); }
-Vec4 Vec4_MultScal(Vec4 v, r32 s) {
-	return V4(v.x * s, v.y * s, v.z * s, v.w * s);
-}
+Vec4 Vec4_MultScal(Vec4 v, r32 s) { return V4(v.x * s, v.y * s, v.z * s, v.w * s); }
 
 Vec2 Vec2_DivScal(Vec2 v, r32 s) { return V2(v.x / s, v.y / s); }
 Vec3 Vec3_DivScal(Vec3 v, r32 s) { return V3(v.x / s, v.y / s, v.z / s); }
-Vec4 Vec4_DivScal(Vec4 v, r32 s) {
-	return V4(v.x / s, v.y / s, v.z / s, v.w / s);
-}
+Vec4 Vec4_DivScal(Vec4 v, r32 s) { return V4(v.x / s, v.y / s, v.z / s, v.w / s); }
 
 Vec2 Vec2_MultVec(Vec2 a, Vec2 b) { return V2(a.x * b.x, a.y * b.y); }
 Vec3 Vec3_MultVec(Vec3 a, Vec3 b) { return V3(a.x * b.x, a.y * b.y, a.z * b.z); }
@@ -70,9 +63,13 @@ Vec2 Vec2_Norm(Vec2 v) { r32 l = Vec2_Len(v); return Vec2_DivScal(v, l); }
 Vec3 Vec3_Norm(Vec3 v) { r32 l = Vec3_Len(v); return Vec3_DivScal(v, l); }
 Vec4 Vec4_Norm(Vec4 v) { r32 l = Vec4_Len(v); return Vec4_DivScal(v, l); }
 
-r32 Vec2_Dot(Vec2 a, Vec2 b) { return Vec2_Len2(Vec2_MultVec(a, b)); }
-r32 Vec3_Dot(Vec3 a, Vec3 b) { return Vec3_Len2(Vec3_MultVec(a, b)); }
-r32 Vec4_Dot(Vec4 a, Vec4 b) { return Vec4_Len2(Vec4_MultVec(a, b)); }
+r32 Vec2_SumValues(Vec2 v) { return v.x + v.y; }
+r32 Vec3_SumValues(Vec3 v) { return v.x + v.y + v.z; }
+r32 Vec4_SumValues(Vec4 v) { return v.x + v.y + v.z + v.w; }
+
+r32 Vec2_Dot(Vec2 a, Vec2 b) { return Vec2_SumValues(Vec2_MultVec(a, b)); }
+r32 Vec3_Dot(Vec3 a, Vec3 b) { return Vec3_SumValues(Vec3_MultVec(a, b)); }
+r32 Vec4_Dot(Vec4 a, Vec4 b) { return Vec4_SumValues(Vec4_MultVec(a, b)); }
 
 r32 Vec2_Cross(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
 Vec3 Vec3_Cross(Vec3 a, Vec3 b) {
@@ -90,15 +87,18 @@ void Mat4_Identity(Mat4 m) { memset(m, 0, sizeof(Mat4)); m[0] = m[5] = m[10] = m
 
 void Mat2_FromMat3(Mat2 out, const Mat3 m) {
 	for(i32 y = 0; y < 2; y++)
-		for(i32 x = 0; x < 2; x++) out[x + y * 2] = m[x + y * 3];
+		for(i32 x = 0; x < 2; x++) 
+			out[x + y * 2] = m[x + y * 3];
 }
 void Mat2_FromMat4(Mat2 out, const Mat4 m) {
 	for(i32 y = 0; y < 2; y++)
-		for(i32 x = 0; x < 2; x++) out[x + y * 2] = m[x + y * 4];
+		for(i32 x = 0; x < 2; x++) 
+			out[x + y * 2] = m[x + y * 4];
 }
 void Mat3_FromMat4(Mat3 out, const Mat4 m) {
 	for(i32 y = 0; y < 3; y++)
-		for(i32 x = 0; x < 3; x++) out[x + y * 3] = m[x + y * 4];
+		for(i32 x = 0; x < 3; x++) 
+			out[x + y * 3] = m[x + y * 4];
 }
 
 void Mat2_Copy(Mat2 out, const Mat2 m) { for(i32 i = 0; i <  4; ++i) out[i] = m[i]; }
@@ -563,6 +563,17 @@ r32 Lerp_Spring(r32 start, r32 end, r32 amt) {
 	return Lerp_Bezier(start, end, amt / 2, V2(0.25, -0.5), V2(0.60, 2.5));
 }
 
+r32 Triangle_Area(Vec3 A, Vec3 B, Vec3 C)
+{
+	r32 a = Vec3_Len(Vec3_Sub(B, C)),
+		b = Vec3_Len(Vec3_Sub(A, C)),
+		c = Vec3_Len(Vec3_Sub(A, B));
+
+	r32 p = (a+b+c)/2;
+
+	return sqrtf(p * (p-a) * (p-b) * (p-c));
+}
+
 r32 Triangle_AreaAxisAligned(Vec3 A, Vec3 B, Vec3 C, enum Triangle_TargetAxis axis)
 {
 	Vec2 a, b, c;
@@ -599,4 +610,34 @@ Vec3 Triangle_GetNormal(Vec3 a, Vec3 b, Vec3 c)
 	Vec3 ba = Vec3_Sub(a, b);
 	Vec3 ca = Vec3_Sub(a, c);
 	return Vec3_Norm(Vec3_Cross(ba, ca));
+}
+
+// Thank you,
+// https://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_from_cross-_and_dot-products
+Vec3 Triangle_CircumsphereCenter(Vec3 a, Vec3 b, Vec3 c)
+{
+	r32 div = 2 * Vec3_Len2(Vec3_Cross(Vec3_Sub(a, b), Vec3_Sub(b, c)));
+
+	r32 alpha = (Vec3_Len2(Vec3_Sub(b, c)) * Vec3_Dot(Vec3_Sub(a, b), Vec3_Sub(a, c))) / div;
+	r32 beta  = (Vec3_Len2(Vec3_Sub(a, c)) * Vec3_Dot(Vec3_Sub(b, a), Vec3_Sub(b, c))) / div;
+	r32 gamma = (Vec3_Len2(Vec3_Sub(a, b)) * Vec3_Dot(Vec3_Sub(c, a), Vec3_Sub(c, b))) / div;
+
+	Vec3_MultScal(a, alpha);
+	Vec3_MultScal(b, beta);
+	Vec3_MultScal(c, gamma);
+
+	return Vec3_Add(a, Vec3_Add(b, c));
+}
+
+r32 Triangle_CircumsphereRadius(Vec3 a, Vec3 b, Vec3 c)
+{
+	r32 abc = sqrtf(
+		Vec3_Len2(Vec3_Sub(b, a)) *
+		Vec3_Len2(Vec3_Sub(c, a)) *
+		Vec3_Len2(Vec3_Sub(c, b))
+	);
+
+	r32 area = Triangle_Area(a, b, c);
+
+	return abc / (4 * area);
 }

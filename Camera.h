@@ -43,6 +43,7 @@ struct OrbitCamera_t {
 	bool8 Outwards;
 };
 
+extern Camera OrbitCamera_ToCamera(OrbitCamera c);
 extern Vec3 OrbitCamera_GetOffset(OrbitCamera c);
 extern void OrbitCamera_Mat4(OrbitCamera c, Mat4 out_view, Mat4 out_proj);
 extern void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj);

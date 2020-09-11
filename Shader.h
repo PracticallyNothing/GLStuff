@@ -10,7 +10,13 @@ struct Shader {
 	GLuint VertexID, FragmentID;
 	char *SrcFile;
 };
+
+/// Load a shader from a given file. 
+/// The vertex/fragment shader begins with a @vert/@frag line and ends with an @@ line.
 extern struct Shader *Shader_FromFile(const char *file);
+
+/// Create a shader from two source strings.
+/// The filename is used for shader reloading and should be NULL.
 extern struct Shader *Shader_FromSrc(const char *vertexSrc,
                                      const char *fragmentSrc,
 									 const char* filename);
@@ -18,6 +24,7 @@ extern struct Shader *Shader_FromSrc(const char *vertexSrc,
 extern void Shader_Use(struct Shader *);
 
 extern void Shader_Uniform1i(struct Shader *, const char *name, i32);
+
 extern void Shader_Uniform1f(struct Shader *, const char *name, r32);
 extern void Shader_Uniform2f(struct Shader *, const char *name, Vec2);
 extern void Shader_Uniform3f(struct Shader *, const char *name, Vec3);

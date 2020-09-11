@@ -1,11 +1,11 @@
 #include "Common.h"
 
-#include <SDL.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 DECL_ARRAY(u8, u8);
 DECL_ARRAY(u16, u16);
@@ -94,7 +94,7 @@ u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size)
 {
 	FILE *File = fopen(filename, "rb");
 	if(!File) {
-		Log(Log_Error, "File \"%s\" doesn't exist.", filename);
+		Log(ERROR, "File \"%s\" doesn't exist.", filename);
 		if(size) *size = 0;
 		return NULL;
 	}
@@ -115,7 +115,7 @@ i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize,
 
 	File = fopen(filename, "rb");
 	if(!File) {
-		Log(Log_Error, "File \"%s\" doesn't exist.", filename);
+		Log(ERROR, "File \"%s\" doesn't exist.", filename);
 		return 0;
 	}
 
@@ -142,27 +142,11 @@ u64 Gigabytes(u32 amt) { return amt * 1024 * 1024 * 1024; }
 
 // Thank you,
 // https://www.cs-fundamentals.com/tech-interview/c/c-program-to-check-little-and-big-endian-architecture.php
-i32 PC_IsLittleEndian() {
+bool8 PC_IsLittleEndian() {
 	u32 x = 0x1;
 	char *c = (char *) &x;
 	return *c;
 }
-
-void PC_PrintVideoDriverInfo(void) {
-	i32 NumVideoDrivers = SDL_GetNumVideoDrivers();
-	if(NumVideoDrivers < 0) {
-		printf("SDL_GetNumVideoDrivers() failed: %s\n", SDL_GetError());
-		exit(EXIT_FAILURE);
-	}
-
-	printf("Num video drivers: %d\n", NumVideoDrivers);
-
-	for(i32 i = 0; i < NumVideoDrivers; ++i) {
-		printf("#%d: %s\n", i, SDL_GetVideoDriver(i));
-	}
-}
-
-void PC_GetWindowSize(i32 *w, i32 *h) { SDL_GetWindowSize(NULL, w, h); }
 
 // Breaks if A is NULL/invalid or lo > hi
 u32 _QSort_Partition_i32(i32 *A, u32 lo, u32 hi) {
@@ -259,10 +243,10 @@ const char *BOLDRED = "\033[31;1m";
 
 #undef Log
 
-enum Log_Level Log_Level;
+enum Log_Level Log_Level_Global;
 void Log(const char *__func, const char *__file, u32 __line,
          enum Log_Level level, const char *fmt, ...) {
-	if(level < Log_Level && level != Log_Fatal) { return; }
+	if(level < Log_Level_Global && level != Log_Fatal) { return; }
 
 	switch(level) {
 		case Log_Debug:
@@ -306,10 +290,7 @@ void Log(const char *__func, const char *__file, u32 __line,
 
 	if(level == Log_Fatal) {
 		fprintf(stderr, "%s", msg);
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, 
-			                     "FATAL ERROR", 
-								 msg, 
-			                     NULL);
+		//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "FATAL ERROR", msg, NULL);
 		exit(EXIT_FAILURE);
 	} else {
 		fprintf(stdout, "%s", msg);
