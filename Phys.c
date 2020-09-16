@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "Common.h"
 #include "Math3D.h"
+#include "Transform.h"
 
 bool8 AABB_CheckCollision(struct AABB a, struct AABB b)
 {
@@ -28,7 +29,8 @@ struct AABB AABB_Fix(struct AABB aabb)
 	};
 }
 
-struct AABB AABB_ApplyTransform3D (struct AABB aabb, Transform3D t)
+struct AABB 
+AABB_ApplyTransform3D (struct AABB aabb, Transform3D t)
 {
 	Mat4 model;
 	Transform3D_Mat4(t, model);
@@ -39,12 +41,16 @@ struct AABB AABB_ApplyTransform3D (struct AABB aabb, Transform3D t)
 	return AABB_Fix(res);
 }
 
+/// Function for debugging purposes.
 static bool8 GetSign_R32(r32 s) { return signbit(s); }
 
 // Thank you,
 // https://stackoverflow.com/a/2049593
-static r32 sign(Vec2 p1, Vec2 p2, Vec2 p3) { return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y); }
-static bool8 Triangle_PointInside(const Vec2 t[3], Vec2 p)
+static r32 
+sign(Vec2 p1, Vec2 p2, Vec2 p3) { return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y); }
+
+static bool8 
+Triangle_PointInside(const Vec2 t[3], Vec2 p)
 {
     r32 d1, d2, d3;
     bool8 has_neg, has_pos;
@@ -59,10 +65,10 @@ static bool8 Triangle_PointInside(const Vec2 t[3], Vec2 p)
     return !(has_neg && has_pos);
 }
 
-
 // Thank you,
 // https://web.stanford.edu/class/cs277/resources/papers/Moller1997b.pdf
-static struct Intersection TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
+static struct Intersection
+TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 {
 	const r32 epsilon = 1e-8;
 
@@ -241,13 +247,29 @@ static struct Intersection TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[
 }
 
 struct Intersection 
-TriHull_Intersect(struct TriHull a, struct TriHull b, Transform3D t)
+TriHull_Intersect(struct TriHull a, struct TriHull b)
 {
 	// TODO: Optimizations go here.
 	
 	for(u32 i = 0; i < a.NumTris; i++) {
 		for(u32 j = 0; j < b.NumTris; j++) {
-			struct Intersection res = TriTri_Intersect(a.TriPoints+i*3, b.TriPoints+j*3);
+			Vec3 triA[3] = { a.TriPoints[i*3], a.TriPoints[i*3+1], a.TriPoints[i*3+2] };
+			Vec3 triB[3] = { b.TriPoints[j*3], b.TriPoints[j*3+1], b.TriPoints[j*3+2] };
+
+			if(a.Transform)
+			{
+				Mat4 m; Transform3D_Mat4(*a.Transform, m);
+				for(u32 p = 0; p < 3; p++) triA[p] = Mat4_MultVec4(m, V4_V3(triA[p], 1)).xyz;
+			}
+
+			if(b.Transform)
+			{
+				Mat4 m; Transform3D_Mat4(*b.Transform, m);
+				for(u32 p = 0; p < 3; p++) triB[p] = Mat4_MultVec4(m, V4_V3(triB[p], 1)).xyz;
+			}
+
+			struct Intersection res = TriTri_Intersect(triA, triB);
+
 			if(res.Occurred) {
 				Log(INFO, "Triangles #%d and #%d intersect at Point (%.2f, %.2f, %.2f)!", 
 					      i, j, res.Point.x, res.Point.y, res.Point.z);
@@ -259,32 +281,67 @@ TriHull_Intersect(struct TriHull a, struct TriHull b, Transform3D t)
 	return (struct Intersection) { .Occurred = 0 };
 }
 
+// Thank you,
+// https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+static struct Intersection
+TriRay_Intersect(Vec3 *tri, struct Ray ray)
+{
+	const r32 epsilon = 1e-8;
+
+	Vec3 ab = Vec3_Sub(tri[1], tri[0]);
+	Vec3 ac = Vec3_Sub(tri[2], tri[0]);
+
+	Vec3 h = Vec3_Cross(ray.Dir, ac);
+	r32 a = Vec3_Dot(ab, h);
+
+	if(InRange_R32(a, -epsilon, epsilon))
+		return (struct Intersection) { .Occurred = 0 };
+
+	r32 f = 1.0/a;
+	Vec3 s = Vec3_Sub(ray.Start, tri[0]);
+	r32 u = f * Vec3_Dot(s, h);
+
+	if(!InRange_R32(u, 0.0, 1.0))
+		return (struct Intersection) { .Occurred = 0 };
+
+	Vec3 q = Vec3_Cross(s, ab);
+	r32 v = f * Vec3_Dot(ray.Dir, q);
+	if(!InRange_R32(v, 0.0, 1.0 - u))
+		return (struct Intersection) { .Occurred = 0 };
+
+	r32 t = f * Vec3_Dot(ac, q);
+
+	if(t < epsilon)
+		return (struct Intersection) { .Occurred = 0 };
+
+	return (struct Intersection) {
+		.Occurred = 1,
+		.Point = Vec3_Add(ray.Start, Vec3_MultScal(ray.Dir, t)) 
+	};
+}
+
 struct Intersection 
 TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
 {
-	return (struct Intersection) { .Occurred = 0 };
+	// TODO: Optimizations go here?
+	
+	for(u32 i = 0; i < hull.NumTris; i++) {
+		Vec3 tri[3] = { hull.TriPoints[i*3], hull.TriPoints[i*3+1], hull.TriPoints[i*3+2] };
 
-	Vec3 *triCenters = malloc(sizeof(Vec3) * hull.NumTris);
+		if(hull.Transform)
+		{
+			Mat4 m; Transform3D_Mat4(*hull.Transform, m);
+			for(u32 p = 0; p < 3; p++) tri[p] = Mat4_MultVec4(m, V4_V3(tri[p], 1)).xyz;
+		}
 
-	for(u32 i = 0; i < hull.NumTris; ++i)
-		triCenters[i] = Vec3_TriCenter(hull.TriPoints[i*3+0],
-				                       hull.TriPoints[i*3+1],
-									   hull.TriPoints[i*3+2]);
+		struct Intersection res = TriRay_Intersect(tri, ray);
 
-	//u32 *inds = malloc(sizeof(u32) * hull.NumTris);
-	r32 *rayDists = malloc(sizeof(r32) * hull.NumTris);
-
-	// Thank you,
-	// https://www.geometrictools.com/Documentation/DistancePointLine.pdf
-	for(u32 i = 0; i < hull.NumTris; ++i) {
-		Vec3 B = ray.Start;
-		Vec3 M = ray.Dir;
-		Vec3 P = triCenters[i];
-
-		r32 t0 = Vec3_Dot(M, Vec3_Sub(P, B)) / Vec3_Dot(M, M);
-		rayDists[i] = (t0 <= 0 
-				       ? Vec3_Len(Vec3_Sub(P, B))
-					   : Vec3_Len(Vec3_Sub(P, Vec3_Add(B, Vec3_MultScal(M, t0)))));
-
+		if(res.Occurred) {
+			Log(INFO, "Triangle #%d and ray intersect at Point (%.2f, %.2f, %.2f)!", 
+					i, res.Point.x, res.Point.y, res.Point.z);
+			return res;
+		}
 	}
+
+	return (struct Intersection) { .Occurred = 0 };
 }

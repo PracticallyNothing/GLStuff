@@ -45,6 +45,20 @@ typedef double r64;
 typedef i8 bool8;
 typedef i32 bool32;
 
+// --- Memory management --- //
+
+extern u32 Alloc_GetTotalSize();
+extern void Alloc_PrintInfo();
+extern void Alloc_FreeAll();
+
+extern void *Allocate(u32 size, const char *__func, const char *__file, u32 __line);
+extern void *Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file, u32 __line);
+extern void Free(void *ptr, const char *__func, const char *__file, u32 __line);
+
+#define Allocate(size)           Allocate(size, __func__, __FILE__, __LINE__)
+#define Reallocate(ptr, newSize) Reallocate(ptr, newSize, __func__, __FILE__, __LINE__)
+#define Free(ptr)                Free(ptr, __func__, __FILE__, __LINE__)
+
 // --- String operations --- //
 
 i32 String_ToI32(const char *);
@@ -98,7 +112,7 @@ extern bool8 RangesOverlap_R64(r64 aMin, r64 aMax, r64 bMin, r64 bMax);
 
 // --- File operations --- //
 
-/// Put the contents of a file inside a buffer malloc-ed by the function.
+/// Put the contents of a file inside a buffer allocated by the function.
 extern u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size);
 
 /// Put the contents of a file inside a user-allocated buffer.
@@ -147,7 +161,7 @@ void Array_##name##_Push(struct Array_##name *a, const type *t)               \
     if(a->Size == a->Capacity) {                                              \
 		if(!a->Capacity) a->Capacity = 1;                                     \
 	    a->Capacity *= 2;                                                     \
-	    a->Data = realloc(a->Data, sizeof(type) * a->Capacity);               \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
 	}                                                                         \
     memcpy(a->Data + a->Size, t, sizeof(type));                               \
     a->Size++;                                                                \
@@ -156,7 +170,7 @@ void Array_##name##_PushVal(struct Array_##name *a, const type t) {           \
     Array_##name##_Push(a, &t);                                               \
 }                                                                             \
 void Array_##name##_Free(struct Array_##name *a) {                            \
-	free(a->Data);                                                            \
+	Free(a->Data);                                                            \
 	a->Data = NULL;                                                           \
 	a->Size = 0;                                                              \
 	a->Capacity = 0;                                                          \
@@ -175,7 +189,7 @@ void Array_##name##_Insert(struct Array_##name *a, u32 idx, const type* t)    \
     if(a->Size == a->Capacity) {                                              \
 		if(!a->Capacity) a->Capacity = 1;                                     \
 	    a->Capacity *= 2;                                                     \
-	    a->Data = realloc(a->Data, sizeof(type) * a->Capacity);               \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
 	}                                                                         \
 	memmove(&a->Data[idx+1],                                                  \
 			&a->Data[idx  ],                                                  \
@@ -194,7 +208,7 @@ void Array_##name##_Pop(struct Array_##name *a)                               \
 }                                                                             \
 void Array_##name##_SizeToFit(struct Array_##name *a)                         \
 {                                                                             \
-    a->Data = realloc(a->Data, a->Size * sizeof(type));                       \
+    a->Data = Reallocate(a->Data, a->Size * sizeof(type));                    \
     a->Capacity = a->Size;                                                    \
 }                                                                             \
 void Array_##name##_Reverse(struct Array_##name *a)                           \
@@ -270,7 +284,7 @@ extern void Log(const char *__func, const char *__file, u32 __line,
                 enum Log_Level level, const char *fmt, ...);
 
 #define Log(level, fmt, ...) \
-	Log(__FUNCTION__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
+	Log(__func__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
 typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
 u128 Hash_MD5(const u8 *bytes, u32 length);

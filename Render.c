@@ -115,8 +115,8 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	static const u32 NUM_VAOS = 4;
 
-	RSys_State.TempVAOs = malloc(sizeof(GLuint) * NUM_VAOS);
-	RSys_State.VAOIsTaken = malloc(sizeof(bool8) * NUM_VAOS);
+	RSys_State.TempVAOs = Allocate(sizeof(GLuint) * NUM_VAOS);
+	RSys_State.VAOIsTaken = Allocate(sizeof(bool8) * NUM_VAOS);
 	RSys_State.NumTakenVAOs = 0;
 	RSys_State.NumVAOs = NUM_VAOS;
 
@@ -133,11 +133,11 @@ void RSys_Init(u32 Width, u32 Height) {
 void RSys_AllocMoreVAOs() {
 	u32 N = RSys_State.NumVAOs * 2;
 
-	RSys_State.TempVAOs = realloc(RSys_State.TempVAOs, sizeof(GLuint) * N);
+	RSys_State.TempVAOs = Reallocate(RSys_State.TempVAOs, sizeof(GLuint) * N);
 	glGenVertexArrays(RSys_State.NumVAOs,
 	                  &RSys_State.TempVAOs[RSys_State.NumVAOs]);
 
-	RSys_State.VAOIsTaken = realloc(RSys_State.VAOIsTaken, sizeof(bool8) * N);
+	RSys_State.VAOIsTaken = Reallocate(RSys_State.VAOIsTaken, sizeof(bool8) * N);
 	memset((void *) (RSys_State.VAOIsTaken + RSys_State.NumVAOs), 0,
 	       sizeof(bool8) * (N / 2));
 }
@@ -167,8 +167,7 @@ void RSys_FreeTempVAO(GLuint VAO) {
 		}
 	}
 
-	Log(Log_Warning, "Attempted to free temp VAO %d, which doesn't exist.",
-	    VAO);
+	Log(Log_Warning, "Attempted to free temp VAO %d, which doesn't exist.", VAO);
 }
 
 void RSys_FinishFrame() {
@@ -279,9 +278,9 @@ void R2D_Init() {
 }
 
 void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
-	Vec2 *Pos = malloc(sizeof(Vec2) * NumRects * 4);
-	RGBA *Color = malloc(sizeof(RGBA) * NumRects * 4);
-	u32 *Inds = malloc(sizeof(u32) * NumRects * (Fill ? 6 : 8));
+	Vec2 *Pos = Allocate(sizeof(Vec2) * NumRects * 4);
+	RGBA *Color = Allocate(sizeof(RGBA) * NumRects * 4);
+	u32 *Inds = Allocate(sizeof(u32) * NumRects * (Fill ? 6 : 8));
 
 	// The vertices are assumed to be in the order
 	// top left,
@@ -368,16 +367,16 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	// Cleanup
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glDeleteBuffers(3, VBOs);
-	free(Pos);
-	free(Color);
-	free(Inds);
+	Free(Pos);
+	Free(Color);
+	Free(Inds);
 	RSys_FreeTempVAO(VAO);
 }
 
 void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 {
-	Vec2 *Pos = malloc(sizeof(Vec2) * numTris * 3);
-	RGBA *Color = malloc(sizeof(RGBA) * numTris * 3);
+	Vec2 *Pos = Allocate(sizeof(Vec2) * numTris * 3);
+	RGBA *Color = Allocate(sizeof(RGBA) * numTris * 3);
 
 	// The vertices are assumed to be in the order
 	// top left,
@@ -436,8 +435,8 @@ void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 
 	// Cleanup
 	glDeleteBuffers(2, VBOs);
-	free(Pos);
-	free(Color);
+	Free(Pos);
+	Free(Color);
 	RSys_FreeTempVAO(VAO);
 }
 
@@ -555,9 +554,9 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 
 	if(!numChars) return;
 
-	Vec2 *Pos = malloc(sizeof(Vec2) * numChars * 4);
-	Vec2 *UV = malloc(sizeof(Vec2) * numChars * 4);
-	u32 *Inds = malloc(sizeof(u32) * numChars * 6);
+	Vec2 *Pos = Allocate(sizeof(Vec2) * numChars * 4);
+	Vec2 *UV = Allocate(sizeof(Vec2) * numChars * 4);
+	u32 *Inds = Allocate(sizeof(u32) * numChars * 6);
 
 	// The vertices are assumed to be in the order
 	// top left,
@@ -674,9 +673,9 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	// Cleanup
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glDeleteBuffers(3, VBOs);
-	free(Pos);
-	free(UV);
-	free(Inds);
+	Free(Pos);
+	Free(UV);
+	Free(Inds);
 	RSys_FreeTempVAO(VAO);
 }
 
@@ -760,7 +759,7 @@ void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
 void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
 {
 	const u32 numPoints = 30;
-	Vec3 *points = malloc(sizeof(Vec3) * (numPoints+1) * 2 * 2);
+	Vec3 *points = Allocate(sizeof(Vec3) * (numPoints+1) * 2 * 2);
 
 	// Generate a single ring.
 	for(u32 i = 0; i < numPoints+1; i++)
@@ -776,5 +775,5 @@ void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
 
 	R3D_DrawLines(cam, points, (numPoints+1)*2, color);
 
-	free(points);
+	Free(points);
 }

@@ -28,7 +28,7 @@ void GenRandTri(Vec3* t)
 
 void DrawGrid(OrbitCamera c, i32 size)
 {
-	Vec3 *points = malloc(sizeof(Vec3) * 4 * size);
+	Vec3 *points = Allocate(sizeof(Vec3) * 4 * size);
 	for(u32 i = 0; i < size; i++)
 	{
 		points[(i*4)+0] = V3((r32) i-size/2, 0, -size);
@@ -38,7 +38,7 @@ void DrawGrid(OrbitCamera c, i32 size)
 		points[(i*4)+3] = V3( size, 0, ((r32) i)-size/2);
 	}
 	R3D_DrawLines(OrbitCamera_ToCamera(c), points, size*2, V4(0.8, 0.8, 0.8, 1));
-	free(points);
+	Free(points);
 }
 
 int main(int argc, char *argv[]) {
@@ -63,8 +63,8 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	u32 *VAOs         = malloc(sizeof(u32) * Speedboat->NumObjects);
-	u32 *IndexBuffers = malloc(sizeof(u32) * Speedboat->NumObjects);
+	u32 *VAOs         = Allocate(sizeof(u32) * Speedboat->NumObjects);
+	u32 *IndexBuffers = Allocate(sizeof(u32) * Speedboat->NumObjects);
 	glGenVertexArrays(Speedboat->NumObjects, VAOs);
 	glGenBuffers(Speedboat->NumObjects, IndexBuffers);
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
 	const u32 w = 20;
 	const u32 l = 20;
 	const u32 sz = w*l;
-	Vec3 *pos = malloc(sizeof(Vec3) * sz * 6);
+	Vec3 *pos = Allocate(sizeof(Vec3) * sz * 6);
 	for(u32 z = 0; z < w; z++)
 		for(u32 x = 0; x < l; x++)
 		{
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	free(pos);
+	Free(pos);
 
 	struct Shader
 		*s      = Shader_FromFile("res/shaders/3d/unlit-tex.glsl"),
@@ -160,12 +160,14 @@ int main(int argc, char *argv[]) {
 	struct TriHull a, b;
 	a.NumTris = 1;
 	b.NumTris = 1;
-	a.TriPoints = malloc(sizeof(Vec3)*3);
-	b.TriPoints = malloc(sizeof(Vec3)*3);
+	a.Transform = NULL;
+	b.Transform = NULL;
+	a.TriPoints = Allocate(sizeof(Vec3)*3);
+	b.TriPoints = Allocate(sizeof(Vec3)*3);
 
 	GenRandTri(a.TriPoints);
 	GenRandTri(b.TriPoints);
-	struct Intersection intersection = TriHull_Intersect(a, b, Transform3D_Default);
+	struct Intersection intersection = TriHull_Intersect(a, b);
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -184,9 +186,9 @@ int main(int argc, char *argv[]) {
 							Log(INFO, "Generating new triangles.", "");
 							GenRandTri(a.TriPoints);
 							GenRandTri(b.TriPoints);
-							intersection = TriHull_Intersect(a, b, Transform3D_Default);
+							intersection = TriHull_Intersect(a, b);
 							break;
-						default: 
+						default:
 							break;
 					}
 				} break;
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
 						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
 						Cam.Pitch = Clamp_R32(
 							(-dy) * Pi_Half + InitialYawPitch.y,
-							DegToRad(0.1), 
+							DegToRad(0.1),
 							DegToRad(179.9)
 						);
 						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
@@ -233,7 +235,7 @@ int main(int argc, char *argv[]) {
 					if(e.button.button == SDL_BUTTON_RIGHT)
 						MouseDragging = 0;
 				} break;
-				default: { 
+				default: {
 				} break;
 			}
 		}
@@ -307,25 +309,25 @@ int main(int argc, char *argv[]) {
 			*/
 
 			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam), 
+				OrbitCamera_ToCamera(Cam),
 				a.TriPoints[0],
 				a.TriPoints[1],
 				a.TriPoints[2],
 				V4(1, 1, 0, 1)
 			);
 			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam), 
+				OrbitCamera_ToCamera(Cam),
 				b.TriPoints[0],
 				b.TriPoints[1],
 				b.TriPoints[2],
 				V4(1, 0, 1, 1)
 			);
-			
+
 			Vec3 centerA, centerB;
 			Vec3 circumCenterA, circumCenterB;
 			Vec3 computedNA, computedNB;
 			Vec3 nA, nB;
-			
+
 			centerA = Vec3_TriCenter(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
 			centerB = Vec3_TriCenter(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
 
@@ -350,13 +352,13 @@ int main(int argc, char *argv[]) {
 			//computedNA = nA;
 			//computedNB = nB;
 
-			Vec3 normalsA[6] = 
+			Vec3 normalsA[6] =
 			{
 				a.TriPoints[0], Vec3_Add(a.TriPoints[0], nA),
 				a.TriPoints[1], Vec3_Add(a.TriPoints[1], nA),
 				a.TriPoints[2], Vec3_Add(a.TriPoints[2], nA),
 			};
-			Vec3 normalsB[6] = 
+			Vec3 normalsB[6] =
 			{
 				b.TriPoints[0], Vec3_Add(b.TriPoints[0], nB),
 				b.TriPoints[1], Vec3_Add(b.TriPoints[1], nB),
@@ -383,6 +385,8 @@ int main(int argc, char *argv[]) {
 				V4(1,1,1,1),
 				V4(0, 0, 0, 0.2),
 				&R2D_DefaultFont_Large,
+				"Allocated memory: %.2f kiB\n"
+				"\n"
 				"Yellow: A (%5.2f, %5.2f, %5.2f)\n"
 			    "        B (%5.2f, %5.2f, %5.2f)\n"
 				"        C (%5.2f, %5.2f, %5.2f)\n"
@@ -392,6 +396,8 @@ int main(int argc, char *argv[]) {
 				"        C (%5.2f, %5.2f, %5.2f)\n"
 				"\n"
 				"Intersection: %s",
+				Alloc_GetTotalSize() / 1024.0,
+
 				a.TriPoints[0].x, a.TriPoints[0].y, a.TriPoints[0].z,
 				a.TriPoints[1].x, a.TriPoints[1].y, a.TriPoints[1].z,
 				a.TriPoints[2].x, a.TriPoints[2].y, a.TriPoints[2].z,
@@ -413,4 +419,12 @@ int main(int argc, char *argv[]) {
 
 end:
 	RSys_Quit();
+
+	WObj_Library_Free(Speedboat);
+	Shader_Free(s);
+	Shader_Free(sWire);
+	Shader_Free(sWater);
+	Alloc_PrintInfo();
+
+	Alloc_FreeAll();
 }

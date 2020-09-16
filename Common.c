@@ -100,7 +100,7 @@ u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size)
 	}
 
 	u32 Size = File_GetSize(File);
-	u8 *buf = malloc(Size);
+	u8 *buf = Allocate(Size);
 	fread(buf, sizeof(u8), Size, File);
 	if(size) *size = Size;
 	fclose(File);
@@ -230,83 +230,14 @@ void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
 	Util_Quicksort_func(arr + p + 1, itemSize, arrSize - p - 1, compFunc);
 }
 
-// --- Logging --- //
-
-const char *RESET = "\033[0m";
-
-const char *CYAN = "\033[36m";
-const char *BLUE = "\033[34m";
-const char *GREEN = "\033[32m";
-const char *YELLOW = "\033[33m";
-const char *RED = "\033[31m";
-const char *BOLDRED = "\033[31;1m";
-
-#undef Log
-
-enum Log_Level Log_Level_Global;
-void Log(const char *__func, const char *__file, u32 __line,
-         enum Log_Level level, const char *fmt, ...) {
-	if(level < Log_Level_Global && level != Log_Fatal) { return; }
-
-	switch(level) {
-		case Log_Debug:
-			fprintf(stdout, 
-					"%sDEBUG%s [%s:%d %s()]: ",
-					BLUE, RESET, 
-					__file, __line, __func);
-			break;
-		case Log_Info:
-			fprintf(stdout, 
-					"INFO [%s:%d %s()]: ", 
-					__file, __line, __func);
-			break;
-		case Log_Warning:
-			fprintf(stdout, 
-					"%sWARNING%s [%s:%d %s()]: ", 
-					YELLOW, RESET, 
-					__file, __line, __func);
-			break;
-		case Log_Error:
-			fprintf(stdout, 
-					"%sERROR%s [%s:%d %s()]: ",
-					RED, RESET, 
-					__file, __line, __func);
-			break;
-
-		case Log_Fatal:
-			fprintf(stderr, 
-					"%sFATAL ERROR%s [%s:%d %s()]: ",
-					BOLDRED, RESET,
-			        __file, __line, __func);
-			break;
-	}
-
-	char msg[512] = {0};
-
-	va_list args;
-	va_start(args, fmt);
-	vsprintf(msg, fmt, args);
-	va_end(args);
-
-	if(level == Log_Fatal) {
-		fprintf(stderr, "%s", msg);
-		//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "FATAL ERROR", msg, NULL);
-		exit(EXIT_FAILURE);
-	} else {
-		fprintf(stdout, "%s", msg);
-	}
-
-	fprintf(stdout, "\n");
-}
-
 // --- Hashing --- ///
 
 // Thank you,
 // https://en.wikipedia.org/wiki/MD5#Pseudocode
-
+// FIXME: Function produces incorrect output.
 u128 Hash_MD5(const u8 *bytes, u32 length)
 {
-	u32 shiftAmts[64] = { 
+	u32 shiftAmts[64] = {
 		7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22, //  0 - 15
 		5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20, // 16 - 31
 		4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23, // 32 - 47
@@ -331,7 +262,7 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 		0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
 		0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
 		0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
-		0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391 
+		0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
 	};
 #else
 	// Generated.
@@ -348,13 +279,13 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 	// append 0x80
 	// append 0x00 until length % 64 = 56
 	// append original length % 33 to message
-	
+
 	u32 padding = 0;
 	while((length+1+padding) % 64 != 56) { ++padding; }
 
 	u32 bufLength = length + 1 + padding + 1;
 
-	u8 *buf = malloc(bufLength);
+	u8 *buf = Allocate(bufLength);
 	buf[length] = 0x80;
 	memset(buf+length+1, 0x00, bufLength-length);
 	buf[bufLength-1] = length%33;
@@ -367,7 +298,7 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 			D = d0;
 		u32 *M = (u32*) buf+i;
 
-		for(u32 j = 0; j < 64; j++) 
+		for(u32 j = 0; j < 64; j++)
 		{
 			u32 F, g;
 			if(j <= 15) {
@@ -401,3 +332,242 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 	u128 res = { .b = {a0, b0, c0, d0} };
 	return res;
 }
+
+struct Allocation {
+	void *Ptr;
+	u32 Size;
+
+	char* File;
+	char* Function;
+	u32 Line;
+};
+
+struct Array_Allocation { u32 Size, Capacity; struct Allocation*Data; };
+void Array_Allocation_Push(struct Array_Allocation *, const struct Allocation *);
+void Array_Allocation_Remove(struct Array_Allocation *, u32 idx);
+
+void Array_Allocation_Push(struct Array_Allocation *a, const struct Allocation *t)
+{
+    if(!t) return;
+    if(a->Size == a->Capacity) {
+		if(!a->Capacity) a->Capacity = 1;
+	    a->Capacity *= 2;
+	    a->Data = realloc(a->Data, sizeof(struct Allocation) * a->Capacity);
+	}
+    memcpy(a->Data + a->Size, t, sizeof(struct Allocation));
+    a->Size++;
+}
+void Array_Allocation_Remove(struct Array_Allocation *a, u32 idx)
+{
+	if(idx >= a->Size) return;
+	memmove(&a->Data[idx  ],
+			&a->Data[idx+1],
+			sizeof(struct Allocation)*(a->Size-idx));
+	a->Size--;
+}
+
+static struct Array_Allocation Allocs = {0};
+static u32 SizesSum = 0;
+
+static i32 Allocation_FindPtr(void *f) {
+	if(!f)
+		return -1;
+
+	for(u32 i = 0; i < Allocs.Size; i++)
+	{
+		if(Allocs.Data[i].Ptr == f)
+			return i;
+	}
+
+	return -1;
+}
+
+
+u32 Alloc_GetTotalSize() { return SizesSum; }
+
+#undef Allocate
+#undef Reallocate
+#undef Free
+
+void Alloc_PrintInfo()
+{
+	Log(INFO, "Allocated memory: %.2f kiB (%d bytes)", SizesSum / 1024.0, SizesSum);
+
+	for(u32 i = 0; i < Allocs.Size; i++) {
+		Log(INFO, "    -> %d bytes from [%s:%d %s()]",
+			Allocs.Data[i].Size,
+			Allocs.Data[i].File, Allocs.Data[i].Line,
+			Allocs.Data[i].Function);
+	}
+}
+
+void *Allocate(u32 size, const char *__func, const char *__file, u32 __line)
+{
+	if(size == 0)
+		return NULL;
+
+	struct Allocation a;
+	a.Ptr = malloc(size);
+	a.Size = size;
+	a.Line = __line;
+
+	a.File     = malloc(strlen(__file)+1);
+	a.Function = malloc(strlen(__func)+1);
+
+	a.File[strlen(__file)] = 0;
+	a.Function[strlen(__func)] = 0;
+
+	strcpy(a.File, __file);
+	strcpy(a.Function, __func);
+
+	if(!a.Ptr) {
+		Log(ERROR, "Allocation with size %d failed.", size);
+		Log(ERROR, "  (Called from [%s:%d %s()])", __file, __line, __func);
+		return NULL;
+	}
+
+	Array_Allocation_Push(&Allocs, &a);
+	SizesSum += a.Size;
+	return a.Ptr;
+}
+
+void *Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file, u32 __line)
+{
+	if(newSize == 0) {
+		Free(ptr, __func, __file, __line);
+		return NULL;
+	}
+
+	if(!ptr)
+		return Allocate(newSize, __func, __file, __line);
+
+	i32 i = Allocation_FindPtr(ptr);
+	if(i < 0 && ptr) {
+		Log(ERROR, "Attempted to reallocate invalid pointer 0x%x.", ptr);
+		Log(ERROR, "  (Called from [%s:%d %s()])", __file, __line, __func);
+		return NULL;
+	}
+
+	void *newPtr = realloc(ptr, newSize);
+	if(!newPtr) {
+		Log(ERROR, "Reallocation of pointer 0x%x with new size %d bytes failed.", newSize);
+		Log(ERROR, "  (Called from [%s:%d %s()])", __file, __line, __func);
+		return NULL;
+	}
+
+	if(ptr) SizesSum -= Allocs.Data[i].Size;
+	SizesSum += newSize;
+
+	Allocs.Data[i].Ptr = newPtr;
+	Allocs.Data[i].Size = newSize;
+	Allocs.Data[i].Line = __line;
+
+	Allocs.Data[i].File     = malloc(strlen(__file)+1);
+	Allocs.Data[i].Function = malloc(strlen(__func)+1);
+
+	Allocs.Data[i].File[strlen(__file)] = 0;
+	Allocs.Data[i].Function[strlen(__func)] = 0;
+
+	strcpy(Allocs.Data[i].File, __file);
+	strcpy(Allocs.Data[i].Function, __func);
+
+	return newPtr;
+}
+
+void Free(void *ptr, const char *__func, const char *__file, u32 __line) {
+	if(!ptr) return;
+
+	i32 i = Allocation_FindPtr(ptr);
+
+	if(i < 0) {
+		Log(ERROR, "Attempt to free invalid pointer 0x%x.", ptr);
+		Log(ERROR, "  (Called from [%s:%d %s])", __file, __line, __func);
+		return;
+	}
+
+	SizesSum -= Allocs.Data[i].Size;
+	Array_Allocation_Remove(&Allocs, i);
+	free(ptr);
+}
+
+void Alloc_FreeAll()
+{
+	SizesSum = 0;
+	for(u32 i = 0; i < Allocs.Size; ++i)
+		free(Allocs.Data[i].Ptr);
+	free(Allocs.Data);
+
+	Allocs.Data = NULL;
+	Allocs.Size = 0;
+	Allocs.Capacity = 0;
+}
+
+// --- Logging --- //
+
+const char *RESET = "\033[0m";
+
+const char *CYAN = "\033[36m";
+const char *BLUE = "\033[34m";
+const char *GREEN = "\033[32m";
+const char *YELLOW = "\033[33m";
+const char *RED = "\033[31m";
+const char *BOLDRED = "\033[31;1m";
+
+#undef Log
+
+enum Log_Level Log_Level_Global;
+void Log(const char *__func, const char *__file, u32 __line,
+         enum Log_Level level, const char *fmt, ...) {
+	if(level < Log_Level_Global && level != Log_Fatal) { return; }
+
+	switch(level) {
+		case Log_Debug:
+			fprintf(stdout,
+					"%sDEBUG%s [%s:%d %s()]: ",
+					BLUE, RESET,
+					__file, __line, __func);
+			break;
+		case Log_Info:
+			fprintf(stdout,
+					"INFO [%s:%d %s()]: ",
+					__file, __line, __func);
+			break;
+		case Log_Warning:
+			fprintf(stdout,
+					"%sWARNING%s [%s:%d %s()]: ",
+					YELLOW, RESET,
+					__file, __line, __func);
+			break;
+		case Log_Error:
+			fprintf(stdout,
+					"%sERROR%s [%s:%d %s()]: ",
+					RED, RESET,
+					__file, __line, __func);
+			break;
+
+		case Log_Fatal:
+			fprintf(stderr,
+					"%sFATAL ERROR%s [%s:%d %s()]: ",
+					BOLDRED, RESET,
+			        __file, __line, __func);
+			break;
+	}
+
+	char msg[512] = {0};
+
+	va_list args;
+	va_start(args, fmt);
+	vsprintf(msg, fmt, args);
+	va_end(args);
+
+	if(level == Log_Fatal) {
+		fprintf(stderr, "%s", msg);
+		//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "FATAL ERROR", msg, NULL);
+		exit(EXIT_FAILURE);
+	} else {
+		fprintf(stdout, "%s", msg);
+	}
+
+	fprintf(stdout, "\n");
+}
+

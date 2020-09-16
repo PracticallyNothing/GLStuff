@@ -71,5 +71,6 @@ typedef struct WObj_Library {
 } WObj_Library;
 
 extern WObj_Library *WObj_FromFile(const char *filename);
+extern void WObj_Library_Free(WObj_Library *);
 
 #endif

@@ -3,13 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "Common.h"
 
 struct Shader *Shader_FromFile(const char *file) {
 	struct Shader *Res = NULL;
-	u32 bufSize = Kilobytes(16);
-	char *src = calloc(1, bufSize);
+	u32 bufSize;
+	char *src = (char *) File_ReadToBuffer_Alloc(file, &bufSize);
 
-	if(!File_ReadToBuffer(file, (u8 *) src, bufSize, NULL)) { goto end; }
+	if(!src) { return NULL; }
 
 	char *vertSrc, *fragSrc;
 
@@ -18,7 +19,8 @@ struct Shader *Shader_FromFile(const char *file) {
 		     *end   = strstr(start, "@@");
 
 		u32 len = end - start;
-		vertSrc = calloc(len + 1, sizeof(char));
+		vertSrc = Allocate((len + 1) * sizeof(char));
+		vertSrc[len] = '\0';
 		strncpy(vertSrc, start, len);
 	}
 
@@ -27,15 +29,15 @@ struct Shader *Shader_FromFile(const char *file) {
 		     *end = strstr(start, "@@");
 
 		u32 len = end - start;
-		fragSrc = calloc(len + 1, sizeof(char));
+		fragSrc = Allocate((len + 1) * sizeof(char));
+		fragSrc[len] = '\0';
 		strncpy(fragSrc, start, len);
 	}
 
 	Res = Shader_FromSrc(vertSrc, fragSrc, file);
-	free(vertSrc);
-	free(fragSrc);
-end:
-	free(src);
+	Free(vertSrc);
+	Free(fragSrc);
+	Free(src);
 	return Res;
 }
 
@@ -53,12 +55,12 @@ static GLuint _Shader_GenShader(GLenum type, const char *src, const char* filena
 		char *LogStr;
 
 		glGetShaderiv(Shader, GL_INFO_LOG_LENGTH, &LogLength);
-		LogStr = malloc(sizeof(char) * LogLength);
+		LogStr = Allocate(sizeof(char) * LogLength);
 		glGetShaderInfoLog(Shader, LogLength, NULL, LogStr);
 
 		Log(Log_Error, "%s shader compilation failed.\n%s",
 		    (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), LogStr);
-		free(LogStr);
+		Free(LogStr);
 	}
 
 	return Shader;
@@ -79,22 +81,22 @@ GLuint _Shader_Link(struct Shader *s) {
 		char *LogStr;
 
 		glGetProgramiv(ShaderProgram, GL_INFO_LOG_LENGTH, &LogLength);
-		LogStr = malloc(sizeof(char) * LogLength);
+		LogStr = Allocate(sizeof(char) * LogLength);
 		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, LogStr);
 
 		Log(Log_Error, "[%s] Shader program linking failed.\n%s", 
 			s->SrcFile ? s->SrcFile : "Unknown source", LogStr);
-		free(LogStr);
+		Free(LogStr);
 	}
 	return ShaderProgram;
 }
 
 struct Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc, const char* filename) {
-	struct Shader *Res = malloc(sizeof(struct Shader));
+	struct Shader *Res = Allocate(sizeof(struct Shader));
 	memset(Res, 0, sizeof(struct Shader));
 	Res->SrcFile = NULL;
 	if(filename) {
-		Res->SrcFile = malloc(strlen(filename)+1);
+		Res->SrcFile = Allocate(strlen(filename)+1);
 		strcpy(Res->SrcFile, filename);
 	}
 
@@ -162,7 +164,9 @@ void Shader_Free(struct Shader *s) {
 	glDeleteShader(s->VertexID);
 	glDeleteShader(s->FragmentID);
 	glDeleteProgram(s->ProgramID);
-	free(s);
+	if(s->SrcFile)
+		Free(s->SrcFile);
+	Free(s);
 }
 
 void Shader_Reload(struct Shader *s)
@@ -179,7 +183,7 @@ void Shader_Reload(struct Shader *s)
 	s->VertexID = ss->VertexID;
 	s->FragmentID = ss->FragmentID;
 	s->ProgramID = ss->ProgramID;
-	free(ss);
+	Free(ss);
 
 	if(ActiveShader == s)
 		Shader_Use(s);

@@ -18,9 +18,9 @@ extern bool8       AABB_Intersect        (struct AABB a, struct AABB b);
 extern struct AABB AABB_Fix              (struct AABB aabb);
 extern struct AABB AABB_ApplyTransform3D (struct AABB aabb, Transform3D t);
 
-struct TriHull { Vec3 *TriPoints; u32 NumTris; };
+struct TriHull { Vec3 *TriPoints; u32 NumTris; Transform3D *Transform; };
 
-extern struct Intersection TriHull_RayIntersect  (struct TriHull hull, struct Ray ray);
-extern struct Intersection TriHull_Intersect (struct TriHull a, struct TriHull b, Transform3D t);
+extern struct Intersection TriHull_RayIntersect(struct TriHull hull, struct Ray ray);
+extern struct Intersection TriHull_Intersect(struct TriHull a, struct TriHull b);
 
 #endif

@@ -21,7 +21,8 @@
 	if(i >= Size) break;                                                  \
 	i32 j = i;                                                            \
 	while(!Char_IsNewline(Buffer[++j]) && !Char_IsWhitespace(Buffer[j])); \
-	tgt = calloc(sizeof(char), j-i+1);                                    \
+	tgt = Allocate(sizeof(char) * j-i+1);                                 \
+	tgt[j-i] = '\0';                                                      \
 	strncpy(tgt, (char *) Buffer + i, j - i);                             \
 	i = j;                                                                \
 }
@@ -153,7 +154,7 @@ void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
 		}
 	}
 
-	free(Buffer);
+	Free(Buffer);
 }
 
 struct FaceVertex {
@@ -207,7 +208,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 	Log(INFO, "Loading OBJ file \"%s\"...", filename);
 
-	WObj_Library *res = malloc(sizeof(WObj_Library));
+	WObj_Library *res = Allocate(sizeof(WObj_Library));
 	bool8 HasMTL = 0;
 
 	struct Object *CurrObject = NULL;
@@ -356,7 +357,7 @@ face_vertex_end:
 			SKIP_TO_NEXT_LINE();
 		}
 	}
-	free(Buffer);
+	Free(Buffer);
 
 	// Stage 2:
 	// Take all the vertices with IDs and convert them to vertices with values.
@@ -409,7 +410,7 @@ face_vertex_end:
 		Array_u32_SizeToFit(&Indices);
 
 		WObj_Object Object;
-		Object.Name = malloc(strlen(obj->Name));
+		Object.Name = Allocate(strlen(obj->Name));
 		strcpy(Object.Name, obj->Name);
 		Object.Material = obj->Material;
 		Object.NumVertices = Vertices.Size;
@@ -467,4 +468,31 @@ face_vertex_end:
 	Array_Obj_Free(&Objects);
 
 	return res;
+}
+
+void WObj_Library_Free(WObj_Library *l)
+{
+	for(u32 i = 0; i < l->NumObjects; ++i)
+	{
+		Free(l->Objects[i].Vertices);
+		Free(l->Objects[i].Indices);
+		Free(l->Objects[i].Name);
+	}
+
+
+	for(u32 i = 0; i < l->NumMaterials; ++i)
+	{
+		Free(l->Materials[i].Name);
+		Free(l->Materials[i].AmbientMapFile);
+		Free(l->Materials[i].DiffuseMapFile);
+		Free(l->Materials[i].SpecularMapFile);
+		Free(l->Materials[i].SpecularExponentMapFile);
+		Free(l->Materials[i].OpacityMapFile);
+		Free(l->Materials[i].NormalMapFile);
+	}
+
+	Free(l->Objects);
+	Free(l->Materials);
+
+	Free(l);
 }
