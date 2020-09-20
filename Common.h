@@ -134,6 +134,7 @@ bool8 Array_##name##_Has(const struct Array_##name *, const type *);        \
  void Array_##name##_Push(struct Array_##name *, const type *);             \
  void Array_##name##_PushVal(struct Array_##name *, const type);            \
  void Array_##name##_Pop(struct Array_##name *);                            \
+ void Array_##name##_PushMany(struct Array_##name *, const type *, u32 n);  \
                                                                             \
  void Array_##name##_Insert(struct Array_##name *, u32 idx, const type *);  \
  void Array_##name##_InsertVal(struct Array_##name *, u32 idx, const type); \
@@ -165,6 +166,17 @@ void Array_##name##_Push(struct Array_##name *a, const type *t)               \
 	}                                                                         \
     memcpy(a->Data + a->Size, t, sizeof(type));                               \
     a->Size++;                                                                \
+}                                                                             \
+void Array_##name##_PushMany(struct Array_##name *a, const type *t, u32 n)    \
+{                                                                             \
+    if(!t) return;                                                            \
+    if(a->Size + n >= a->Capacity) {                                          \
+		if(!a->Capacity) a->Capacity = 1;                                     \
+	    while(a->Size+n <= a->Capacity) a->Capacity *= 2;                     \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
+	}                                                                         \
+    memcpy(a->Data + a->Size, t, sizeof(type)*n);                             \
+    a->Size += n;                                                             \
 }                                                                             \
 void Array_##name##_PushVal(struct Array_##name *a, const type t) {           \
     Array_##name##_Push(a, &t);                                               \

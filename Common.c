@@ -20,9 +20,9 @@ DECL_ARRAY(i64, i64);
 DECL_ARRAY(r32, r32);
 DECL_ARRAY(r64, r64);
 
-const r64 Tau = 6.28318530717958647692;
-const r64 Pi = 3.14159265358979323846;
-const r64 Pi_Half = 1.57079632679489661923;
+const r64 Tau        = 6.28318530717958647692;
+const r64 Pi         = 3.14159265358979323846;
+const r64 Pi_Half    = 1.57079632679489661923;
 const r64 Pi_Quarter = 0.78539816339744830962;
 
 bool8 GL_Initialized = 0;
@@ -54,6 +54,15 @@ i32 Pow_I32(i32 n, u32 power) {
 		n *= n;
 	}
 
+	return res;
+}
+r32 String_ToR32_N(const char *str, u32 len) {
+	char *buf = Allocate(len+1);
+	buf[len] = '\0';
+	strncpy(buf, str, len);
+
+	r32 res = atof(buf);
+	Free(buf);
 	return res;
 }
 
@@ -276,19 +285,24 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 	i32 c0 = 0x98badcfe; // C
 	i32 d0 = 0x10325476; // D
 
-	// append 0x80
-	// append 0x00 until length % 64 = 56
-	// append original length % 33 to message
-
 	u32 padding = 0;
 	while((length+1+padding) % 64 != 56) { ++padding; }
 
-	u32 bufLength = length + 1 + padding + 1;
+	u32 bufLength = length + 1 + padding + sizeof(u64);
 
 	u8 *buf = Allocate(bufLength);
+	memcpy(buf, bytes, length);
+	
+	// append 0x80
 	buf[length] = 0x80;
+	
+	// append 0x00 until length % 64 = 56
 	memset(buf+length+1, 0x00, bufLength-length);
-	buf[bufLength-1] = length%33;
+
+	// append original length in bits mod 2^64 to message
+	u64 modlen = (length*8) % ((u64)1 << 63);
+	memcpy(buf + (bufLength - 1 - sizeof(u64)), &modlen, sizeof(u64)) ;
+	// Log(INFO, "Length: %d, Padding: %d, Buffer length: %d, Length*8 mod 2^64: %lu", length, padding, bufLength, modlen);
 
 	for(u32 i = 0; i < bufLength; i+=64)
 	{
@@ -329,6 +343,7 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 		d0 = d0 + D;
 	}
 
+	Free(buf);
 	u128 res = { .b = {a0, b0, c0, d0} };
 	return res;
 }
@@ -389,6 +404,14 @@ u32 Alloc_GetTotalSize() { return SizesSum; }
 #undef Reallocate
 #undef Free
 
+#if 0
+#define CHECK_ALLOC_LIMIT(sz) \
+	if(SizesSum + sz > Megabytes(50)) \
+		Log(FATAL, "Allocated over maximum limit from [%s:%d %s], exiting.", __file, __line, __func);
+#else
+#define CHECK_ALLOC_LIMIT(sz)
+#endif
+
 void Alloc_PrintInfo()
 {
 	Log(INFO, "Allocated memory: %.2f kiB (%d bytes)", SizesSum / 1024.0, SizesSum);
@@ -405,6 +428,8 @@ void *Allocate(u32 size, const char *__func, const char *__file, u32 __line)
 {
 	if(size == 0)
 		return NULL;
+
+	CHECK_ALLOC_LIMIT(size);
 
 	struct Allocation a;
 	a.Ptr = malloc(size);
@@ -440,6 +465,8 @@ void *Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file,
 
 	if(!ptr)
 		return Allocate(newSize, __func, __file, __line);
+
+	CHECK_ALLOC_LIMIT(newSize);
 
 	i32 i = Allocation_FindPtr(ptr);
 	if(i < 0 && ptr) {
@@ -504,14 +531,14 @@ void Alloc_FreeAll()
 
 // --- Logging --- //
 
-const char *RESET = "\033[0m";
+static const char *RESET = "\033[0m";
 
-const char *CYAN = "\033[36m";
-const char *BLUE = "\033[34m";
-const char *GREEN = "\033[32m";
-const char *YELLOW = "\033[33m";
-const char *RED = "\033[31m";
-const char *BOLDRED = "\033[31;1m";
+//static const char *CYAN = "\033[36m";
+static const char *BLUE = "\033[34m";
+//static const char *GREEN = "\033[32m";
+static const char *YELLOW = "\033[33m";
+static const char *RED = "\033[31m";
+static const char *BOLDRED = "\033[31;1m";
 
 #undef Log
 

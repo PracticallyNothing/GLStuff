@@ -68,11 +68,11 @@ int main(int argc, char *argv[]) {
 	glGenVertexArrays(Speedboat->NumObjects, VAOs);
 	glGenBuffers(Speedboat->NumObjects, IndexBuffers);
 
-	struct RSys_Texture testUV = RSys_TextureFromFile("res/textures/test-uv.jpg");
+	//struct RSys_Texture testUV = RSys_TextureFromFile("res/textures/test-uv.jpg");
 
-	struct RSys_Texture noise      = RSys_TextureFromFile("res/textures/noise.jpg");
-	struct RSys_Texture foam       = RSys_TextureFromFile("res/textures/Foam002_2K_Color.jpg");
-	struct RSys_Texture waveHeight = RSys_TextureFromFile("res/textures/wave_height.png");
+	//struct RSys_Texture noise      = RSys_TextureFromFile("res/textures/noise.jpg");
+	//struct RSys_Texture foam       = RSys_TextureFromFile("res/textures/Foam002_2K_Color.jpg");
+	//struct RSys_Texture waveHeight = RSys_TextureFromFile("res/textures/wave_height.png");
 
 	for(u32 i = 0; i < Speedboat->NumObjects; i++)
 	{

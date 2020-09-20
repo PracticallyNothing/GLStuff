@@ -159,5 +159,5 @@ Sessionx.vim
 
 .clangd/
 json/
-JSON.c
-JSON.h
+# JSON.c
+# JSON.h

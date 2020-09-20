@@ -15,6 +15,11 @@ struct RSys_State {
 	GLuint *TempVAOs;
 	bool8 *VAOIsTaken;
 	u32 NumVAOs, NumTakenVAOs;
+
+	GLuint *TempVBOs;
+	bool8 *VBOIsTaken;
+	u32 NumVBOs, NumTakenVBOs;
+
 } RSys_State;
 
 u64 RSys_GetLastFrameTime() { return RSys_State.LastFrameTime; }
@@ -58,20 +63,23 @@ void RSys_Init(u32 Width, u32 Height) {
 	// Enable the backbuffer and set it to have 32 bits for color
 	// and 16 bits for depth.
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 1);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 1);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 1);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 1);
+	//SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 
 	// Enable 4x multisampling.
 	// SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	// SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 
 	// Create the actual window.
-	RSys_State.Window =
-	    SDL_CreateWindow("Boyan's Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width, Height,
-	                     SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+	RSys_State.Window = SDL_CreateWindow(
+		"Boyan's Game",
+		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		Width, Height, 
+		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
+	);
 
 	// If it wasn't created, error and exit.
 	if(!RSys_State.Window)
@@ -114,15 +122,23 @@ void RSys_Init(u32 Width, u32 Height) {
 	RSys_State.LastFrameTime = SDL_GetTicks();
 
 	static const u32 NUM_VAOS = 4;
+	static const u32 NUM_VBOS = 32;
 
 	RSys_State.TempVAOs = Allocate(sizeof(GLuint) * NUM_VAOS);
 	RSys_State.VAOIsTaken = Allocate(sizeof(bool8) * NUM_VAOS);
 	RSys_State.NumTakenVAOs = 0;
 	RSys_State.NumVAOs = NUM_VAOS;
 
+	RSys_State.TempVBOs = Allocate(sizeof(GLuint) * NUM_VBOS);
+	RSys_State.VBOIsTaken = Allocate(sizeof(bool8) * NUM_VBOS);
+	RSys_State.NumTakenVBOs = 0;
+	RSys_State.NumVBOs = NUM_VBOS;
+
 	memset((void *) RSys_State.VAOIsTaken, 0, sizeof(bool8) * NUM_VAOS);
+	memset((void *) RSys_State.VBOIsTaken, 0, sizeof(bool8) * NUM_VBOS);
 
 	glGenVertexArrays(RSys_State.NumVAOs, RSys_State.TempVAOs);
+	glGenBuffers(RSys_State.NumVBOs, RSys_State.TempVBOs);
 
 	GL_Initialized = 1;
 
@@ -138,8 +154,18 @@ void RSys_AllocMoreVAOs() {
 	                  &RSys_State.TempVAOs[RSys_State.NumVAOs]);
 
 	RSys_State.VAOIsTaken = Reallocate(RSys_State.VAOIsTaken, sizeof(bool8) * N);
-	memset((void *) (RSys_State.VAOIsTaken + RSys_State.NumVAOs), 0,
-	       sizeof(bool8) * (N / 2));
+	memset((void *) (RSys_State.VAOIsTaken + RSys_State.NumVAOs), 0, sizeof(bool8) * (N / 2));
+}
+
+void RSys_AllocMoreVBOs() {
+	u32 N = RSys_State.NumVBOs * 2;
+
+	RSys_State.TempVBOs = Reallocate(RSys_State.TempVBOs, sizeof(GLuint) * N);
+	glGenBuffers(RSys_State.NumVBOs,
+			     &RSys_State.TempVBOs[RSys_State.NumVBOs]);
+
+	RSys_State.VBOIsTaken = Reallocate(RSys_State.VBOIsTaken, sizeof(bool8) * N);
+	memset((void *) (RSys_State.VBOIsTaken + RSys_State.NumVBOs), 0, sizeof(bool8) * (N / 2));
 }
 
 GLuint RSys_GetTempVAO() {
@@ -156,6 +182,55 @@ GLuint RSys_GetTempVAO() {
 	// Uh oh...
 	Log(Log_Error, "Could not find temp VAO, even though there should be.", "");
 	return 0;
+}
+
+GLuint RSys_GetTempVBO() {
+	if(RSys_State.NumTakenVBOs == RSys_State.NumVBOs) { RSys_AllocMoreVBOs(); }
+
+	for(int i = 0; i < RSys_State.NumVBOs; i++) {
+		if(!RSys_State.VBOIsTaken[i]) {
+			RSys_State.VBOIsTaken[i] = 1;
+			RSys_State.NumTakenVBOs++;
+			return RSys_State.TempVBOs[i];
+		}
+	}
+
+	// Uh oh...
+	Log(Log_Error, "Could not find temp Vertex Buffer, even though there should be.", "");
+	return 0;
+}
+
+void RSys_GetTempVBOs(GLuint *Output, u32 N) {
+	if(!Output || !N)
+		return;
+
+	while(RSys_State.NumTakenVBOs + N >= RSys_State.NumVBOs) { RSys_AllocMoreVBOs(); }
+
+	for(int i = 0; i < RSys_State.NumVBOs && N; i++) {
+		if(!RSys_State.VBOIsTaken[i]) {
+			RSys_State.VBOIsTaken[i] = 1;
+			RSys_State.NumTakenVBOs++;
+			Output[N-1] = RSys_State.TempVBOs[i];
+			N--;
+		}
+	}
+}
+
+void RSys_FreeTempVBO(GLuint VBO) {
+	for(int i = 0; i < RSys_State.NumVBOs; i++) {
+		if(VBO == RSys_State.TempVBOs[i]) {
+			RSys_State.VBOIsTaken[i] = 0;
+			RSys_State.NumTakenVBOs--;
+			return;
+		}
+	}
+
+	Log(Log_Warning, "Attempted to free temp VBO %d, which doesn't exist.", VBO);
+}
+
+void RSys_FreeTempVBOs(const GLuint* VBOs, u32 N) {
+	while(N--)
+		RSys_FreeTempVBO(VBOs[N]);
 }
 
 void RSys_FreeTempVAO(GLuint VAO) {
@@ -238,11 +313,6 @@ struct Shader *TextShader = NULL;
 
 void R2D_Init() {
 	glGenVertexArrays(1, &R2D_State.TextVAO);
-	glBindVertexArray(R2D_State.TextVAO);
-
-	GLuint TextVBOs[2];
-	glGenBuffers(2, TextVBOs);
-	glBindBuffer(GL_ARRAY_BUFFER, TextVBOs[0]);
 
 	RectShader = Shader_FromFile("res/shaders/ui/rect.glsl");
 	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
@@ -325,8 +395,9 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	GLuint VBOs[3] = {0};
-	glGenBuffers(3, VBOs);
+	GLuint VBOs[3];
+	RSys_GetTempVBOs(VBOs, 3);
+
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * NumRects * 4, Pos,
@@ -366,7 +437,7 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 
 	// Cleanup
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glDeleteBuffers(3, VBOs);
+	RSys_FreeTempVBOs(VBOs, 3);
 	Free(Pos);
 	Free(Color);
 	Free(Inds);
@@ -401,8 +472,9 @@ void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	GLuint VBOs[2] = {0};
-	glGenBuffers(2, VBOs);
+	GLuint VBOs[2];
+	RSys_GetTempVBOs(VBOs, 2);
+	
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * numTris * 3, Pos, GL_STREAM_DRAW);
@@ -434,7 +506,7 @@ void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 	glDrawArrays(GL_TRIANGLES, 0, numTris * 3);
 
 	// Cleanup
-	glDeleteBuffers(2, VBOs);
+	RSys_FreeTempVBOs(VBOs, 2);
 	Free(Pos);
 	Free(Color);
 	RSys_FreeTempVAO(VAO);
@@ -476,8 +548,7 @@ void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	GLuint VBO = 0;
-	glGenBuffers(1, &VBO);
+	GLuint VBO = RSys_GetTempVBO();
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2), NULL);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2),
@@ -531,7 +602,7 @@ void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	glDeleteBuffers(1, &VBO);
+	RSys_FreeTempVBO(VBO);
 	RSys_FreeTempVAO(VAO);
 }
 
@@ -627,8 +698,8 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	GLuint VBOs[3] = {0};
-	glGenBuffers(3, VBOs);
+	GLuint VBOs[3];
+	RSys_GetTempVBOs(VBOs, 3);
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * numChars * 4, Pos,
@@ -671,11 +742,12 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	glDrawElements(GL_TRIANGLES, numChars * 6, GL_UNSIGNED_INT, 0);
 
 	// Cleanup
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glDeleteBuffers(3, VBOs);
 	Free(Pos);
 	Free(UV);
 	Free(Inds);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	RSys_FreeTempVBOs(VBOs, 3);
 	RSys_FreeTempVAO(VAO);
 }
 
@@ -697,8 +769,7 @@ void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color)
 void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color)
 {
 	GLuint vao = RSys_GetTempVAO();
-	GLuint vbo = 0;
-	glGenBuffers(1, &vbo);
+	GLuint vbo = RSys_GetTempVBO();
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -719,7 +790,7 @@ void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color)
 	glDrawArrays(GL_LINES, 0, numLines*2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glDeleteBuffers(1, &vbo);
+	RSys_FreeTempVBO(vbo);
 	RSys_FreeTempVAO(vao);
 }
 
@@ -730,8 +801,7 @@ void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
 	                b, a, c };
 
 	GLuint vao = RSys_GetTempVAO();
-	GLuint vbo = 0;
-	glGenBuffers(1, &vbo);
+	GLuint vbo = RSys_GetTempVBO();
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -752,7 +822,7 @@ void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glDeleteBuffers(1, &vbo);
+	RSys_FreeTempVBO(vbo);
 	RSys_FreeTempVAO(vao);
 }
 
