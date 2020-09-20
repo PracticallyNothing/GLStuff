@@ -8,7 +8,6 @@
 #include "Math3D.h"
 #include "Shader.h"
 #include "Phys.h"
-#include "Transform.h"
 
 enum R3D_Light_Type {
 	LightType_Point,

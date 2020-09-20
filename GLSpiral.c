@@ -10,7 +10,6 @@
 #include "Math3D.h"
 #include "Render.h"
 #include "Shader.h"
-#include "Transform.h"
 #include "WavefrontOBJ.h"
 #include "stb_image.h"
 #include "Phys.h"

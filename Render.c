@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Common.h"
 #include "stb_image.h"
 
 struct RSys_State {

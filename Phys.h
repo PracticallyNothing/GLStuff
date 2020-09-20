@@ -3,7 +3,6 @@
 
 #include "Common.h"
 #include "Math3D.h"
-#include "Transform.h"
 
 struct Intersection {
 	bool8 Occurred;
