@@ -140,7 +140,7 @@ JSON_ToTokens(const char* str, u32 len)
 
 			p = q+1;
 		} 
-		else if('0' <= *p && *p <= '9') {
+		else if(*p == '-' || ('0' <= *p && *p <= '9')) {
 			const char* q = p;
 			bool8 gotDot = 0;
 
@@ -279,6 +279,12 @@ JSON_ParseArray(const struct Token **curr) {
 
 	if((*curr)->Type == Token_EOF) {
 		Log(ERROR, "JSON Array, reached EOF without closing the array.", "");
+		PrintToken(*curr-4);
+		PrintToken(*curr-3);
+		PrintToken(*curr-2);
+		PrintToken(*curr-1);
+		PrintToken(*curr);
+		printf("\n");
 		goto ParseArray_error;
 	}
 
