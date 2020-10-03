@@ -8,6 +8,7 @@
 DECL_ARRAY(Hash, u128);
 DECL_ARRAY(String, char *);
 DECL_ARRAY(JSON_Value, struct JSON_Value);
+DECL_HASHMAP(JSON_Value, struct JSON_Value);
 
 struct JSON_Value
 JSON_FromFile(const char* filename)
@@ -302,24 +303,20 @@ JSON_ParseObject(const struct Token **curr) {
 
 	struct JSON_Value object;
 	object.Type = JSON_Object;
-	object.Object.NumItems = 0;
-	object.Object.Keys       = (struct Array_Hash) {0};
+	object.Object.Map        = (struct HashMap_JSON_Value) {0};
 	object.Object.StringKeys = (struct Array_String) {0};
-	object.Object.Values     = (struct Array_JSON_Value) {0};
 
 	while((*curr)->Type != Token_EndObject && (*curr)->Type != Token_EOF)
 	{
 		char *Key;
-		u128 HashedKey;
+		u32  KeyLen;
 
 		if((*curr)->Type == Token_String) {
-			u32 len = (*curr)->End - (*curr)->Start;
+			KeyLen = (*curr)->End - (*curr)->Start;
 
-			Key = Allocate(len+1);
-			Key[len] = '\0';
-			strncpy(Key, (*curr)->Start, len);
-
-			HashedKey = Hash_MD5((u8*) Key, len);
+			Key = Allocate(KeyLen+1);
+			Key[KeyLen] = '\0';
+			strncpy(Key, (*curr)->Start, KeyLen);
 
 			(*curr)++;
 		} else {
@@ -371,15 +368,13 @@ JSON_ParseObject(const struct Token **curr) {
 			goto ParseObject_error;
 		}
 
-		i32 i = Array_Hash_Find(&object.Object.Keys, &HashedKey);
+		i32 i = HashMap_JSON_Value_FindIdx(&object.Object.Map, (u8*) Key, KeyLen);
 		if(i >= 0) {
 			Log(WARNING, "JSON Object, key-value pair with already existing key \"%s\", replacing value.", Key);
-			object.Object.Values.Data[i] = v;
+			object.Object.Map.Values[i] = v;
 		} else {
-			object.Object.NumItems++;
+			HashMap_JSON_Value_Add(&object.Object.Map, (u8*) Key, KeyLen, &v);
 			Array_String_PushVal(&object.Object.StringKeys, Key);
-			Array_Hash_PushVal(&object.Object.Keys, HashedKey);
-			Array_JSON_Value_PushVal(&object.Object.Values, v);
 		}
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndObject) {
@@ -464,22 +459,20 @@ void JSON_Free(struct JSON_Value *v)
 {
 	switch(v->Type) {
 		case JSON_Array:
-			for(u32 i = 0; i < v->Object.NumItems; ++i)
+			for(u32 i = 0; i < v->Array.Size; ++i)
 				JSON_Free(v->Array.Data + i);
 			Array_JSON_Value_Free(&v->Array);
 
 			break;
 
 		case JSON_Object:
-			for(u32 i = 0; i < v->Object.NumItems; ++i)
+			for(u32 i = 0; i < v->Object.Map.Size; ++i) {
 				Free(v->Object.StringKeys.Data[i]);
+				JSON_Free(v->Object.Map.Values + i);
+			}
 
-			for(u32 i = 0; i < v->Object.NumItems; ++i)
-				JSON_Free(v->Object.Values.Data + i);
-
-			Array_Hash_Free(&v->Object.Keys);
 			Array_String_Free(&v->Object.StringKeys);
-			Array_JSON_Value_Free(&v->Object.Values);
+			HashMap_JSON_Value_Free(&v->Object.Map);
 
 			break;
 		case JSON_String:
@@ -489,4 +482,10 @@ void JSON_Free(struct JSON_Value *v)
 		default: 
 			break;
 	}
+}
+
+struct JSON_Value* JSON_ObjectFind(struct JSON_Value* v, const char* str)
+{
+	if(!v || !str) return NULL;
+	return HashMap_JSON_Value_Find(&v->Object.Map, (u8*) str, strlen(str));
 }
