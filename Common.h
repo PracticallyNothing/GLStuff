@@ -244,6 +244,91 @@ DEF_ARRAY(i64, i64);
 DEF_ARRAY(r32, r32);
 DEF_ARRAY(r64, r64);
 
+// --- Hash map --- //
+
+typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
+u128 Hash_MD5(const u8 *bytes, u32 length);
+
+#define DEF_HASHMAP(name, type) \
+struct HashMap_##name {         \
+	u128 *Keys;                 \
+	type *Values;               \
+	u32 Size, Capacity;         \
+};                              \
+                                \
+ void HashMap_##name##_Add(struct HashMap_##name *map, const u8* key, u32 keyLen, const type *t);   \
+ void HashMap_##name##_AddVal(struct HashMap_##name *map, const u8* key, u32 keyLen, const type t); \
+                                                                                                    \
+ void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyLen);               \
+                                                                                                    \
+type* HashMap_##name##_Find(struct HashMap_##name *map, const u8* key, u32 keyLen);                 \
+ i32  HashMap_##name##_FindIdx(struct HashMap_##name *map, const u8* key, u32 keyLen);              \
+                                                                                                    \
+ void HashMap_##name##_Free(struct HashMap_##name *map);                                            \
+
+#define DECL_HASHMAP(name, type) \
+void HashMap_##name##_Add(struct HashMap_##name *map, const u8* key, u32 keyLen, const type *t){   \
+	if(!t) return;                                                                                 \
+	if(map->Size == map->Capacity) {                                                               \
+		if(!map->Capacity) map->Capacity = 1;                                                      \
+		map->Capacity *= 2;                                                                        \
+		map->Keys = Reallocate(map->Keys, sizeof(u128) * map->Capacity);                           \
+		map->Values = Reallocate(map->Values, sizeof(type) * map->Capacity);                       \
+	}                                                                                              \
+	u128 k = Hash_MD5(key, keyLen);                                                                \
+	memcpy(map->Keys   + map->Size, &k, sizeof(u128));                                             \
+	memcpy(map->Values + map->Size,  t, sizeof(type));                                             \
+	map->Size++;                                                                                   \
+}                                                                                                  \
+                                                                                                   \
+void HashMap_##name##_AddVal(struct HashMap_##name *map, const u8* key, u32 keyLen, const type t){ \
+	HashMap_##name##_Add(map, key, keyLen, &t);                                                    \
+}                                                                                                  \
+                                                                                                   \
+void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyLen){               \
+	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
+	if(i < 0) return;                                                                              \
+	memmove(map->Keys   + i + 1, map->Keys   + i, sizeof(u128) * (map->Size-i));                   \
+	memmove(map->Values + i + 1, map->Values + i, sizeof(type) * (map->Size-i));                   \
+	map->Size--;                                                                                   \
+}                                                                                                  \
+                                                                                                   \
+type* HashMap_##name##_Find(struct HashMap_##name *map, const u8* key, u32 keyLen){                \
+	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
+	return (i >= 0 ? map->Values + i : NULL);                                                      \
+}                                                                                                  \
+i32 HashMap_##name##_FindIdx(struct HashMap_##name *map, const u8* key, u32 keyLen){               \
+	if(!map->Size) return -1;                                                                      \
+	u128 k = Hash_MD5(key, keyLen);                                                                \
+	for(u32 i = 0; i < map->Size; ++i) {                                                           \
+		if(memcmp(map->Keys + i, &k, sizeof(u128)) == 0)                                           \
+			return i;                                                                              \
+	}                                                                                              \
+	return -1;                                                                                     \
+}                                                                                                  \
+                                                                                                   \
+void HashMap_##name##_Free(struct HashMap_##name *map) {                                           \
+	Free(map->Keys);                                                                               \
+	Free(map->Values);                                                                             \
+	map->Keys = NULL;                                                                              \
+	map->Values = NULL;                                                                            \
+	map->Size = 0;                                                                                 \
+	map->Capacity = 0;                                                                             \
+}                                                                                                  \
+
+DEF_HASHMAP(r32, r32);
+DEF_HASHMAP(r64, r64);
+
+DEF_HASHMAP(u8,  u8);
+DEF_HASHMAP(u16, u16);
+DEF_HASHMAP(u32, u32);
+DEF_HASHMAP(u64, u64);
+
+DEF_HASHMAP(i8,  i8);
+DEF_HASHMAP(i16, i16);
+DEF_HASHMAP(i32, i32);
+DEF_HASHMAP(i64, i64);
+
 // --- Size units --- //
 
 extern u64 Bytes(u32 amt);
@@ -298,8 +383,6 @@ extern void Log(const char *__func, const char *__file, u32 __line,
 #define Log(level, fmt, ...) \
 	Log(__func__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
-typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
-u128 Hash_MD5(const u8 *bytes, u32 length);
 
 #endif
 

@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+//
+// Arrays 
+//
+
 DECL_ARRAY(u8, u8);
 DECL_ARRAY(u16, u16);
 DECL_ARRAY(u32, u32);
@@ -19,6 +23,24 @@ DECL_ARRAY(i64, i64);
 
 DECL_ARRAY(r32, r32);
 DECL_ARRAY(r64, r64);
+
+//
+// Hashmaps
+//
+
+DECL_HASHMAP(r32, r32);
+DECL_HASHMAP(r64, r64);
+
+DECL_HASHMAP(u8,  u8);
+DECL_HASHMAP(u16, u16);
+DECL_HASHMAP(u32, u32);
+DECL_HASHMAP(u64, u64);
+
+DECL_HASHMAP(i8,  i8);
+DECL_HASHMAP(i16, i16);
+DECL_HASHMAP(i32, i32);
+DECL_HASHMAP(i64, i64);
+
 
 const r64 Tau        = 6.28318530717958647692;
 const r64 Pi         = 3.14159265358979323846;
@@ -302,7 +324,11 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 	// append original length in bits mod 2^64 to message
 	u64 modlen = (length*8) % ((u64)1 << 63);
 	memcpy(buf + (bufLength - 1 - sizeof(u64)), &modlen, sizeof(u64)) ;
-	// Log(INFO, "Length: %d, Padding: %d, Buffer length: %d, Length*8 mod 2^64: %lu", length, padding, bufLength, modlen);
+	/*
+	Log(INFO, 
+	    "Length: %d, Padding: %d, Buffer length: %d, Length*8 mod 2^64: %lu", 
+		length, padding, bufLength, modlen);
+	*/
 
 	for(u32 i = 0; i < bufLength; i+=64)
 	{
