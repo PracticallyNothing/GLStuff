@@ -5,168 +5,101 @@
 #include <string.h>
 #include <time.h>
 
-#include "Camera.h"
 #include "Common.h"
 #include "Math3D.h"
 #include "Render.h"
+#include "SDL_video.h"
 #include "Shader.h"
-#include "WavefrontOBJ.h"
-#include "stb_image.h"
-#include "Phys.h"
+#include "JSON.h"
 
-r64 r2() {
-	return (r64) rand() / (RAND_MAX)* 100.0 - 50;
+const struct JSON_Value*
+JSON_ObjectFind(const struct JSON_Value *v, const char* key)
+{
+	if(v->Type != JSON_Object)
+		return NULL;
+
+	u128 hash = Hash_MD5((u8*) key, strlen(key));
+	i32 i = Array_Hash_Find(&v->Object.Keys, &hash);
+
+	return (i >= 0 ? v->Object.Values.Data + i : NULL);
 }
 
-void GenRandTri(Vec3* t)
+RGB JSON_ArrayToRGB(const struct JSON_Value *arr)
 {
-	t[0] = V3(r2(), r2(), r2());
-	t[1] = V3(r2(), r2(), r2());
-	t[2] = V3(r2(), r2(), r2());
+	return V3(
+		arr->Array.Data[0].Number / 255,
+		arr->Array.Data[1].Number / 255,
+		arr->Array.Data[2].Number / 255
+	);
 }
 
-void DrawGrid(OrbitCamera c, i32 size)
-{
-	Vec3 *points = Allocate(sizeof(Vec3) * 4 * size);
-	for(u32 i = 0; i < size; i++)
-	{
-		points[(i*4)+0] = V3((r32) i-size/2, 0, -size);
-		points[(i*4)+1] = V3((r32) i-size/2, 0,  size);
+u32 PrevDay(u32 Weekday) { return Weekday == 0 ? 6 : Weekday-1; }
+u32 NextDay(u32 Weekday) { return Weekday == 6 ? 0 : Weekday+1; }
 
-		points[(i*4)+2] = V3(-size, 0, ((r32) i)-size/2);
-		points[(i*4)+3] = V3( size, 0, ((r32) i)-size/2);
-	}
-	R3D_DrawLines(OrbitCamera_ToCamera(c), points, size*2, V4(0.8, 0.8, 0.8, 1));
-	Free(points);
+r32 ParseTime(const char* str)
+{
+	const char* s = strchr(str, ':');
+	return (String_ToR32_N(str, s - str) + (String_ToR32_N(s+1, strlen(s+1))/60.0))/ 24.0;
 }
 
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 	srand(time(NULL));
 
-	RSys_Init(1280, 720);
-	RGB ClearColor = HexToRGB("52a9e0");
-	// Vec3 HSV = RGBToHSV(ClearColor);
-	// HSV.z -= 0.4;
-	// ClearColor = HSVToRGB(HSV);
-	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
+	RSys_Init(640, 480);
 
 	SDL_Event e;
 	u32 Ticks = 0;
 
-	// Wavefront OBJ to OpenGL setup
-	WObj_Library *Speedboat = WObj_FromFile("res/models/speedboat_2.obj");
-	if(!Speedboat)
-	{
-		Log(FATAL, "speedboat.obj couldn't load.", "");
-		return -1;
-	}
-
-	u32 *VAOs         = Allocate(sizeof(u32) * Speedboat->NumObjects);
-	u32 *IndexBuffers = Allocate(sizeof(u32) * Speedboat->NumObjects);
-	glGenVertexArrays(Speedboat->NumObjects, VAOs);
-	glGenBuffers(Speedboat->NumObjects, IndexBuffers);
-
-	//struct RSys_Texture testUV = RSys_TextureFromFile("res/textures/test-uv.jpg");
-
-	//struct RSys_Texture noise      = RSys_TextureFromFile("res/textures/noise.jpg");
-	//struct RSys_Texture foam       = RSys_TextureFromFile("res/textures/Foam002_2K_Color.jpg");
-	//struct RSys_Texture waveHeight = RSys_TextureFromFile("res/textures/wave_height.png");
-
-	for(u32 i = 0; i < Speedboat->NumObjects; i++)
-	{
-		glBindVertexArray(VAOs[i]);
-		u32 VBO;
-		glGenBuffers(1, &VBO);
-
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-		glEnableVertexAttribArray(2);
-
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(
-			GL_ARRAY_BUFFER,
-			Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
-			Speedboat->Objects[i].Vertices,
-			GL_STATIC_DRAW
-		);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Position));
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, UV));
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Normal));
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
-		glBufferData(
-			GL_ELEMENT_ARRAY_BUFFER,
-			Speedboat->Objects[i].NumIndices * sizeof(u32),
-			Speedboat->Objects[i].Indices,
-			GL_STATIC_DRAW
-		);
-	}
-
-	// Generate water tile.
-	const u32 w = 20;
-	const u32 l = 20;
-	const u32 sz = w*l;
-	Vec3 *pos = Allocate(sizeof(Vec3) * sz * 6);
-	for(u32 z = 0; z < w; z++)
-		for(u32 x = 0; x < l; x++)
-		{
-			pos[(x + z*w)*6 + 0] = V3(1.0/w *  x   , 0, 1.0/l * (z+1));
-			pos[(x + z*w)*6 + 1] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 2] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
-			pos[(x + z*w)*6 + 3] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 4] = V3(1.0/w * (x+1), 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 5] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
-		}
-	u32 WaterTileVAO = 0;
-	u32 WaterTileVBO = 0;
-	glGenVertexArrays(1, &WaterTileVAO);
-	glBindVertexArray(WaterTileVAO);
-	glGenBuffers(1, &WaterTileVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, WaterTileVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3)*sz*6, pos, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	Free(pos);
-
-	struct Shader
-		*s      = Shader_FromFile("res/shaders/3d/unlit-tex.glsl"),
-		*sWire  = Shader_FromFile("res/shaders/3d/unlit-col.glsl"),
-		*sWater = Shader_FromFile("res/shaders/3d/water.glsl");
-
-	Log(Log_Info, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
 	float Time = 0;
 
-	Vec2 InitialDragMousePos = V2C(0, 0);
-	Vec2 InitialYawPitch = V2C(0, 0);
-	bool8 MouseDragging = 0;
+	RGB text, bg, notFree, free, unknown;
 
-	OrbitCamera Cam = {
-		.Center = V3C(0,0,0),
-		.ZNear = 1e-2,
-		.ZFar = 1e10,
-		.VerticalFoV = Pi_Half,
-		.Yaw = DegToRad(290),
-		.Pitch = DegToRad(45),
-		.Radius = 20,
-		.AspectRatio = RSys_GetSize().AspectRatio
+	struct JSON_Value v = JSON_FromFile("Schedules.json");
+	const struct JSON_Value 
+		*settings = JSON_ObjectFind(&v, "settings"),
+		*colors   = JSON_ObjectFind(settings, "colors"),
+		*jsonText    = JSON_ObjectFind(colors, "text"),
+		*jsonBg      = JSON_ObjectFind(colors, "bg"),
+		*jsonNotFree = JSON_ObjectFind(colors, "not-free"),
+		*jsonFree    = JSON_ObjectFind(colors, "free"),
+		*jsonUnknown = JSON_ObjectFind(colors, "unknown");
+
+
+	if(jsonText)    text    = JSON_ArrayToRGB(jsonText);
+	if(jsonBg)      bg      = JSON_ArrayToRGB(jsonBg);
+	if(jsonNotFree) notFree = JSON_ArrayToRGB(jsonNotFree);
+	if(jsonFree)    free    = JSON_ArrayToRGB(jsonFree);
+	if(jsonUnknown) unknown = JSON_ArrayToRGB(jsonUnknown);
+
+	glClearColor(bg.r, bg.g, bg.b, 1);
+
+	const struct JSON_Value *schedules = JSON_ObjectFind(&v, "schedules");
+	r32 MaxNameLength = 0;
+
+	for(u32 i = 0; i < schedules->Array.Size; ++i)
+	{
+		const struct JSON_Value* sc = JSON_ObjectFind(schedules->Array.Data + i, "name-en");
+		MaxNameLength = MAX(MaxNameLength, R2D_GetTextExtents(&R2D_DefaultFont_Large, sc->String).x);
+	}
+
+	const char* WeekdayStrings[] = {
+		"MONDAY",
+		"TUESDAY",
+		"WEDNESDAY",
+		"THURSDAY",
+		"FRIDAY",
+		"SATURDAY",
+		"SUNDAY"
 	};
+	u32 Weekday = 0;
 
-	struct TriHull a, b;
-	a.NumTris = 1;
-	b.NumTris = 1;
-	a.Transform = NULL;
-	b.Transform = NULL;
-	a.TriPoints = Allocate(sizeof(Vec3)*3);
-	b.TriPoints = Allocate(sizeof(Vec3)*3);
+	Vec2 MousePos;
 
-	GenRandTri(a.TriPoints);
-	GenRandTri(b.TriPoints);
-	struct Intersection intersection = TriHull_Intersect(a, b);
+	bool8 Draw = 1;
+	Log(Log_Info, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
 
 	while(1) {
 		Ticks = SDL_GetTicks();
@@ -176,19 +109,18 @@ int main(int argc, char *argv[]) {
 				case SDL_QUIT: goto end;
 				case SDL_KEYUP: {
 					switch(e.key.keysym.sym) {
-						case SDLK_ESCAPE:
-							goto end;
-						case SDLK_r:
-							// Shader_Reload(sWater);
-							// Shader_Reload(sWire);
-							// Shader_Reload(s);
-							Log(INFO, "Generating new triangles.", "");
-							GenRandTri(a.TriPoints);
-							GenRandTri(b.TriPoints);
-							intersection = TriHull_Intersect(a, b);
-							break;
-						default:
-							break;
+						case SDLK_ESCAPE: goto end;
+						case SDLK_1: Weekday = 0; break;
+						case SDLK_2: Weekday = 1; break;
+						case SDLK_3: Weekday = 2; break;
+						case SDLK_4: Weekday = 3; break;
+						case SDLK_5: Weekday = 4; break;
+						case SDLK_6: Weekday = 5; break;
+						case SDLK_7: Weekday = 6; break;
+						case SDLK_LEFT:  Weekday = PrevDay(Weekday); break;
+						case SDLK_RIGHT: Weekday = NextDay(Weekday); break;
+						case SDLK_TAB:   Weekday = (e.key.keysym.mod & KMOD_SHIFT ? PrevDay(Weekday) : NextDay(Weekday)); break;
+						default: break;
 					}
 				} break;
 				case SDL_WINDOWEVENT: {
@@ -198,215 +130,192 @@ int main(int argc, char *argv[]) {
 						case SDL_WINDOWEVENT_RESIZED: {
 							i32 w = e.window.data1, h = e.window.data2;
 							glViewport(0, 0, w, h);
-							Cam.AspectRatio = (r32) w/h;
 							break;
 						}
+						case SDL_WINDOWEVENT_FOCUS_GAINED:
+						case SDL_WINDOWEVENT_EXPOSED:
+						case SDL_WINDOWEVENT_ENTER:
+							Draw = 1;
+							break;
+						case SDL_WINDOWEVENT_LEAVE:
+						case SDL_WINDOWEVENT_FOCUS_LOST:
+						case SDL_WINDOWEVENT_HIDDEN:
+							Draw = 0;
+							break;
+						default:
+							Log(INFO, "Unhandled window event %d.", e.window.event);
+							break;
 					}
 				} break;
 				case SDL_MOUSEMOTION: {
-					if(MouseDragging) {
-						r32 dx = (e.motion.x - InitialDragMousePos.x) / 512.0;
-						r32 dy = (e.motion.y - InitialDragMousePos.y) / 256.0;
-
-						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
-						Cam.Pitch = Clamp_R32(
-							(-dy) * Pi_Half + InitialYawPitch.y,
-							DegToRad(0.1),
-							DegToRad(179.9)
-						);
-						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
-					}
+					MousePos = V2(e.motion.x, e.motion.y);
 				} break;
-				case SDL_MOUSEBUTTONDOWN: {
-					if(e.button.button == SDL_BUTTON_RIGHT) {
-						// Begin camera drag if it hasn't been started yet.
-						MouseDragging = 1;
-
-						InitialDragMousePos = V2(e.button.x, e.button.y);
-						InitialYawPitch     = V2(Cam.Yaw, Cam.Pitch);
-					}
-				} break;
-				case SDL_MOUSEWHEEL: {
-					//Cam.VerticalFoV = MAX(Pi_Quarter + 0.05, MIN(Pi, Cam.VerticalFoV - e.wheel.y * 0.1));
-					Cam.Radius = MAX(2, MIN(50, Cam.Radius - e.wheel.y));
-				} break;
-				case SDL_MOUSEBUTTONUP: {
-					if(e.button.button == SDL_BUTTON_RIGHT)
-						MouseDragging = 0;
-				} break;
-				default: {
-				} break;
+				case SDL_MOUSEBUTTONDOWN: {} break;
+				case SDL_MOUSEWHEEL:      {} break;
+				case SDL_MOUSEBUTTONUP:   {} break;
+				default: {} break;
 			}
 		}
 
 		// Render frame to back buffer.
-		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			/*
-			   glActiveTexture(GL_TEXTURE0);
-			   glBindTexture(GL_TEXTURE_2D, testUV.Id);
+		if(Ticks - RSys_GetLastFrameTime() > 16 && Draw) {
+			const r32 padding = 20;
 
-			   Mat4 view, VP;
+			RSys_Size sz = RSys_GetSize();
+			r32 textHeight = 0;
 
-			   OrbitCamera_Mat4(Cam, view, VP);
-			   Mat4_MultMat(VP, view);
-
-			// Draw the actual speedboat.
-			Shader_Use(s);
 			{
-			Mat4 model;
-			Transform3D t = Transform3D_Default;
-			t.Position = V3(0, 0.3, 0);
-			Transform3D_Mat4(t, model);
-			Mat4 MVP;
-			Mat4_Copy(MVP, VP);
-			Mat4_MultMat(MVP, model);
-			Shader_UniformMat4(s, "MVP", MVP);
+				Vec2 szt[7] = {0};
+				r32 sumSz = padding*6;
+
+				for(u32 i = 0; i < 7; ++i) {
+					Vec2 textSz = R2D_GetTextExtents(&R2D_DefaultFont_Large, WeekdayStrings[i]);
+					sumSz += textSz.x;
+					szt[i] = textSz;
+				}
+
+				r32 pos = sz.Width/2 - sumSz/2;
+
+				for(u32 i = 0; i < 7; ++i)
+				{
+					R2D_DrawText(
+						V2(pos, 10),
+						V4_V3(text, (Weekday == i ? 1 : 0.5)),
+						V4(0,0,0,0),
+						&R2D_DefaultFont_Large,
+						WeekdayStrings[i]
+					);
+					pos += szt[i].x + 20;
+				}
+				textHeight = szt[0].y;
 			}
-			for(u32 i = 0; i < Speedboat->NumObjects; i++)
+
+			// Draw separator
+			struct R2D_Rect r;
+			r.Position = V2(0, textHeight + 10 + 5);
+			r.Size = V2(sz.Width, 2);
+			r.Color = V4_V3(text, 1);
+
+			R2D_DrawRects(&r, 1, 1);
+			
+			// Draw names
+			r32 penY = textHeight + 10 + 5 + 50;
+
+			r.Position = V2(40 + MaxNameLength, textHeight+10+5);
+			r.Size = V2(2, sz.Height - (textHeight+10+5));
+			R2D_DrawRects(&r, 1, 1);
+
+			r.Color = V4_V3(text, 0.7);
+			r.Position = V2(0, penY);
+			r.Size = V2(sz.Width, 1);
+			R2D_DrawRects(&r, 1, 1);
+
+			for(u32 i = 0; i < schedules->Array.Size; ++i)
 			{
-			glBindVertexArray(VAOs[i]);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
-			glDrawElements(GL_TRIANGLES, Speedboat->Objects[i].NumIndices, GL_UNSIGNED_INT, NULL);
+				const struct JSON_Value 
+					*sc = schedules->Array.Data + i,
+					*name = JSON_ObjectFind(sc, "name-en"),
+					*schedule = JSON_ObjectFind(sc, "schedule");
+
+				Vec2 textSz = 
+					R2D_GetTextExtents(&R2D_DefaultFont_Large, name->String);
+
+				bool8 b = schedule->Array.Data[Weekday].Boolean;
+				if(schedule->Array.Data[Weekday].Type == JSON_Boolean) 
+				{
+					struct R2D_Rect r2 = {
+						.Position = V2(40 + MaxNameLength + 2, penY+1),
+						.Size     = V2(sz.Width - MaxNameLength - 2, 20 + textSz.y - 2),
+						.Color    = V4_V3((b ? free : notFree), 1),
+					};
+					R2D_DrawRects(&r2, 1, 1);
+				}
+				else if(schedule->Array.Data[Weekday].Type == JSON_Null) 
+				{
+					struct R2D_Rect r2 = {
+						.Position = V2(40 + MaxNameLength + 2, penY+1),
+						.Size     = V2(sz.Width - MaxNameLength - 2, 20 + textSz.y - 2),
+						.Color    = V4_V3(unknown, 1),
+					};
+					R2D_DrawRects(&r2, 1, 1);
+				} 
+				else if(schedule->Array.Data[Weekday].Type == JSON_Array) 
+				{
+					const struct JSON_Value *dayParts = schedule->Array.Data + Weekday;
+
+					struct R2D_Rect *rects = 
+						Allocate(sizeof(struct R2D_Rect) * dayParts->Array.Size);
+
+					for(u32 i = 0; i < dayParts->Array.Size; ++i)
+					{
+						const struct JSON_Value 
+							*start = dayParts->Array.Data[i].Array.Data,
+							*end   = dayParts->Array.Data[i].Array.Data + 1;
+
+						r32 startF = ParseTime(start->String),
+							endF   = ParseTime(end->String);
+
+						r32 TotalSchedWidth = sz.Width - MaxNameLength - 2;
+
+						rects[i].Position = 
+							V2(40 + MaxNameLength + 2 + TotalSchedWidth * startF, penY+1);
+
+						rects[i].Size = 
+							V2(TotalSchedWidth * (endF - startF), 20 + textSz.y - 2);
+
+						rects[i].Color = V4_V3(notFree, 1);
+					}
+
+					R2D_DrawRects(rects, dayParts->Array.Size, 1);
+				}
+
+				penY += 10;
+				R2D_DrawText(
+					V2(20, penY),
+					V4_V3(text, 1),
+					V4(0,0,0,0),
+					&R2D_DefaultFont_Large,
+					name->String
+				);
+
+				penY += textSz.y + 10;
+
+				r.Position = V2(0, penY);
+				R2D_DrawRects(&r, 1, 1);
 			}
 
-			// Now draw the water underneath.
-			Shader_Use(sWater);
-			Shader_UniformMat4(sWater, "VP", VP);
-			Transform3D t = Transform3D_Default;
-			t.Position = V3(0,0,0);
-			t.Scale = V3(10, 1, 10);
+			if(MousePos.x > MaxNameLength + 40 && MousePos.y > textHeight + 10 + 5)
 			{
-			Mat4 model;
-			Transform3D_Mat4(t, model);
-			Shader_UniformMat4(sWater, "model", model);
+				struct R2D_Rect crosshair = {
+					.Position = V2(MousePos.x, textHeight + 10+5+1),
+					.Size     = V2(1, sz.Height - (textHeight + 10+5)),
+					.Color    = V4_V3(text, 1)
+				};
+
+				R2D_DrawRects(&crosshair, 1, 1);
+
+				r32 minutes = (MousePos.x - (MaxNameLength+40)) / (sz.Width - (MaxNameLength+40)) * 60 * 24;
+				r32 hours   = floor(minutes / 60.0);
+				minutes     = floor(fmod(minutes, 60.0));
+
+				//Log(INFO, "Hours: %.5f | Minutes: %.5f", hours, minutes);
+
+				const char* fmt = "%02.0f:%02.0f (%g/%d)";
+
+				Vec2 ext = R2D_GetTextExtents(&R2D_DefaultFont_Large, fmt, hours, minutes, MousePos.x, sz.Width);
+
+				R2D_DrawText(
+					V2(
+						(MousePos.x - ext.x - 10 < MaxNameLength + 50 ? MousePos.x + 10 : MousePos.x - ext.x - 10),
+						textHeight/2 + 10+5+25
+					),
+					V4_V3(text, 1), 
+					V4(0,0,0,0),
+					&R2D_DefaultFont_Large, fmt, 
+					hours, minutes, MousePos.x, sz.Width
+				);
+
 			}
-			Shader_Uniform1f(sWater, "time", Time);
-			Shader_Uniform1i(sWater, "noise", 0);
-			Shader_Uniform1i(sWater, "foam", 1);
-			Shader_Uniform1i(sWater, "waveHeight", 2);
-
-			glBindVertexArray(WaterTileVAO);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, noise.Id);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, foam.Id);
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, waveHeight.Id);
-
-			for(i32 x = -20; x < 20; x++)
-			{
-			for(i32 z = -20; z < 20; z++)
-			{
-			t.Position = Vec3_MultVec(V3(x,0,z), t.Scale);
-			Mat4 model;
-			Transform3D_Mat4(t, model);
-			Shader_UniformMat4(sWater, "model", model);
-			glDrawArrays(GL_TRIANGLES, 0, sz*6);
-			}
-			}
-			*/
-
-			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam),
-				a.TriPoints[0],
-				a.TriPoints[1],
-				a.TriPoints[2],
-				V4(1, 1, 0, 1)
-			);
-			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam),
-				b.TriPoints[0],
-				b.TriPoints[1],
-				b.TriPoints[2],
-				V4(1, 0, 1, 1)
-			);
-
-			Vec3 centerA, centerB;
-			Vec3 circumCenterA, circumCenterB;
-			Vec3 computedNA, computedNB;
-			Vec3 nA, nB;
-
-			centerA = Vec3_TriCenter(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			centerB = Vec3_TriCenter(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			circumCenterA = Triangle_CircumsphereCenter(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			circumCenterB = Triangle_CircumsphereCenter(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			computedNA = Vec3_Cross(Vec3_Sub(a.TriPoints[1], a.TriPoints[0]), Vec3_Sub(a.TriPoints[2], a.TriPoints[0]));
-			computedNB = Vec3_Cross(Vec3_Sub(b.TriPoints[1], b.TriPoints[0]), Vec3_Sub(b.TriPoints[2], b.TriPoints[0]));
-
-			nA = Triangle_GetNormal(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			nB = Triangle_GetNormal(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			r32 d1 = Vec3_Dot(Vec3_Neg(computedNA), a.TriPoints[0]);
-			r32 d2 = Vec3_Dot(Vec3_Neg(computedNB), b.TriPoints[0]);
-
-			Vec3 D = Vec3_Cross(computedNA, computedNB);
-			r32 det = Vec3_Len2(D);
-			Vec3 O = Vec3_DivScal(Vec3_Add(
-						Vec3_MultScal(Vec3_Cross(D, computedNB), d1),
-						Vec3_MultScal(Vec3_Cross(computedNA, D), d2)), det);
-
-			//computedNA = nA;
-			//computedNB = nB;
-
-			Vec3 normalsA[6] =
-			{
-				a.TriPoints[0], Vec3_Add(a.TriPoints[0], nA),
-				a.TriPoints[1], Vec3_Add(a.TriPoints[1], nA),
-				a.TriPoints[2], Vec3_Add(a.TriPoints[2], nA),
-			};
-			Vec3 normalsB[6] =
-			{
-				b.TriPoints[0], Vec3_Add(b.TriPoints[0], nB),
-				b.TriPoints[1], Vec3_Add(b.TriPoints[1], nB),
-				b.TriPoints[2], Vec3_Add(b.TriPoints[2], nB),
-			};
-
-			//R3D_DrawLine(OrbitCamera_ToCamera(Cam), centerA, Vec3_Add(centerA, computedNA), V4(1,0,0,1));
-			//R3D_DrawLine(OrbitCamera_ToCamera(Cam), centerB, Vec3_Add(centerB, computedNB), V4(1,0,0,1));
-
-			R3D_DrawLines(OrbitCamera_ToCamera(Cam), normalsA, 3, V4(1,1,1,1));
-			R3D_DrawLines(OrbitCamera_ToCamera(Cam), normalsB, 3, V4(1,1,1,1));
-
-			DrawGrid(Cam, 200);
-
-			glClear(GL_DEPTH_BUFFER_BIT);
-
-			R3D_DrawLine(OrbitCamera_ToCamera(Cam), O, Vec3_Add(O, D), V4(0,1,0,1));
-
-			//R3D_DrawWireSphere(OrbitCamera_ToCamera(Cam), circumCenterA, Triangle_CircumsphereRadius(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]), V4(0.5, 1, 0.5, 1));
-			//R3D_DrawWireSphere(OrbitCamera_ToCamera(Cam), circumCenterB, Triangle_CircumsphereRadius(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]), V4(0.5, 1, 0.5, 1));
-
-			R2D_DrawText(
-				V2(10, 10),
-				V4(1,1,1,1),
-				V4(0, 0, 0, 0.2),
-				&R2D_DefaultFont_Large,
-				"Allocated memory: %.2f kiB\n"
-				"\n"
-				"Yellow: A (%5.2f, %5.2f, %5.2f)\n"
-			    "        B (%5.2f, %5.2f, %5.2f)\n"
-				"        C (%5.2f, %5.2f, %5.2f)\n"
-				"\n"
-				"Purple: A (%5.2f, %5.2f, %5.2f)\n"
-				"        B (%5.2f, %5.2f, %5.2f)\n"
-				"        C (%5.2f, %5.2f, %5.2f)\n"
-				"\n"
-				"Intersection: %s",
-				Alloc_GetTotalSize() / 1024.0,
-
-				a.TriPoints[0].x, a.TriPoints[0].y, a.TriPoints[0].z,
-				a.TriPoints[1].x, a.TriPoints[1].y, a.TriPoints[1].z,
-				a.TriPoints[2].x, a.TriPoints[2].y, a.TriPoints[2].z,
-
-				b.TriPoints[0].x, b.TriPoints[0].y, b.TriPoints[0].z,
-				b.TriPoints[1].x, b.TriPoints[1].y, b.TriPoints[1].z,
-				b.TriPoints[2].x, b.TriPoints[2].y, b.TriPoints[2].z,
-
-				(intersection.Occurred ? "YES!" : "No.")
-			);
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();
@@ -418,12 +327,6 @@ int main(int argc, char *argv[]) {
 
 end:
 	RSys_Quit();
-
-	WObj_Library_Free(Speedboat);
-	Shader_Free(s);
-	Shader_Free(sWire);
-	Shader_Free(sWater);
-	Alloc_PrintInfo();
-
 	Alloc_FreeAll();
+	return 0;
 }
