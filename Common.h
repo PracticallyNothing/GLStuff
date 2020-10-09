@@ -261,8 +261,8 @@ struct HashMap_##name {         \
                                                                                                     \
  void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyLen);               \
                                                                                                     \
-type* HashMap_##name##_Find(struct HashMap_##name *map, const u8* key, u32 keyLen);                 \
- i32  HashMap_##name##_FindIdx(struct HashMap_##name *map, const u8* key, u32 keyLen);              \
+type* HashMap_##name##_Find(const struct HashMap_##name *map, const u8* key, u32 keyLen);           \
+ i32  HashMap_##name##_FindIdx(const struct HashMap_##name *map, const u8* key, u32 keyLen);        \
                                                                                                     \
  void HashMap_##name##_Free(struct HashMap_##name *map);                                            \
 
@@ -293,11 +293,11 @@ void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyL
 	map->Size--;                                                                                   \
 }                                                                                                  \
                                                                                                    \
-type* HashMap_##name##_Find(struct HashMap_##name *map, const u8* key, u32 keyLen){                \
+type* HashMap_##name##_Find(const struct HashMap_##name *map, const u8* key, u32 keyLen){          \
 	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
 	return (i >= 0 ? map->Values + i : NULL);                                                      \
 }                                                                                                  \
-i32 HashMap_##name##_FindIdx(struct HashMap_##name *map, const u8* key, u32 keyLen){               \
+i32 HashMap_##name##_FindIdx(const struct HashMap_##name *map, const u8* key, u32 keyLen){         \
 	if(!map->Size) return -1;                                                                      \
 	u128 k = Hash_MD5(key, keyLen);                                                                \
 	for(u32 i = 0; i < map->Size; ++i) {                                                           \

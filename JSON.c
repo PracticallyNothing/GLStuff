@@ -484,7 +484,7 @@ void JSON_Free(struct JSON_Value *v)
 	}
 }
 
-struct JSON_Value* JSON_ObjectFind(struct JSON_Value* v, const char* str)
+struct JSON_Value* JSON_ObjectFind(const struct JSON_Value* v, const char* str)
 {
 	if(!v || !str) return NULL;
 	return HashMap_JSON_Value_Find(&v->Object.Map, (u8*) str, strlen(str));

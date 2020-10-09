@@ -36,7 +36,7 @@ struct JSON_Value {
 	};
 };
 
-extern struct JSON_Value* JSON_ObjectFind(struct JSON_Value* v, const char* str);
+extern struct JSON_Value* JSON_ObjectFind(const struct JSON_Value* v, const char* str);
 
 extern struct JSON_Value JSON_FromString(const char* str);
 extern struct JSON_Value JSON_FromString_N(const char* str, u32 len);
