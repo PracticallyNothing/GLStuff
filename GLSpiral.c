@@ -12,18 +12,6 @@
 #include "Shader.h"
 #include "JSON.h"
 
-const struct JSON_Value*
-JSON_ObjectFind(const struct JSON_Value *v, const char* key)
-{
-	if(v->Type != JSON_Object)
-		return NULL;
-
-	u128 hash = Hash_MD5((u8*) key, strlen(key));
-	i32 i = Array_Hash_Find(&v->Object.Keys, &hash);
-
-	return (i >= 0 ? v->Object.Values.Data + i : NULL);
-}
-
 RGB JSON_ArrayToRGB(const struct JSON_Value *arr)
 {
 	return V3(
