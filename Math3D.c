@@ -173,30 +173,56 @@ r32 Mat4_Determinant(const Mat4 m) {
 	return A * Det[0] - B * Det[1] + C * Det[2] - D * Det[3];
 }
 
-i32 Mat2_Inverse(Mat2 m) {
+i32 Mat2_Inverse(Mat2 out, const Mat2 m) {
+	if(!out || !m)
+		return 0;
+
 	r32 Det = Mat2_Determinant(m);
 
-	if(Det == 0.0f) return 0;
+	if(Det == 0.0f) 
+		return 0;
 
-	Mat2_MultScal(m, 1.0 / Det);
+	Mat2 minor;
+
+	for(u32 i = 0; i < 2; i++)
+		for(u32 j = 0; j < 2; j++)
+			minor[j*2+i] = Mat2_Minor(m, i, j);
+
+	Mat2_MultScal(minor, 1.0 / Det);
+	Mat2_Copy(out, minor);
+
 	return 1;
 }
 
-i32 Mat3_Inverse(Mat3 m) {
+i32 Mat3_Inverse(Mat3 out, const Mat3 m) {
 	r32 Det = Mat3_Determinant(m);
 
 	if(Det == 0.0f) return 0;
 
-	Mat3_MultScal(m, 1.0 / Det);
+	Mat3 minor;
+
+	for(u32 i = 0; i < 3; i++)
+		for(u32 j = 0; j < 3; j++)
+			minor[j*3+i] = Mat3_Minor(m, i, j);
+
+	Mat3_MultScal(minor, 1.0 / Det);
+	Mat3_Copy(out, minor);
 	return 1;
 }
 
-i32 Mat4_Inverse(Mat4 m) {
+i32 Mat4_Inverse(Mat4 out, const Mat4 m) {
 	r32 Det = Mat4_Determinant(m);
 
 	if(Det == 0.0f) return 0;
 
-	Mat4_MultScal(m, 1.0 / Det);
+	Mat3 minor;
+
+	for(u32 i = 0; i < 4; i++)
+		for(u32 j = 0; j < 4; j++)
+			minor[j*4+i] = Mat4_Minor(m, i, j);
+
+	Mat4_MultScal(minor, 1.0 / Det);
+	Mat4_Copy(out, minor);
 	return 1;
 }
 
@@ -286,11 +312,67 @@ void Mat4_MultMat(Mat4 a, const Mat4 b) {
 	Mat4_Copy(a, out);
 }
 
+r32 Mat2_Minor(const Mat2 a, u32 i, u32 j) { return ((i+j) % 2 ? -1 : 1) * a[2*i + j]; }
+r32 Mat3_Minor(const Mat3 a, u32 i, u32 j) { 
+	if(i > 2 || j > 2) {
+		Log(WARN, "3x3 Matrix minor with incorrect coordinates (i: %d, j: %d)", i, j);
+		return 0;
+	}
+
+	Mat2 b;
+
+	for(u32 iA = 0, iB = 0; iA < 3 && iB < 2; iA++) 
+	{
+		if(iA == i)
+			continue;
+
+		for(u32 jA = 0, jB = 0; jA < 3 && jB < 2; jA++) 
+		{
+			if(jA == j)
+				continue;
+
+			b[iB*2 + jB] = a[iA*3 + jB];
+			jB++;
+		}
+
+		iB++;
+	}
+
+	return ((i+j) % 2 ? -1 : 1) * Mat2_Determinant(b);
+}
+
+r32 Mat4_Minor(const Mat4 a, u32 i, u32 j)
+{
+	if(i > 3 || j > 3) {
+		Log(WARN, "4x4 Matrix minor with incorrect coordinates (i: %d, j: %d)", i, j);
+		return 0;
+	}
+
+	Mat3 b;
+
+	for(u32 iA = 0, iB = 0; iA < 4 && iB < 3; iA++) 
+	{
+		if(iA == i)
+			continue;
+
+		for(u32 jA = 0, jB = 0; jA < 4 && jB < 3; jA++) 
+		{
+			if(jA == j)
+				continue;
+
+			b[iB*3 + jB] = a[iA*4 + jB];
+			jB++;
+		}
+
+		iB++;
+	}
+
+	return ((i+j) % 2 ? -1 : 1) * Mat3_Determinant(b);
+}
+
 i32 Mat2_DivMat(Mat2 a, const Mat2 b) {
 	Mat2 inverse;
-	Mat2_Copy(inverse, b);
-
-	if(!Mat2_Inverse(inverse)) return 0;
+	if(!Mat2_Inverse(inverse, b)) return 0;
 
 	Mat2_MultMat(a, inverse);
 	return 1;
@@ -298,9 +380,7 @@ i32 Mat2_DivMat(Mat2 a, const Mat2 b) {
 
 i32 Mat3_DivMat(Mat3 a, const Mat3 b) {
 	Mat3 inverse;
-	Mat3_Copy(inverse, b);
-
-	if(!Mat3_Inverse(inverse)) return 0;
+	if(!Mat3_Inverse(inverse, b)) return 0;
 
 	Mat3_MultMat(a, inverse);
 	return 1;
@@ -308,9 +388,7 @@ i32 Mat3_DivMat(Mat3 a, const Mat3 b) {
 
 i32 Mat4_DivMat(Mat4 a, const Mat4 b) {
 	Mat4 inverse;
-	Mat4_Copy(inverse, b);
-
-	if(!Mat4_Inverse(inverse)) return 0;
+	if(!Mat4_Inverse(inverse, b)) return 0;
 
 	Mat4_MultMat(a, inverse);
 	return 1;
