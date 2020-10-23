@@ -14,17 +14,6 @@
 #include "stb_image.h"
 #include "Phys.h"
 
-r64 r2() {
-	return (r64) rand() / (RAND_MAX)* 100.0 - 50;
-}
-
-void GenRandTri(Vec3* t)
-{
-	t[0] = V3(r2(), r2(), r2());
-	t[1] = V3(r2(), r2(), r2());
-	t[2] = V3(r2(), r2(), r2());
-}
-
 void DrawGrid(OrbitCamera c, i32 size)
 {
 	Vec3 *points = Allocate(sizeof(Vec3) * 4 * size);
@@ -46,9 +35,6 @@ int main(int argc, char *argv[]) {
 
 	RSys_Init(1280, 720);
 	RGB ClearColor = HexToRGB("52a9e0");
-	// Vec3 HSV = RGBToHSV(ClearColor);
-	// HSV.z -= 0.4;
-	// ClearColor = HSVToRGB(HSV);
 	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
 	SDL_Event e;
@@ -85,11 +71,11 @@ int main(int argc, char *argv[]) {
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 		glBufferData(
-			GL_ARRAY_BUFFER,
-			Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
-			Speedboat->Objects[i].Vertices,
-			GL_STATIC_DRAW
-		);
+				GL_ARRAY_BUFFER,
+				Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
+				Speedboat->Objects[i].Vertices,
+				GL_STATIC_DRAW
+				);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Position));
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, UV));
@@ -97,11 +83,11 @@ int main(int argc, char *argv[]) {
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
 		glBufferData(
-			GL_ELEMENT_ARRAY_BUFFER,
-			Speedboat->Objects[i].NumIndices * sizeof(u32),
-			Speedboat->Objects[i].Indices,
-			GL_STATIC_DRAW
-		);
+				GL_ELEMENT_ARRAY_BUFFER,
+				Speedboat->Objects[i].NumIndices * sizeof(u32),
+				Speedboat->Objects[i].Indices,
+				GL_STATIC_DRAW
+				);
 	}
 
 	// Generate water tile.
@@ -156,18 +142,6 @@ int main(int argc, char *argv[]) {
 		.AspectRatio = RSys_GetSize().AspectRatio
 	};
 
-	struct TriHull a, b;
-	a.NumTris = 1;
-	b.NumTris = 1;
-	a.Transform = NULL;
-	b.Transform = NULL;
-	a.TriPoints = Allocate(sizeof(Vec3)*3);
-	b.TriPoints = Allocate(sizeof(Vec3)*3);
-
-	GenRandTri(a.TriPoints);
-	GenRandTri(b.TriPoints);
-	struct Intersection intersection = TriHull_Intersect(a, b);
-
 	while(1) {
 		Ticks = SDL_GetTicks();
 
@@ -183,9 +157,6 @@ int main(int argc, char *argv[]) {
 							// Shader_Reload(sWire);
 							// Shader_Reload(s);
 							Log(INFO, "Generating new triangles.", "");
-							GenRandTri(a.TriPoints);
-							GenRandTri(b.TriPoints);
-							intersection = TriHull_Intersect(a, b);
 							break;
 						default:
 							break;
@@ -210,10 +181,10 @@ int main(int argc, char *argv[]) {
 
 						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
 						Cam.Pitch = Clamp_R32(
-							(-dy) * Pi_Half + InitialYawPitch.y,
-							DegToRad(0.1),
-							DegToRad(179.9)
-						);
+								(-dy) * Pi_Half + InitialYawPitch.y,
+								DegToRad(0.1),
+								DegToRad(179.9)
+								);
 						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
 					}
 				} break;
@@ -241,172 +212,7 @@ int main(int argc, char *argv[]) {
 
 		// Render frame to back buffer.
 		if(Ticks - RSys_GetLastFrameTime() > 16) {
-			/*
-			   glActiveTexture(GL_TEXTURE0);
-			   glBindTexture(GL_TEXTURE_2D, testUV.Id);
-
-			   Mat4 view, VP;
-
-			   OrbitCamera_Mat4(Cam, view, VP);
-			   Mat4_MultMat(VP, view);
-
-			// Draw the actual speedboat.
-			Shader_Use(s);
-			{
-			Mat4 model;
-			Transform3D t = Transform3D_Default;
-			t.Position = V3(0, 0.3, 0);
-			Transform3D_Mat4(t, model);
-			Mat4 MVP;
-			Mat4_Copy(MVP, VP);
-			Mat4_MultMat(MVP, model);
-			Shader_UniformMat4(s, "MVP", MVP);
-			}
-			for(u32 i = 0; i < Speedboat->NumObjects; i++)
-			{
-			glBindVertexArray(VAOs[i]);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
-			glDrawElements(GL_TRIANGLES, Speedboat->Objects[i].NumIndices, GL_UNSIGNED_INT, NULL);
-			}
-
-			// Now draw the water underneath.
-			Shader_Use(sWater);
-			Shader_UniformMat4(sWater, "VP", VP);
-			Transform3D t = Transform3D_Default;
-			t.Position = V3(0,0,0);
-			t.Scale = V3(10, 1, 10);
-			{
-			Mat4 model;
-			Transform3D_Mat4(t, model);
-			Shader_UniformMat4(sWater, "model", model);
-			}
-			Shader_Uniform1f(sWater, "time", Time);
-			Shader_Uniform1i(sWater, "noise", 0);
-			Shader_Uniform1i(sWater, "foam", 1);
-			Shader_Uniform1i(sWater, "waveHeight", 2);
-
-			glBindVertexArray(WaterTileVAO);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, noise.Id);
-			glActiveTexture(GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, foam.Id);
-			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_2D, waveHeight.Id);
-
-			for(i32 x = -20; x < 20; x++)
-			{
-			for(i32 z = -20; z < 20; z++)
-			{
-			t.Position = Vec3_MultVec(V3(x,0,z), t.Scale);
-			Mat4 model;
-			Transform3D_Mat4(t, model);
-			Shader_UniformMat4(sWater, "model", model);
-			glDrawArrays(GL_TRIANGLES, 0, sz*6);
-			}
-			}
-			*/
-
-			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam),
-				a.TriPoints[0],
-				a.TriPoints[1],
-				a.TriPoints[2],
-				V4(1, 1, 0, 1)
-			);
-			R3D_DrawTriangle(
-				OrbitCamera_ToCamera(Cam),
-				b.TriPoints[0],
-				b.TriPoints[1],
-				b.TriPoints[2],
-				V4(1, 0, 1, 1)
-			);
-
-			Vec3 centerA, centerB;
-			Vec3 circumCenterA, circumCenterB;
-			Vec3 computedNA, computedNB;
-			Vec3 nA, nB;
-
-			centerA = Vec3_TriCenter(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			centerB = Vec3_TriCenter(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			circumCenterA = Triangle_CircumsphereCenter(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			circumCenterB = Triangle_CircumsphereCenter(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			computedNA = Vec3_Cross(Vec3_Sub(a.TriPoints[1], a.TriPoints[0]), Vec3_Sub(a.TriPoints[2], a.TriPoints[0]));
-			computedNB = Vec3_Cross(Vec3_Sub(b.TriPoints[1], b.TriPoints[0]), Vec3_Sub(b.TriPoints[2], b.TriPoints[0]));
-
-			nA = Triangle_GetNormal(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]);
-			nB = Triangle_GetNormal(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]);
-
-			r32 d1 = Vec3_Dot(Vec3_Neg(computedNA), a.TriPoints[0]);
-			r32 d2 = Vec3_Dot(Vec3_Neg(computedNB), b.TriPoints[0]);
-
-			Vec3 D = Vec3_Cross(computedNA, computedNB);
-			r32 det = Vec3_Len2(D);
-			Vec3 O = Vec3_DivScal(Vec3_Add(
-						Vec3_MultScal(Vec3_Cross(D, computedNB), d1),
-						Vec3_MultScal(Vec3_Cross(computedNA, D), d2)), det);
-
-			//computedNA = nA;
-			//computedNB = nB;
-
-			Vec3 normalsA[6] =
-			{
-				a.TriPoints[0], Vec3_Add(a.TriPoints[0], nA),
-				a.TriPoints[1], Vec3_Add(a.TriPoints[1], nA),
-				a.TriPoints[2], Vec3_Add(a.TriPoints[2], nA),
-			};
-			Vec3 normalsB[6] =
-			{
-				b.TriPoints[0], Vec3_Add(b.TriPoints[0], nB),
-				b.TriPoints[1], Vec3_Add(b.TriPoints[1], nB),
-				b.TriPoints[2], Vec3_Add(b.TriPoints[2], nB),
-			};
-
-			//R3D_DrawLine(OrbitCamera_ToCamera(Cam), centerA, Vec3_Add(centerA, computedNA), V4(1,0,0,1));
-			//R3D_DrawLine(OrbitCamera_ToCamera(Cam), centerB, Vec3_Add(centerB, computedNB), V4(1,0,0,1));
-
-			R3D_DrawLines(OrbitCamera_ToCamera(Cam), normalsA, 3, V4(1,1,1,1));
-			R3D_DrawLines(OrbitCamera_ToCamera(Cam), normalsB, 3, V4(1,1,1,1));
-
 			DrawGrid(Cam, 200);
-
-			glClear(GL_DEPTH_BUFFER_BIT);
-
-			R3D_DrawLine(OrbitCamera_ToCamera(Cam), O, Vec3_Add(O, D), V4(0,1,0,1));
-
-			//R3D_DrawWireSphere(OrbitCamera_ToCamera(Cam), circumCenterA, Triangle_CircumsphereRadius(a.TriPoints[0], a.TriPoints[1], a.TriPoints[2]), V4(0.5, 1, 0.5, 1));
-			//R3D_DrawWireSphere(OrbitCamera_ToCamera(Cam), circumCenterB, Triangle_CircumsphereRadius(b.TriPoints[0], b.TriPoints[1], b.TriPoints[2]), V4(0.5, 1, 0.5, 1));
-
-			R2D_DrawText(
-				V2(10, 10),
-				V4(1,1,1,1),
-				V4(0, 0, 0, 0.2),
-				&R2D_DefaultFont_Large,
-				"Allocated memory: %.2f kiB\n"
-				"\n"
-				"Yellow: A (%5.2f, %5.2f, %5.2f)\n"
-			    "        B (%5.2f, %5.2f, %5.2f)\n"
-				"        C (%5.2f, %5.2f, %5.2f)\n"
-				"\n"
-				"Purple: A (%5.2f, %5.2f, %5.2f)\n"
-				"        B (%5.2f, %5.2f, %5.2f)\n"
-				"        C (%5.2f, %5.2f, %5.2f)\n"
-				"\n"
-				"Intersection: %s",
-				Alloc_GetTotalSize() / 1024.0,
-
-				a.TriPoints[0].x, a.TriPoints[0].y, a.TriPoints[0].z,
-				a.TriPoints[1].x, a.TriPoints[1].y, a.TriPoints[1].z,
-				a.TriPoints[2].x, a.TriPoints[2].y, a.TriPoints[2].z,
-
-				b.TriPoints[0].x, b.TriPoints[0].y, b.TriPoints[0].z,
-				b.TriPoints[1].x, b.TriPoints[1].y, b.TriPoints[1].z,
-				b.TriPoints[2].x, b.TriPoints[2].y, b.TriPoints[2].z,
-
-				(intersection.Occurred ? "YES!" : "No.")
-			);
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();

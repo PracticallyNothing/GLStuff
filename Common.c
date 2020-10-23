@@ -407,6 +407,9 @@ void Array_Allocation_Remove(struct Array_Allocation *a, u32 idx)
 	a->Size--;
 }
 
+
+#ifdef ALLOC_DEBUG
+
 static struct Array_Allocation Allocs = {0};
 static u32 SizesSum = 0;
 
@@ -423,20 +426,18 @@ static i32 Allocation_FindPtr(void *f) {
 	return -1;
 }
 
+#  undef Allocate
+#  undef Reallocate
+#  undef Free
 
+#  if 0
+#    define CHECK_ALLOC_LIMIT(sz) \
+		if(SizesSum + sz > Megabytes(50)) \
+			Log(FATAL, "Allocated over maximum limit from [%s:%d %s], exiting.", __file, __line, __func);
+#  else
+#    define CHECK_ALLOC_LIMIT(sz)
+#  endif
 u32 Alloc_GetTotalSize() { return SizesSum; }
-
-#undef Allocate
-#undef Reallocate
-#undef Free
-
-#if 0
-#define CHECK_ALLOC_LIMIT(sz) \
-	if(SizesSum + sz > Megabytes(50)) \
-		Log(FATAL, "Allocated over maximum limit from [%s:%d %s], exiting.", __file, __line, __func);
-#else
-#define CHECK_ALLOC_LIMIT(sz)
-#endif
 
 void Alloc_PrintInfo()
 {
@@ -554,6 +555,11 @@ void Alloc_FreeAll()
 	Allocs.Size = 0;
 	Allocs.Capacity = 0;
 }
+#endif
+
+u32 Alloc_GetTotalSize() { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); return 0; }
+void Alloc_PrintInfo()   { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); }
+void Alloc_FreeAll()     { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); }
 
 // --- Logging --- //
 

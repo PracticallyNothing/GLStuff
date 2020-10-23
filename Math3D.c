@@ -105,24 +105,24 @@ void Mat2_Copy(Mat2 out, const Mat2 m) { for(i32 i = 0; i <  4; ++i) out[i] = m[
 void Mat3_Copy(Mat3 out, const Mat3 m) { for(i32 i = 0; i <  9; ++i) out[i] = m[i]; }
 void Mat4_Copy(Mat4 out, const Mat4 m) { for(i32 i = 0; i < 16; ++i) out[i] = m[i]; }
 
-void Mat2_Neg(Mat2 m) { for(i32 i = 0; i < 4; ++i) m[i] = -m[i]; }
-void Mat3_Neg(Mat3 m) { for(i32 i = 0; i < 9; ++i) m[i] = -m[i]; }
+void Mat2_Neg(Mat2 m) { for(i32 i = 0; i <  4; ++i) m[i] = -m[i]; }
+void Mat3_Neg(Mat3 m) { for(i32 i = 0; i <  9; ++i) m[i] = -m[i]; }
 void Mat4_Neg(Mat4 m) { for(i32 i = 0; i < 16; ++i) m[i] = -m[i]; }
 
-void Mat2_Add(Mat2 a, const Mat2 b) { for(i32 i = 0; i < 4; ++i) a[i] += b[i]; }
-void Mat3_Add(Mat3 a, const Mat3 b) { for(i32 i = 0; i < 9; ++i) a[i] += b[i]; }
+void Mat2_Add(Mat2 a, const Mat2 b) { for(i32 i = 0; i <  4; ++i) a[i] += b[i]; }
+void Mat3_Add(Mat3 a, const Mat3 b) { for(i32 i = 0; i <  9; ++i) a[i] += b[i]; }
 void Mat4_Add(Mat4 a, const Mat4 b) { for(i32 i = 0; i < 16; ++i) a[i] += b[i]; }
 
-void Mat2_Sub(Mat2 a, const Mat2 b) { for(i32 i = 0; i < 4; ++i) a[i] -= b[i]; }
-void Mat3_Sub(Mat3 a, const Mat3 b) { for(i32 i = 0; i < 9; ++i) a[i] -= b[i]; }
+void Mat2_Sub(Mat2 a, const Mat2 b) { for(i32 i = 0; i <  4; ++i) a[i] -= b[i]; }
+void Mat3_Sub(Mat3 a, const Mat3 b) { for(i32 i = 0; i <  9; ++i) a[i] -= b[i]; }
 void Mat4_Sub(Mat4 a, const Mat4 b) { for(i32 i = 0; i < 16; ++i) a[i] -= b[i]; }
 
-void Mat2_MultScal(Mat2 a, r32 s) { for(i32 i = 0; i < 4; ++i) a[i] *= s; }
-void Mat3_MultScal(Mat3 a, r32 s) { for(i32 i = 0; i < 9; ++i) a[i] *= s; }
+void Mat2_MultScal(Mat2 a, r32 s) { for(i32 i = 0; i <  4; ++i) a[i] *= s; }
+void Mat3_MultScal(Mat3 a, r32 s) { for(i32 i = 0; i <  9; ++i) a[i] *= s; }
 void Mat4_MultScal(Mat4 a, r32 s) { for(i32 i = 0; i < 16; ++i) a[i] *= s; }
 
-void Mat2_DivScal(Mat2 a, r32 s) { for(i32 i = 0; i < 4; ++i) a[i] /= s; }
-void Mat3_DivScal(Mat3 a, r32 s) { for(i32 i = 0; i < 9; ++i) a[i] /= s; }
+void Mat2_DivScal(Mat2 a, r32 s) { for(i32 i = 0; i <  4; ++i) a[i] /= s; }
+void Mat3_DivScal(Mat3 a, r32 s) { for(i32 i = 0; i <  9; ++i) a[i] /= s; }
 void Mat4_DivScal(Mat4 a, r32 s) { for(i32 i = 0; i < 16; ++i) a[i] /= s; }
 
 extern Vec2 Mat2_MultVec2(const Mat2 m, Vec2 v) {
@@ -135,9 +135,9 @@ extern Vec3 Mat3_MultVec3(const Mat3 m, Vec3 v) {
 	          v.x * m[6] + v.y * m[7] + v.z * m[8]);
 }
 extern Vec4 Mat4_MultVec4(const Mat4 m, Vec4 v) {
-	return V4(v.x * m[0] + v.y * m[1] + v.z * m[2] + v.w * m[3],
-	          v.x * m[4] + v.y * m[5] + v.z * m[6] + v.w * m[7],
-	          v.x * m[8] + v.y * m[9] + v.z * m[10] + v.w * m[11],
+	return V4(v.x * m[ 0] + v.y * m[ 1] + v.z * m[ 2] + v.w * m[ 3],
+	          v.x * m[ 4] + v.y * m[ 5] + v.z * m[ 6] + v.w * m[ 7],
+	          v.x * m[ 8] + v.y * m[ 9] + v.z * m[10] + v.w * m[11],
 	          v.x * m[12] + v.y * m[13] + v.z * m[14] + v.w * m[15]);
 }
 
@@ -152,15 +152,17 @@ r32 Mat3_Determinant(const Mat3 m) {
 		D = m[3], E = m[4], F = m[5],
 		G = m[6], H = m[7], I = m[8];
 
-	return A * (E * I - F * H) - B * (D * I - F * G) + C * (D * H - E * G);
+	return A * (E * I - F * H) 
+		 - B * (D * I - F * G) 
+		 + C * (D * H - E * G);
 }
 
 r32 Mat4_Determinant(const Mat4 m) {
 	// Thank you, Excel and Libreoffice Calc.
 
-	r32 A = m[0], B = m[1], C = m[2], D = m[3], 
-		E = m[4], F = m[5], G = m[6], H = m[7], 
-		I = m[8], J = m[9], K = m[10], L = m[11], 
+	r32 A = m[ 0], B = m[ 1], C = m[ 2], D = m[ 3], 
+		E = m[ 4], F = m[ 5], G = m[ 6], H = m[ 7], 
+		I = m[ 8], J = m[ 9], K = m[10], L = m[11], 
 		M = m[12], N = m[13], O = m[14], P = m[15];
 
 	r32 Det[4] = {
@@ -170,7 +172,10 @@ r32 Mat4_Determinant(const Mat4 m) {
 	    E * (J * O - N * K) - F * (I * O - M * K) + G * (I * N - M * J),
 	};
 
-	return A * Det[0] - B * Det[1] + C * Det[2] - D * Det[3];
+	return A * Det[0] 
+		 - B * Det[1] 
+		 + C * Det[2] 
+		 - D * Det[3];
 }
 
 i32 Mat2_Inverse(Mat2 out, const Mat2 m) {

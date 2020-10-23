@@ -51,13 +51,18 @@ extern u32 Alloc_GetTotalSize();
 extern void Alloc_PrintInfo();
 extern void Alloc_FreeAll();
 
+#ifdef ALLOC_DEBUG
 extern void *Allocate(u32 size, const char *__func, const char *__file, u32 __line);
 extern void *Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file, u32 __line);
 extern void Free(void *ptr, const char *__func, const char *__file, u32 __line);
-
-#define Allocate(size)           Allocate(size, __func__, __FILE__, __LINE__)
-#define Reallocate(ptr, newSize) Reallocate(ptr, newSize, __func__, __FILE__, __LINE__)
-#define Free(ptr)                Free(ptr, __func__, __FILE__, __LINE__)
+#  define Allocate(size)           Allocate(size, __func__, __FILE__, __LINE__)
+#  define Reallocate(ptr, newSize) Reallocate(ptr, newSize, __func__, __FILE__, __LINE__)
+#  define Free(ptr)                Free(ptr, __func__, __FILE__, __LINE__)
+#else
+#  define Allocate(size)           malloc(size)
+#  define Reallocate(ptr, newSize) realloc(ptr, newSize)
+#  define Free(ptr)                free(ptr)
+#endif
 
 // --- String operations --- //
 
