@@ -138,9 +138,9 @@ extern void Mat2_Copy(Mat2 out, const Mat2 m);
 extern void Mat3_Copy(Mat3 out, const Mat3 m);
 extern void Mat4_Copy(Mat4 out, const Mat4 m);
 
-extern i32 Mat2_Inverse(Mat2 out, const Mat2 matrix);
-extern i32 Mat3_Inverse(Mat3 out, const Mat3 matrix);
-extern i32 Mat4_Inverse(Mat4 out, const Mat4 matrix);
+extern bool8 Mat2_Inverse(Mat2 out, const Mat2 matrix);
+extern bool8 Mat3_Inverse(Mat3 out, const Mat3 matrix);
+extern bool8 Mat4_Inverse(Mat4 out, const Mat4 matrix);
 
 extern void Mat2_Transpose(Mat2 matrix);
 extern void Mat3_Transpose(Mat3 matrix);
@@ -178,9 +178,9 @@ extern Vec2 Mat2_MultVec2(const Mat2 m, Vec2 v);
 extern Vec3 Mat3_MultVec3(const Mat3 m, Vec3 v);
 extern Vec4 Mat4_MultVec4(const Mat4 m, Vec4 v);
 
-extern i32 Mat2_DivMat(Mat2 a, const Mat2 b);
-extern i32 Mat3_DivMat(Mat3 a, const Mat3 b);
-extern i32 Mat4_DivMat(Mat4 a, const Mat4 b);
+extern bool8 Mat2_DivMat(Mat2 a, const Mat2 b);
+extern bool8 Mat3_DivMat(Mat3 a, const Mat3 b);
+extern bool8 Mat4_DivMat(Mat4 a, const Mat4 b);
 
 extern r32 Mat2_Minor(const Mat2 a, u32 i, u32 j);
 extern r32 Mat3_Minor(const Mat3 a, u32 i, u32 j);

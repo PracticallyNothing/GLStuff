@@ -3,11 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "SDL_video.h"
 #include "stb_image.h"
 
 struct RSys_State {
 	SDL_Window *Window;
 	SDL_GLContext GLContext;
+
+	bool8 DrawEnable;
+
+	r32 FrametimeCap;
 	u64 LastFrameTime;
 	u64 LastFrameDT;
 
@@ -18,10 +23,28 @@ struct RSys_State {
 	GLuint *TempVBOs;
 	bool8 *VBOIsTaken;
 	u32 NumVBOs, NumTakenVBOs;
-
 } RSys_State;
 
-u64 RSys_GetLastFrameTime() { return RSys_State.LastFrameTime; }
+void RSys_SetFPSCap(u32 capFps) { RSys_State.FrametimeCap = 1000.0 / capFps; }
+void RSys_SetFrametimeCap(r32 capMs) { RSys_State.FrametimeCap = capMs; }
+
+void RSys_HandleWindowEvent(const SDL_WindowEvent *e)
+{
+	// TODO: This may disable drawing too liberally.
+	//       E.g. the player has the window open, but wants to look at another,
+	//       yet the game decides to stop drawing without pausing.
+	switch(e->type)
+	{
+		case SDL_WINDOWEVENT_LEAVE:
+		case SDL_WINDOWEVENT_FOCUS_LOST:
+		case SDL_WINDOWEVENT_HIDDEN:
+			RSys_State.DrawEnable = 0;
+		case SDL_WINDOWEVENT_ENTER:
+		case SDL_WINDOWEVENT_FOCUS_GAINED:
+		case SDL_WINDOWEVENT_SHOWN:
+			RSys_State.DrawEnable = 1;
+	}
+}
 
 void RSys_LogVideoDriverInfo(void) {
 	i32 NumVideoDrivers = SDL_GetNumVideoDrivers();
@@ -141,6 +164,8 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	GL_Initialized = 1;
 
+	RSys_State.DrawEnable = 1;
+
 	R2D_Init();
 	R3D_Init();
 }
@@ -242,6 +267,10 @@ void RSys_FreeTempVAO(GLuint VAO) {
 	}
 
 	Log(Log_Warning, "Attempted to free temp VAO %d, which doesn't exist.", VAO);
+}
+
+bool8 RSys_NeedRedraw() {
+	return (SDL_GetTicks() - RSys_State.LastFrameTime) > RSys_State.FrametimeCap;
 }
 
 void RSys_FinishFrame() {

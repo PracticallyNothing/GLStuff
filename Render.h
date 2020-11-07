@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "Common.h"
 #include "Math3D.h"
+#include "SDL_events.h"
 #include "Shader.h"
 #include "Phys.h"
 
@@ -43,7 +44,11 @@ struct R3D_Light {
 	};
 };
 
-// ---=== Rendering system ===---
+// 
+// ------------------
+//  Rendering system
+// ------------------
+//
 
 typedef struct RSys_Size_t RSys_Size;
 
@@ -56,9 +61,14 @@ extern void RSys_LogVideoDriverInfo(void);
 
 extern void RSys_Init(u32 Width, u32 Height);
 extern void RSys_Quit();
-extern void RSys_FinishFrame();
 
-extern u64 RSys_GetLastFrameTime();
+extern void RSys_FinishFrame();
+extern void RSys_HandleWindowEvent(const SDL_WindowEvent *);
+
+extern void RSys_SetFPSCap(u32 capFps);
+extern void RSys_SetFrametimeCap(r32 capMs);
+
+extern bool8 RSys_NeedRedraw();
 extern RSys_Size RSys_GetSize();
 
 extern GLuint RSys_GetTempVAO();
@@ -69,26 +79,27 @@ struct RSys_Texture {
 	i32 Width, Height;
 	i32 NumComponents;
 };
+extern struct RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
 extern struct RSys_Texture RSys_TextureFromFile(const char *filename);
 
-enum RenderTarget_Type {
+enum RSys_RT_Type {
 	RenderTarget_DefaultRT = -1,
 
 	RenderTarget_Texture,
 	RenderTarget_Renderbuffer,
 };
 
-struct RenderTarget {
-	enum RenderTarget_Type Type;
+struct RSys_RT {
+	enum RSys_RT_Type Type;
 
 	GLuint FramebufferId;
 	GLuint ColorAttachmentId, DepthAttachmentId;
 };
 
-struct RenderTarget RenderTarget_Init(enum RenderTarget_Type type);
-void RenderTarget_Free(struct RenderTarget);
-void RenderTarget_ReadFrom(struct RenderTarget);
-void RenderTarget_DrawTo(struct RenderTarget);
+struct RSys_RT RSys_RT_Init(enum RSys_RT_Type type);
+void RSys_RT_Free(struct RSys_RT);
+void RSys_RT_ReadFrom(struct RSys_RT);
+void RSys_RT_DrawTo(struct RSys_RT);
 
 // ---=== 2D rendering ===---
 struct R2D_Rect {

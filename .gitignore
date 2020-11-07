@@ -6,20 +6,18 @@ Videojame.txt
 
 compile_commands.json
 
-# Created by https://www.gitignore.io/api/c,vim,tags,emacs
-# Edit at https://www.gitignore.io/?templates=c,vim,tags,emacs
+# Created by https://www.toptal.com/developers/gitignore/api/c,vim,tags,emacs
+# Edit at https://www.toptal.com/developers/gitignore?templates=c,vim,tags,emacs
 
 ### C ###
 # Prerequisites
 *.d
-*.asm
 
 # Object files
 *.o
 *.ko
 *.obj
 *.elf
-!/res/models/*.obj
 
 # Linker output
 *.ilk
@@ -138,6 +136,7 @@ cscope.po.out
 ### Vim ###
 # Swap
 [._]*.s[a-v][a-z]
+!*.svg  # comment out if you don't need vector files
 [._]*.sw[a-p]
 [._]s[a-rt-v][a-z]
 [._]ss[a-gi-z]
@@ -153,9 +152,12 @@ Sessionx.vim
 # Persistent undo
 [._]*.un~
 
-# End of https://www.gitignore.io/api/c,vim,tags,emacs
+# End of https://www.toptal.com/developers/gitignore/api/c,vim,tags,emacs
 
 .vs/
+
+.vscode/
+*.code-workspace
 
 .clangd/
 json/

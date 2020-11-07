@@ -71,7 +71,10 @@ r32 Vec2_Dot(Vec2 a, Vec2 b) { return Vec2_SumValues(Vec2_MultVec(a, b)); }
 r32 Vec3_Dot(Vec3 a, Vec3 b) { return Vec3_SumValues(Vec3_MultVec(a, b)); }
 r32 Vec4_Dot(Vec4 a, Vec4 b) { return Vec4_SumValues(Vec4_MultVec(a, b)); }
 
-r32 Vec2_Cross(Vec2 a, Vec2 b) { return a.x * b.y - a.y * b.x; }
+r32 Vec2_Cross(Vec2 a, Vec2 b) { 
+	return a.x * b.y - a.y * b.x;
+}
+
 Vec3 Vec3_Cross(Vec3 a, Vec3 b) {
 	return V3(a.y * b.z - a.z * b.y, 
 			  a.z * b.x - a.x * b.z,
@@ -178,7 +181,7 @@ r32 Mat4_Determinant(const Mat4 m) {
 		 - D * Det[3];
 }
 
-i32 Mat2_Inverse(Mat2 out, const Mat2 m) {
+bool8 Mat2_Inverse(Mat2 out, const Mat2 m) {
 	if(!out || !m)
 		return 0;
 
@@ -199,7 +202,7 @@ i32 Mat2_Inverse(Mat2 out, const Mat2 m) {
 	return 1;
 }
 
-i32 Mat3_Inverse(Mat3 out, const Mat3 m) {
+bool8 Mat3_Inverse(Mat3 out, const Mat3 m) {
 	r32 Det = Mat3_Determinant(m);
 
 	if(Det == 0.0f) return 0;
@@ -215,7 +218,7 @@ i32 Mat3_Inverse(Mat3 out, const Mat3 m) {
 	return 1;
 }
 
-i32 Mat4_Inverse(Mat4 out, const Mat4 m) {
+bool8 Mat4_Inverse(Mat4 out, const Mat4 m) {
 	r32 Det = Mat4_Determinant(m);
 
 	if(Det == 0.0f) return 0;
@@ -375,7 +378,7 @@ r32 Mat4_Minor(const Mat4 a, u32 i, u32 j)
 	return ((i+j) % 2 ? -1 : 1) * Mat3_Determinant(b);
 }
 
-i32 Mat2_DivMat(Mat2 a, const Mat2 b) {
+bool8 Mat2_DivMat(Mat2 a, const Mat2 b) {
 	Mat2 inverse;
 	if(!Mat2_Inverse(inverse, b)) return 0;
 
@@ -383,7 +386,7 @@ i32 Mat2_DivMat(Mat2 a, const Mat2 b) {
 	return 1;
 }
 
-i32 Mat3_DivMat(Mat3 a, const Mat3 b) {
+bool8 Mat3_DivMat(Mat3 a, const Mat3 b) {
 	Mat3 inverse;
 	if(!Mat3_Inverse(inverse, b)) return 0;
 
@@ -391,7 +394,7 @@ i32 Mat3_DivMat(Mat3 a, const Mat3 b) {
 	return 1;
 }
 
-i32 Mat4_DivMat(Mat4 a, const Mat4 b) {
+bool8 Mat4_DivMat(Mat4 a, const Mat4 b) {
 	Mat4 inverse;
 	if(!Mat4_Inverse(inverse, b)) return 0;
 

@@ -45,7 +45,9 @@ typedef double r64;
 typedef i8 bool8;
 typedef i32 bool32;
 
-// --- Memory management --- //
+// 
+// Memory management
+//
 
 extern u32 Alloc_GetTotalSize();
 extern void Alloc_PrintInfo();
@@ -59,9 +61,9 @@ extern void Free(void *ptr, const char *__func, const char *__file, u32 __line);
 #  define Reallocate(ptr, newSize) Reallocate(ptr, newSize, __func__, __FILE__, __LINE__)
 #  define Free(ptr)                Free(ptr, __func__, __FILE__, __LINE__)
 #else
-#  define Allocate(size)           malloc(size)
-#  define Reallocate(ptr, newSize) realloc(ptr, newSize)
-#  define Free(ptr)                free(ptr)
+extern void *Allocate(u32 size);
+extern void *Reallocate(void *ptr, u32 newSize);
+extern void Free(void *ptr);
 #endif
 
 // --- String operations --- //
@@ -252,7 +254,9 @@ DEF_ARRAY(r64, r64);
 // --- Hash map --- //
 
 typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
-u128 Hash_MD5(const u8 *bytes, u32 length);
+extern u128 Hash_MD5(const u8 *bytes, u32 length);
+extern u128 Hash_String_MD5(const char* str);
+extern bool8 Hash_Equal(const u128 *a, const u128 *b);
 
 #define DEF_HASHMAP(name, type) \
 struct HashMap_##name {         \

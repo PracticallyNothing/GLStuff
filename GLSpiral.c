@@ -13,6 +13,7 @@
 #include "WavefrontOBJ.h"
 #include "stb_image.h"
 #include "Phys.h"
+#include "JSON.h"
 
 void DrawGrid(OrbitCamera c, i32 size)
 {
@@ -29,16 +30,80 @@ void DrawGrid(OrbitCamera c, i32 size)
 	Free(points);
 }
 
+struct Configuration {
+	u32 ScreenWidth;
+	u32 ScreenHeight;
+	u32 FPSCap;
+};
+
+static const 
+struct Configuration DefaultConf = {
+	.ScreenWidth = 1280,
+	.ScreenHeight = 720,
+	.FPSCap = 60,
+};
+
+struct Configuration
+ReadJSONConf()
+{
+	struct Configuration Conf = DefaultConf;
+
+	enum {
+		CONF_ScreenWidth,
+		CONF_ScreenHeight,
+		CONF_FPS
+	};
+
+	const char* ConfStrings[] = {
+		"ScreenWidth",
+		"ScreenHeight",
+		"FPS",
+	};
+
+	u128 ConfHashes[sizeof(ConfStrings) / sizeof(char*)];
+	for(u32 i = 0; i < sizeof(ConfStrings) / sizeof(char*); ++i)
+		ConfHashes[i] = Hash_String_MD5(ConfStrings[i]);
+
+	struct JSON_Value v = JSON_FromFile("conf.json");
+	if(v.Type == JSON_Error)
+	{
+		Log(ERR, "Couldn't load config, using default values.", "");
+		return Conf;
+	}
+
+	for(u32 i = 0; i < v.Object.Map.Size; ++i)
+	{
+		u128 *k = v.Object.Map.Keys + i;
+		struct JSON_Value *val = v.Object.Map.Values + i;
+
+		if(Hash_Equal(k, ConfHashes + CONF_ScreenWidth)) {
+			if(val->Type == JSON_Number) 
+				Conf.ScreenWidth = val->Number;
+		} else if(Hash_Equal(k, ConfHashes + CONF_ScreenHeight)) {
+			if(val->Type == JSON_Number) 
+				Conf.ScreenHeight = val->Number;
+		} else if(Hash_Equal(k, ConfHashes + CONF_FPS)) {
+			if(val->Type == JSON_Number) 
+				Conf.FPSCap = val->Number;
+		}
+	}
+	JSON_Free(&v);
+
+	return Conf;
+}
+
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 	srand(time(NULL));
 
-	RSys_Init(1280, 720);
+	struct Configuration Conf = ReadJSONConf();
+	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
+	RSys_SetFPSCap(Conf.FPSCap);
+
 	RGB ClearColor = HexToRGB("52a9e0");
 	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
 	SDL_Event e;
-	u32 Ticks = 0;
 
 	// Wavefront OBJ to OpenGL setup
 	WObj_Library *Speedboat = WObj_FromFile("res/models/speedboat_2.obj");
@@ -71,11 +136,11 @@ int main(int argc, char *argv[]) {
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 		glBufferData(
-				GL_ARRAY_BUFFER,
-				Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
-				Speedboat->Objects[i].Vertices,
-				GL_STATIC_DRAW
-				);
+			GL_ARRAY_BUFFER,
+			Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
+			Speedboat->Objects[i].Vertices,
+			GL_STATIC_DRAW
+		);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Position));
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, UV));
@@ -143,8 +208,6 @@ int main(int argc, char *argv[]) {
 	};
 
 	while(1) {
-		Ticks = SDL_GetTicks();
-
 		while(SDL_PollEvent(&e)) {
 			switch(e.type) {
 				case SDL_QUIT: goto end;
@@ -181,10 +244,10 @@ int main(int argc, char *argv[]) {
 
 						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
 						Cam.Pitch = Clamp_R32(
-								(-dy) * Pi_Half + InitialYawPitch.y,
-								DegToRad(0.1),
-								DegToRad(179.9)
-								);
+							(-dy) * Pi_Half + InitialYawPitch.y,
+							DegToRad(0.1),
+							DegToRad(179.9)
+						);
 						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
 					}
 				} break;
@@ -211,15 +274,13 @@ int main(int argc, char *argv[]) {
 		}
 
 		// Render frame to back buffer.
-		if(Ticks - RSys_GetLastFrameTime() > 16) {
+		if(RSys_NeedRedraw()) {
 			DrawGrid(Cam, 200);
 
 			// Display the work onto the screen.
 			RSys_FinishFrame();
 			Time += 1e-2;
 		}
-
-		Ticks = SDL_GetTicks();
 	}
 
 end:
