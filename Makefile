@@ -1,6 +1,6 @@
 CC    = clang
-FLAGS = -std=c99 `pkg-config sdl2 freetype2 opengl openal --cflags` -I./glad_Core-33/include/ -Wall
-LIBS  = -lm -ldl `pkg-config sdl2 freetype2 opengl openal --libs`
+FLAGS = -std=c99 `pkg-config sdl2 freetype2 opengl freealut openal --cflags` -I./glad_Core-33/include/ -Wall
+LIBS  = -lm -ldl `pkg-config sdl2 freetype2 opengl freealut openal --libs`
 
 SOURCES := $(shell find . -name '*.c')
 OBJS_REL = $(patsubst %.c, obj/release/%.o, $(SOURCES))

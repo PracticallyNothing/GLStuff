@@ -10,10 +10,8 @@
 #include "Math3D.h"
 #include "Render.h"
 #include "Shader.h"
-#include "WavefrontOBJ.h"
-#include "stb_image.h"
-#include "Phys.h"
 #include "JSON.h"
+#include "Audio.h"
 
 void DrawGrid(OrbitCamera c, i32 size)
 {
@@ -48,6 +46,13 @@ ReadJSONConf()
 {
 	struct Configuration Conf = DefaultConf;
 
+	struct JSON_Value v = JSON_FromFile("conf.json");
+	if(v.Type == JSON_Error)
+	{
+		Log(ERR, "Couldn't load config, using default values.", "");
+		return Conf;
+	}
+
 	enum {
 		CONF_ScreenWidth,
 		CONF_ScreenHeight,
@@ -63,13 +68,6 @@ ReadJSONConf()
 	u128 ConfHashes[sizeof(ConfStrings) / sizeof(char*)];
 	for(u32 i = 0; i < sizeof(ConfStrings) / sizeof(char*); ++i)
 		ConfHashes[i] = Hash_String_MD5(ConfStrings[i]);
-
-	struct JSON_Value v = JSON_FromFile("conf.json");
-	if(v.Type == JSON_Error)
-	{
-		Log(ERR, "Couldn't load config, using default values.", "");
-		return Conf;
-	}
 
 	for(u32 i = 0; i < v.Object.Map.Size; ++i)
 	{
@@ -100,92 +98,24 @@ int main(int argc, char *argv[]) {
 	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
 	RSys_SetFPSCap(Conf.FPSCap);
 
+
 	RGB ClearColor = HexToRGB("52a9e0");
 	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
-	SDL_Event e;
+	Audio_Init(NULL);
+	Audio_Buffer b = Audio_Buffer_FromFile("res/audio/test.wav");
+	Audio_Source src = Audio_Source_Init();
+	Audio_Source_SetBuffer(src, b);
 
-	// Wavefront OBJ to OpenGL setup
-	WObj_Library *Speedboat = WObj_FromFile("res/models/speedboat_2.obj");
-	if(!Speedboat)
-	{
-		Log(FATAL, "speedboat.obj couldn't load.", "");
-		return -1;
-	}
+	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
+	srcProps.Loop = 1;
+	srcProps.PosRelative = 1;
+	srcProps.Pitch = 1.2;
+	Audio_Source_SetProps(src, &srcProps);
+	Audio_Source_Play(src);
+	Audio_Source_Seek(src, 30);
 
-	u32 *VAOs         = Allocate(sizeof(u32) * Speedboat->NumObjects);
-	u32 *IndexBuffers = Allocate(sizeof(u32) * Speedboat->NumObjects);
-	glGenVertexArrays(Speedboat->NumObjects, VAOs);
-	glGenBuffers(Speedboat->NumObjects, IndexBuffers);
-
-	//struct RSys_Texture testUV = RSys_TextureFromFile("res/textures/test-uv.jpg");
-
-	//struct RSys_Texture noise      = RSys_TextureFromFile("res/textures/noise.jpg");
-	//struct RSys_Texture foam       = RSys_TextureFromFile("res/textures/Foam002_2K_Color.jpg");
-	//struct RSys_Texture waveHeight = RSys_TextureFromFile("res/textures/wave_height.png");
-
-	for(u32 i = 0; i < Speedboat->NumObjects; i++)
-	{
-		glBindVertexArray(VAOs[i]);
-		u32 VBO;
-		glGenBuffers(1, &VBO);
-
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-		glEnableVertexAttribArray(2);
-
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(
-			GL_ARRAY_BUFFER,
-			Speedboat->Objects[i].NumVertices * sizeof(WObj_Vertex),
-			Speedboat->Objects[i].Vertices,
-			GL_STATIC_DRAW
-		);
-
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Position));
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, UV));
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(WObj_Vertex), (void*) offsetof(WObj_Vertex, Normal));
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffers[i]);
-		glBufferData(
-				GL_ELEMENT_ARRAY_BUFFER,
-				Speedboat->Objects[i].NumIndices * sizeof(u32),
-				Speedboat->Objects[i].Indices,
-				GL_STATIC_DRAW
-				);
-	}
-
-	// Generate water tile.
-	const u32 w = 20;
-	const u32 l = 20;
-	const u32 sz = w*l;
-	Vec3 *pos = Allocate(sizeof(Vec3) * sz * 6);
-	for(u32 z = 0; z < w; z++)
-		for(u32 x = 0; x < l; x++)
-		{
-			pos[(x + z*w)*6 + 0] = V3(1.0/w *  x   , 0, 1.0/l * (z+1));
-			pos[(x + z*w)*6 + 1] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 2] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
-			pos[(x + z*w)*6 + 3] = V3(1.0/w *  x   , 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 4] = V3(1.0/w * (x+1), 0, 1.0/l *  z   );
-			pos[(x + z*w)*6 + 5] = V3(1.0/w * (x+1), 0, 1.0/l * (z+1));
-		}
-	u32 WaterTileVAO = 0;
-	u32 WaterTileVBO = 0;
-	glGenVertexArrays(1, &WaterTileVAO);
-	glBindVertexArray(WaterTileVAO);
-	glGenBuffers(1, &WaterTileVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, WaterTileVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec3)*sz*6, pos, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	Free(pos);
-
-	struct Shader
-		*s      = Shader_FromFile("res/shaders/3d/unlit-tex.glsl"),
-		*sWire  = Shader_FromFile("res/shaders/3d/unlit-col.glsl"),
-		*sWater = Shader_FromFile("res/shaders/3d/water.glsl");
+	struct Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
 	Log(Log_Info, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
@@ -208,6 +138,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	while(1) {
+		SDL_Event e;
 		while(SDL_PollEvent(&e)) {
 			switch(e.type) {
 				case SDL_QUIT: goto end;
@@ -215,11 +146,11 @@ int main(int argc, char *argv[]) {
 					switch(e.key.keysym.sym) {
 						case SDLK_ESCAPE:
 							goto end;
-						case SDLK_r:
-							// Shader_Reload(sWater);
-							// Shader_Reload(sWire);
-							// Shader_Reload(s);
-							Log(INFO, "Generating new triangles.", "");
+						case SDLK_SPACE:
+							if(Audio_Source_ReadState(src) == SourceState_Playing)
+								Audio_Source_Pause(src);
+							else
+								Audio_Source_Play(src);
 							break;
 						default:
 							break;
@@ -277,6 +208,22 @@ int main(int argc, char *argv[]) {
 		if(RSys_NeedRedraw()) {
 			DrawGrid(Cam, 200);
 
+			r32 playpos = Audio_Source_ReadPlayHeadPos(src);
+			Audio_BufferProps bProps = Audio_Buffer_ReadProps(b);
+			r32 len = bProps.LenSeconds;
+
+			R2D_DrawText(
+				V2(10,10),
+				V4(1,1,1,1),
+				V4(0,0,0,0),
+				&R2D_DefaultFont_Large,
+				"%s Playing sound: %02.0f:%02.0f/%02.0f:%02.0f (%d channels)",
+				(Audio_Source_ReadState(src) == SourceState_Playing ? ">>" : "||"),
+				floor(playpos / 60.0f), floor(fmodf(playpos, 60)),
+				floor(len / 60.0f),     floor(fmodf(len, 60)),
+				bProps.NumChannels
+			);
+
 			// Display the work onto the screen.
 			RSys_FinishFrame();
 			Time += 1e-2;
@@ -284,13 +231,8 @@ int main(int argc, char *argv[]) {
 	}
 
 end:
-	RSys_Quit();
-
-	WObj_Library_Free(Speedboat);
 	Shader_Free(s);
-	Shader_Free(sWire);
-	Shader_Free(sWater);
-	Alloc_PrintInfo();
+	Audio_Quit();
 
-	Alloc_FreeAll();
+	RSys_Quit();
 }
