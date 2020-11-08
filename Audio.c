@@ -269,7 +269,7 @@ Audio_Source_SetBuffer(Audio_Source s, Audio_Buffer buf)
 r32 
 Audio_Source_ReadPlayHeadPos(Audio_Source src)
 {
-	r32 f;
+	ALfloat f;
 	alGetSourcef(src.Id, AL_SEC_OFFSET, &f);
 	return f;
 }
@@ -283,7 +283,7 @@ Audio_Source_Seek(Audio_Source src, r32 seekSeconds)
 enum Audio_SourceState 
 Audio_Source_ReadState(Audio_Source src)
 {
-	i32 s;
+	ALint s;
 	alGetSourcei(src.Id, AL_SOURCE_STATE, &s);
 	return s;
 }
