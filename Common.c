@@ -383,6 +383,9 @@ u128 Hash_MD5(const u8 *bytes, u32 length)
 	return res;
 }
 
+typedef struct Allocation       Allocation;
+typedef struct Array_Allocation Array_Allocation;
+
 struct Allocation {
 	void *Ptr;
 	u32 Size;
@@ -392,34 +395,36 @@ struct Allocation {
 	u32 Line;
 };
 
-struct Array_Allocation { u32 Size, Capacity; struct Allocation*Data; };
-void Array_Allocation_Push(struct Array_Allocation *, const struct Allocation *);
-void Array_Allocation_Remove(struct Array_Allocation *, u32 idx);
+struct Array_Allocation { 
+	u32 Size;
+	u32 Capacity;
+	Allocation* Data; 
+};
 
-void Array_Allocation_Push(struct Array_Allocation *a, const struct Allocation *t)
+void Array_Allocation_Push(Array_Allocation *a, const Allocation *t)
 {
     if(!t) return;
     if(a->Size == a->Capacity) {
 		if(!a->Capacity) a->Capacity = 1;
 	    a->Capacity *= 2;
-	    a->Data = realloc(a->Data, sizeof(struct Allocation) * a->Capacity);
+	    a->Data = realloc(a->Data, sizeof(Allocation) * a->Capacity);
 	}
-    memcpy(a->Data + a->Size, t, sizeof(struct Allocation));
+    memcpy(a->Data + a->Size, t, sizeof(Allocation));
     a->Size++;
 }
-void Array_Allocation_Remove(struct Array_Allocation *a, u32 idx)
+void Array_Allocation_Remove(Array_Allocation *a, u32 idx)
 {
 	if(idx >= a->Size) return;
 	memmove(&a->Data[idx  ],
 			&a->Data[idx+1],
-			sizeof(struct Allocation)*(a->Size-idx));
+			sizeof(Allocation)*(a->Size-idx));
 	a->Size--;
 }
 
 
 #ifdef ALLOC_DEBUG
 
-static struct Array_Allocation Allocs = {0};
+static Array_Allocation Allocs = {0};
 static u32 SizesSum = 0;
 
 static i32 Allocation_FindPtr(void *f) {
@@ -467,7 +472,7 @@ void *Allocate(u32 size, const char *__func, const char *__file, u32 __line)
 
 	CHECK_ALLOC_LIMIT(size);
 
-	struct Allocation a;
+	Allocation a;
 	a.Ptr = malloc(size);
 	a.Size = size;
 	a.Line = __line;

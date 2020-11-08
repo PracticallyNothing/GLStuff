@@ -293,8 +293,8 @@ void RSys_Quit() {
 	SDL_Quit();
 }
 
-struct RSys_Texture RSys_TextureFromFile(const char *filename) {
-	struct RSys_Texture Texture = {.Id = 0};
+RSys_Texture RSys_TextureFromFile(const char *filename) {
+	RSys_Texture Texture = {.Id = 0};
 
 	stbi_set_flip_vertically_on_load(0);
 	u8 *Data = stbi_load(filename, &Texture.Width, &Texture.Height,
@@ -333,11 +333,11 @@ static struct R2D_State {
 	GLuint TextTexture;
 } R2D_State;
 
-struct R2D_Spritesheet R2D_DefaultFont_Small,
-					   R2D_DefaultFont_Medium,
-					   R2D_DefaultFont_Large;
-struct Shader *RectShader = NULL;
-struct Shader *TextShader = NULL;
+R2D_Spritesheet R2D_DefaultFont_Small,
+			    R2D_DefaultFont_Medium,
+			    R2D_DefaultFont_Large;
+Shader *RectShader = NULL;
+Shader *TextShader = NULL;
 
 void R2D_Init() {
 	glGenVertexArrays(1, &R2D_State.TextVAO);
@@ -345,12 +345,12 @@ void R2D_Init() {
 	RectShader = Shader_FromFile("res/shaders/ui/rect.glsl");
 	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
 
-	struct RSys_Texture 
+	RSys_Texture 
 		small  = RSys_TextureFromFile("res/textures/font_mono_6x12.png"),
 		medium = RSys_TextureFromFile("res/textures/font_mono_7x15.png"),
 		large  = RSys_TextureFromFile("res/textures/font_mono_15x29.png");
 
-	R2D_DefaultFont_Small = (struct R2D_Spritesheet){
+	R2D_DefaultFont_Small = (R2D_Spritesheet){
 	    .TextureId = small.Id,
 	    .Width = small.Width,
 	    .Height = small.Height,
@@ -358,7 +358,7 @@ void R2D_Init() {
 	    .SpriteHeight = 12,
 	};
 
-	R2D_DefaultFont_Medium = (struct R2D_Spritesheet){
+	R2D_DefaultFont_Medium = (R2D_Spritesheet){
 	    .TextureId = medium.Id,
 	    .Width = medium.Width,
 	    .Height = medium.Height,
@@ -366,7 +366,7 @@ void R2D_Init() {
 	    .SpriteHeight = 15,
 	};
 
-	R2D_DefaultFont_Large = (struct R2D_Spritesheet){
+	R2D_DefaultFont_Large = (R2D_Spritesheet){
 	    .TextureId = large.Id,
 	    .Width = large.Width,
 	    .Height = large.Height,
@@ -375,7 +375,7 @@ void R2D_Init() {
 	};
 }
 
-void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
+void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	Vec2 *Pos = Allocate(sizeof(Vec2) * NumRects * 4);
 	RGBA *Color = Allocate(sizeof(RGBA) * NumRects * 4);
 	u32 *Inds = Allocate(sizeof(u32) * NumRects * (Fill ? 6 : 8));
@@ -387,7 +387,7 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	// bottom right.
 
 	for(u32 i = 0; i < NumRects; i++) {
-		struct R2D_Rect r = Rects[i];
+		R2D_Rect r = Rects[i];
 
 		Pos[i * 4 + 0] = r.Position;
 		Pos[i * 4 + 1] = V2(r.Position.x + r.Size.x, r.Position.y);
@@ -472,7 +472,7 @@ void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	RSys_FreeTempVAO(VAO);
 }
 
-void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
+void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
 {
 	Vec2 *Pos = Allocate(sizeof(Vec2) * numTris * 3);
 	RGBA *Color = Allocate(sizeof(RGBA) * numTris * 3);
@@ -484,7 +484,7 @@ void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 	// bottom right.
 
 	for(u32 i = 0; i < numTris; i++) {
-		struct R2D_Triangle t = tris[i];
+		R2D_Triangle t = tris[i];
 
 		Pos[i * 4 + 0] = t.Points[0];
 		Pos[i * 4 + 1] = t.Points[1];
@@ -540,8 +540,7 @@ void R2D_DrawTriangles(const struct R2D_Triangle *tris, u32 numTris)
 	RSys_FreeTempVAO(VAO);
 }
 
-Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt,
-                        ...) {
+Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...) {
 	char msg[512] = {0};
 
 	va_list args;
@@ -569,8 +568,7 @@ Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt,
 	return V2(font->SpriteWidth * maxWidth, font->SpriteHeight * height);
 }
 
-void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
-                       const Vec2 *TextureUVs) {
+void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs) {
 	GLuint VAO = RSys_GetTempVAO();
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
@@ -635,7 +633,7 @@ void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID,
 }
 
 void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
-                  const struct R2D_Spritesheet *font, const char *fmt, ...) {
+                  const R2D_Spritesheet *font, const char *fmt, ...) {
 	static const r64 minAlpha = 0.001;
 
 	char msg[512] = {0};
@@ -780,8 +778,8 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 }
 
 // ---=== 3D rendering ===---
-struct Shader *R3D_Shader_UnlitColor,
-			  *R3D_Shader_UnlitTextured;
+Shader *R3D_Shader_UnlitColor,
+	   *R3D_Shader_UnlitTextured;
 
 void R3D_Init()
 {

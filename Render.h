@@ -74,13 +74,15 @@ extern RSys_Size RSys_GetSize();
 extern GLuint RSys_GetTempVAO();
 extern void RSys_FreeTempVAO(GLuint);
 
+typedef struct RSys_Texture RSys_Texture;
+
 struct RSys_Texture {
 	GLuint Id;
 	i32 Width, Height;
 	i32 NumComponents;
 };
-extern struct RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
-extern struct RSys_Texture RSys_TextureFromFile(const char *filename);
+extern RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
+extern RSys_Texture RSys_TextureFromFile(const char *filename);
 
 enum RSys_RT_Type {
 	RenderTarget_DefaultRT = -1,
@@ -89,6 +91,8 @@ enum RSys_RT_Type {
 	RenderTarget_Renderbuffer,
 };
 
+typedef struct RSys_RT RSys_RT;
+
 struct RSys_RT {
 	enum RSys_RT_Type Type;
 
@@ -96,12 +100,17 @@ struct RSys_RT {
 	GLuint ColorAttachmentId, DepthAttachmentId;
 };
 
-struct RSys_RT RSys_RT_Init(enum RSys_RT_Type type);
-void RSys_RT_Free(struct RSys_RT);
-void RSys_RT_ReadFrom(struct RSys_RT);
-void RSys_RT_DrawTo(struct RSys_RT);
+RSys_RT RSys_RT_Init(enum RSys_RT_Type type);
+void RSys_RT_Free(RSys_RT);
+void RSys_RT_ReadFrom(RSys_RT);
+void RSys_RT_DrawTo(RSys_RT);
 
 // ---=== 2D rendering ===---
+
+typedef struct R2D_Rect        R2D_Rect;
+typedef struct R2D_Triangle    R2D_Triangle;
+typedef struct R2D_Spritesheet R2D_Spritesheet;
+
 struct R2D_Rect {
 	Vec2 Position;
 	Vec2 Size;
@@ -126,21 +135,21 @@ struct R2D_Spritesheet {
 };
 
 
-extern struct R2D_Spritesheet 
+extern R2D_Spritesheet 
 	R2D_DefaultFont_Small,
 	R2D_DefaultFont_Medium,
 	R2D_DefaultFont_Large;
 
-extern void R2D_DrawTriangle (const struct R2D_Triangle *triangle);
-extern void R2D_DrawTriangles(const struct R2D_Triangle *triangles, u32 NumTriangles);
+extern void R2D_DrawTriangle (const R2D_Triangle *triangle);
+extern void R2D_DrawTriangles(const R2D_Triangle *triangles, u32 NumTriangles);
 
-extern void R2D_DrawRects(const struct R2D_Rect *Rects, u32 NumRects, bool8 Fill);
+extern void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill);
 
 extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs);
 
-extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const struct R2D_Spritesheet *font, const char *fmt, ...);
+extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const R2D_Spritesheet *font, const char *fmt, ...);
 
-extern Vec2 R2D_GetTextExtents(const struct R2D_Spritesheet *font, const char *fmt, ...);
+extern Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...);
 
 extern void R2D_DrawConsole();
 // ---===##############===---
@@ -159,13 +168,13 @@ enum R3D_ShaderType {
 
 struct R3D_State_t {
 	enum R3D_ShaderType CurrentShader;
-	struct Shader *Shaders[R3D_Shader_NumShaders];
+	Shader *Shaders[R3D_Shader_NumShaders];
 	i32 DebugMode;
 	void *Scene;
 };
 
-extern struct Shader *R3D_Shader_UnlitColor,
-			         *R3D_Shader_UnlitTextured;
+extern Shader *R3D_Shader_UnlitColor,
+	          *R3D_Shader_UnlitTextured;
 
 extern struct R3D_State_t R3D_State;
 

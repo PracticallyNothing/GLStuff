@@ -5,8 +5,8 @@
 #include <string.h>
 #include "Common.h"
 
-struct Shader *Shader_FromFile(const char *file) {
-	struct Shader *Res = NULL;
+Shader *Shader_FromFile(const char *file) {
+	Shader *Res = NULL;
 	u32 bufSize;
 	char *src = (char *) File_ReadToBuffer_Alloc(file, &bufSize);
 
@@ -66,7 +66,7 @@ static GLuint _Shader_GenShader(GLenum type, const char *src, const char* filena
 	return Shader;
 }
 
-GLuint _Shader_Link(struct Shader *s) {
+GLuint _Shader_Link(Shader *s) {
 	GLuint ShaderProgram;
 	i32 ShaderProgramOK;
 
@@ -91,9 +91,9 @@ GLuint _Shader_Link(struct Shader *s) {
 	return ShaderProgram;
 }
 
-struct Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc, const char* filename) {
-	struct Shader *Res = Allocate(sizeof(struct Shader));
-	memset(Res, 0, sizeof(struct Shader));
+Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc, const char* filename) {
+	Shader *Res = Allocate(sizeof(Shader));
+	memset(Res, 0, sizeof(Shader));
 	Res->SrcFile = NULL;
 	if(filename) {
 		Res->SrcFile = Allocate(strlen(filename)+1);
@@ -107,60 +107,60 @@ struct Shader *Shader_FromSrc(const char *vertexSrc, const char *fragmentSrc, co
 	return Res;
 }
 
-const struct Shader *ActiveShader = NULL;
-void Shader_Use(struct Shader *s) { 
+const Shader *ActiveShader = NULL;
+void Shader_Use(Shader *s) { 
 	if(ActiveShader != s) {
 		glUseProgram(s->ProgramID); 
 		ActiveShader = s;
 	}
 }
 
-void Shader_Uniform1i(struct Shader *s, const char *name, i32 v) {
+void Shader_Uniform1i(Shader *s, const char *name, i32 v) {
 	glUniform1i(glGetUniformLocation(s->ProgramID, name), v);
 }
 
-void Shader_Uniform1f(struct Shader *s, const char *name, r32 v) {
+void Shader_Uniform1f(Shader *s, const char *name, r32 v) {
 	glUniform1f(glGetUniformLocation(s->ProgramID, name), v);
 }
-void Shader_Uniform2f(struct Shader *s, const char *name, Vec2 v) {
+void Shader_Uniform2f(Shader *s, const char *name, Vec2 v) {
 	glUniform2f(glGetUniformLocation(s->ProgramID, name), v.x, v.y);
 }
-void Shader_Uniform3f(struct Shader *s, const char *name, Vec3 v) {
+void Shader_Uniform3f(Shader *s, const char *name, Vec3 v) {
 	glUniform3f(glGetUniformLocation(s->ProgramID, name), v.x, v.y, v.z);
 }
-void Shader_Uniform4f(struct Shader *s, const char *name, Vec4 v) {
+void Shader_Uniform4f(Shader *s, const char *name, Vec4 v) {
 	glUniform4f(glGetUniformLocation(s->ProgramID, name), v.x, v.y, v.z, v.w);
 }
 
-void Shader_Uniform1fv(struct Shader *s, const char *name, const r32 *v,
+void Shader_Uniform1fv(Shader *s, const char *name, const r32 *v,
                        u32 count) {
 	glUniform1fv(glGetUniformLocation(s->ProgramID, name), count, v);
 }
-void Shader_Uniform2fv(struct Shader *s, const char *name, const Vec2 *v,
+void Shader_Uniform2fv(Shader *s, const char *name, const Vec2 *v,
                        u32 count) {
 	glUniform2fv(glGetUniformLocation(s->ProgramID, name), count, (r32 *) v);
 }
-void Shader_Uniform3fv(struct Shader *s, const char *name, const Vec3 *v,
+void Shader_Uniform3fv(Shader *s, const char *name, const Vec3 *v,
                        u32 count) {
 	glUniform3fv(glGetUniformLocation(s->ProgramID, name), count, (r32 *) v);
 }
-void Shader_Uniform4fv(struct Shader *s, const char *name, const Vec4 *v,
+void Shader_Uniform4fv(Shader *s, const char *name, const Vec4 *v,
                        u32 count) {
 	glUniform4fv(glGetUniformLocation(s->ProgramID, name), count, (r32 *) v);
 }
 
-void Shader_UniformMat2(struct Shader *s, const char *name, const Mat2 m) {
+void Shader_UniformMat2(Shader *s, const char *name, const Mat2 m) {
 	glUniformMatrix2fv(glGetUniformLocation(s->ProgramID, name), 1, GL_TRUE, m);
 }
-void Shader_UniformMat3(struct Shader *s, const char *name, const Mat3 m) {
+void Shader_UniformMat3(Shader *s, const char *name, const Mat3 m) {
 	glUniformMatrix3fv(glGetUniformLocation(s->ProgramID, name), 1, GL_TRUE, m);
 }
-void Shader_UniformMat4(struct Shader *s, const char *name, const Mat4 m) {
+void Shader_UniformMat4(Shader *s, const char *name, const Mat4 m) {
 	i32 Loc = glGetUniformLocation(s->ProgramID, name);
 	glUniformMatrix4fv(Loc, 1, GL_TRUE, m);
 }
 
-void Shader_Free(struct Shader *s) {
+void Shader_Free(Shader *s) {
 	glDeleteShader(s->VertexID);
 	glDeleteShader(s->FragmentID);
 	glDeleteProgram(s->ProgramID);
@@ -169,7 +169,7 @@ void Shader_Free(struct Shader *s) {
 	Free(s);
 }
 
-void Shader_Reload(struct Shader *s)
+void Shader_Reload(Shader *s)
 {
 	if(!s || !s->SrcFile) {
 		return;
@@ -179,7 +179,7 @@ void Shader_Reload(struct Shader *s)
 	glDeleteShader(s->FragmentID);
 	glDeleteProgram(s->ProgramID);
 
-	struct Shader *ss = Shader_FromFile(s->SrcFile);
+	Shader *ss = Shader_FromFile(s->SrcFile);
 	s->VertexID = ss->VertexID;
 	s->FragmentID = ss->FragmentID;
 	s->ProgramID = ss->ProgramID;

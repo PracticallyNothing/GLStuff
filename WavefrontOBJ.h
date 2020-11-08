@@ -19,7 +19,12 @@ enum WObj_IllumMode {
 	WObj_IllumMode_ShadowInvisSurface = 10,
 };
 
-typedef struct WObj_Material {
+typedef struct WObj_Material WObj_Material;
+typedef struct WObj_Vertex   WObj_Vertex;
+typedef struct WObj_Object   WObj_Object;
+typedef struct WObj_Library  WObj_Library;
+
+struct WObj_Material {
 	char *Name;  // newmtl matName
 
 	RGB AmbientColor;      // Ka <r> [<g> <b>]
@@ -42,15 +47,16 @@ typedef struct WObj_Material {
 	char *NormalMapFile;            // bump <file>
 
 	enum WObj_IllumMode IllumMode;  // illum <mode>
-} WObj_Material;
+};
 
-typedef struct WObj_Vertex {
+
+struct WObj_Vertex {
 	Vec3 Position;
 	Vec2 UV;
 	Vec3 Normal;
-} WObj_Vertex;
+};
 
-typedef struct WObj_Object {
+struct WObj_Object {
 	char *Name;
 
 	WObj_Material *Material;
@@ -60,15 +66,15 @@ typedef struct WObj_Object {
 
 	u32  NumIndices;
 	u32*    Indices;
-} WObj_Object;
+};
 
-typedef struct WObj_Library {
+struct WObj_Library {
 	u32 NumMaterials;
 	WObj_Material *Materials;
 
 	u32 NumObjects;
 	WObj_Object *Objects;
-} WObj_Library;
+};
 
 extern WObj_Library *WObj_FromFile(const char *filename);
 extern void WObj_Library_Free(WObj_Library *);

@@ -4,6 +4,11 @@
 #include "Common.h"
 #include "Math3D.h"
 
+typedef struct Intersection Intersection;
+typedef struct Ray          Ray;
+typedef struct AABB         AABB;
+typedef struct TriHull      TriHull;
+
 struct Intersection {
 	bool8 Occurred;
 	Vec3 Point;
@@ -19,9 +24,9 @@ struct AABB {
 	Vec3 Max;
 };
 
-extern bool8       AABB_Intersect        (struct AABB a, struct AABB b);
-extern struct AABB AABB_Fix              (struct AABB aabb);
-extern struct AABB AABB_ApplyTransform3D (struct AABB aabb, Transform3D t);
+extern bool8 AABB_Intersect        (AABB a, AABB b);
+extern AABB  AABB_Fix              (AABB aabb);
+extern AABB  AABB_ApplyTransform3D (AABB aabb, Transform3D t);
 
 struct TriHull { 
 	Vec3 *TriPoints;
@@ -29,8 +34,12 @@ struct TriHull {
 	Transform3D *Transform;
 };
 
-extern struct Intersection TriHull_RayIntersect(struct TriHull hull, struct Ray ray);
-extern struct Intersection TriHull_Intersect(struct TriHull a, struct TriHull b);
+extern Intersection TriHull_RayIntersect(TriHull hull, Ray ray);
+extern Intersection TriHull_Intersect(TriHull a, TriHull b);
+
+typedef struct PhysObject      PhysObject;
+typedef struct PhysWorld       PhysWorld;
+typedef struct PhysWorld_Cache PhysWorld_Cache;
 
 struct PhysObject {
 	enum {
@@ -55,22 +64,22 @@ struct PhysObject {
 
 	Transform3D Transform;
 
-	struct AABB    AABB;
-	struct TriHull Hull;
+	AABB    AABB;
+	TriHull Hull;
 };
 
-DEF_ARRAY(PhysObject, struct PhysObject);
+DEF_ARRAY(PhysObject, PhysObject);
 
 struct PhysWorld {
 	r32 Gravity;
 
-	struct Array_PhysObject Objects;
+	Array_PhysObject Objects;
 
-	struct PhysWorld_Cache *_cache;
+	PhysWorld_Cache *_cache;
 };
 
-extern void               PhysWorld_Init(struct PhysWorld* world);
-extern struct PhysObject* PhysWorld_RayCollide(const struct PhysWorld* world, struct Ray ray);
-extern void               PhysWorld_Update(struct PhysWorld* world, r32 dt);
+extern void        PhysWorld_Init(PhysWorld* world);
+extern PhysObject* PhysWorld_RayCollide(const PhysWorld* world, Ray ray);
+extern void        PhysWorld_Update(PhysWorld* world, r32 dt);
 
 #endif

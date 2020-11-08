@@ -46,7 +46,7 @@ ReadJSONConf()
 {
 	struct Configuration Conf = DefaultConf;
 
-	struct JSON_Value v = JSON_FromFile("conf.json");
+	JSON_Value v = JSON_FromFile("conf.json");
 	if(v.Type == JSON_Error)
 	{
 		Log(ERR, "Couldn't load config, using default values.", "");
@@ -72,7 +72,7 @@ ReadJSONConf()
 	for(u32 i = 0; i < v.Object.Map.Size; ++i)
 	{
 		u128 *k = v.Object.Map.Keys + i;
-		struct JSON_Value *val = v.Object.Map.Values + i;
+		JSON_Value *val = v.Object.Map.Values + i;
 
 		if(Hash_Equal(k, ConfHashes + CONF_ScreenWidth)) {
 			if(val->Type == JSON_Number) 
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 	Audio_Source_Play(src);
 	Audio_Source_Seek(src, 30);
 
-	struct Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
+	Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
 	Log(Log_Info, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);

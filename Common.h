@@ -129,114 +129,115 @@ extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize, u32 *re
 extern void File_DumpBuffer(const char *filename, const u8 *buf, u32 bufSize);
 
 // --- Array --- //
-#define DEF_ARRAY(name, type)                                               \
-struct Array_##name { u32 Size, Capacity; type *Data; };                    \
-                                                                            \
- void Array_##name##_SizeToFit(struct Array_##name *);                      \
- void Array_##name##_Free(struct Array_##name *);                           \
-                                                                            \
-  i32 Array_##name##_Find(const struct Array_##name *, const type *);       \
-bool8 Array_##name##_Has(const struct Array_##name *, const type *);        \
-                                                                            \
- void Array_##name##_Push(struct Array_##name *, const type *);             \
- void Array_##name##_PushVal(struct Array_##name *, const type);            \
- void Array_##name##_Pop(struct Array_##name *);                            \
- void Array_##name##_PushMany(struct Array_##name *, const type *, u32 n);  \
-                                                                            \
- void Array_##name##_Insert(struct Array_##name *, u32 idx, const type *);  \
- void Array_##name##_InsertVal(struct Array_##name *, u32 idx, const type); \
- void Array_##name##_Remove(struct Array_##name *, u32 idx);                \
-                                                                            \
- void Array_##name##_Reverse(struct Array_##name *);
+#define DEF_ARRAY(name, type)                                        \
+typedef struct Array_##name Array_##name;                            \
+struct Array_##name { u32 Size, Capacity; type *Data; };             \
+                                                                     \
+ void Array_##name##_SizeToFit(Array_##name *);                      \
+ void Array_##name##_Free(Array_##name *);                           \
+                                                                     \
+  i32 Array_##name##_Find(const Array_##name *, const type *);       \
+bool8 Array_##name##_Has(const Array_##name *, const type *);        \
+                                                                     \
+ void Array_##name##_Push(Array_##name *, const type *);             \
+ void Array_##name##_PushVal(Array_##name *, const type);            \
+ void Array_##name##_Pop(Array_##name *);                            \
+ void Array_##name##_PushMany(Array_##name *, const type *, u32 n);  \
+                                                                     \
+ void Array_##name##_Insert(Array_##name *, u32 idx, const type *);  \
+ void Array_##name##_InsertVal(Array_##name *, u32 idx, const type); \
+ void Array_##name##_Remove(Array_##name *, u32 idx);                \
+                                                                     \
+ void Array_##name##_Reverse(Array_##name *);
 
-#define DECL_ARRAY(name, type)                                                \
-bool8 Array_##name##_Has(const struct Array_##name *a, const type *t)         \
-{                                                                             \
-    return Array_##name##_Find(a, t) < 0 ? 0 : 1;                             \
-}                                                                             \
-i32 Array_##name##_Find(const struct Array_##name *a, const type *t)          \
-{                                                                             \
-	if(!a->Size) return -1;                                                   \
-	for(u32 i = 0; i < a->Size; i++) {                                        \
-	    if(memcmp(&a->Data[i], t, sizeof(type)) == 0)                         \
-	        return i;                                                         \
-    }                                                                         \
-	return -1;                                                                \
-}                                                                             \
-void Array_##name##_Push(struct Array_##name *a, const type *t)               \
-{                                                                             \
-    if(!t) return;                                                            \
-    if(a->Size == a->Capacity) {                                              \
-		if(!a->Capacity) a->Capacity = 1;                                     \
-	    a->Capacity *= 2;                                                     \
-	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
-	}                                                                         \
-    memcpy(a->Data + a->Size, t, sizeof(type));                               \
-    a->Size++;                                                                \
-}                                                                             \
-void Array_##name##_PushMany(struct Array_##name *a, const type *t, u32 n)    \
-{                                                                             \
-    if(!t) return;                                                            \
-    if(a->Size + n >= a->Capacity) {                                          \
-		if(!a->Capacity) a->Capacity = 1;                                     \
-	    while(a->Size+n <= a->Capacity) a->Capacity *= 2;                     \
-	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
-	}                                                                         \
-    memcpy(a->Data + a->Size, t, sizeof(type)*n);                             \
-    a->Size += n;                                                             \
-}                                                                             \
-void Array_##name##_PushVal(struct Array_##name *a, const type t) {           \
-    Array_##name##_Push(a, &t);                                               \
-}                                                                             \
-void Array_##name##_Free(struct Array_##name *a) {                            \
-	Free(a->Data);                                                            \
-	a->Data = NULL;                                                           \
-	a->Size = 0;                                                              \
-	a->Capacity = 0;                                                          \
-}                                                                             \
-void Array_##name##_Remove(struct Array_##name *a, u32 idx)                   \
-{                                                                             \
-	if(idx >= a->Size) return;                                                \
-	memmove(&a->Data[idx  ],                                                  \
-			&a->Data[idx+1],                                                  \
-			sizeof(type)*(a->Size-idx));                                      \
-	a->Size--;                                                                \
-}                                                                             \
-void Array_##name##_Insert(struct Array_##name *a, u32 idx, const type* t)    \
-{                                                                             \
-	if(idx >= a->Size || !t) return;                                          \
-    if(a->Size == a->Capacity) {                                              \
-		if(!a->Capacity) a->Capacity = 1;                                     \
-	    a->Capacity *= 2;                                                     \
-	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);            \
-	}                                                                         \
-	memmove(&a->Data[idx+1],                                                  \
-			&a->Data[idx  ],                                                  \
-			sizeof(type)*(a->Size-idx));                                      \
-    memcpy(a->Data + idx, t, sizeof(type));                                   \
-    a->Size++;                                                                \
-}                                                                             \
-void Array_##name##_InsertVal(struct Array_##name *a, u32 idx, const type t)  \
-{                                                                             \
-    Array_##name##_Insert(a, idx, &t);                                        \
-}                                                                             \
-void Array_##name##_Pop(struct Array_##name *a)                               \
-{                                                                             \
-    if(!a || !a->Size) return;                                                \
-    a->Size--;                                                                \
-}                                                                             \
-void Array_##name##_SizeToFit(struct Array_##name *a)                         \
-{                                                                             \
-    a->Data = Reallocate(a->Data, a->Size * sizeof(type));                    \
-    a->Capacity = a->Size;                                                    \
-}                                                                             \
-void Array_##name##_Reverse(struct Array_##name *a)                           \
-{                                                                             \
-    for(u32 i = 0; i < a->Size/2; ++i) {                                      \
-		type tmp = a->Data[i];                                                \
-		a->Data[i] = a->Data[a->Size-1-i];                                    \
-		a->Data[a->Size-1-i] = tmp;                                           \
-	}                                                                         \
+#define DECL_ARRAY(name, type)                                         \
+bool8 Array_##name##_Has(const Array_##name *a, const type *t)         \
+{                                                                      \
+    return Array_##name##_Find(a, t) < 0 ? 0 : 1;                      \
+}                                                                      \
+i32 Array_##name##_Find(const Array_##name *a, const type *t)          \
+{                                                                      \
+	if(!a->Size) return -1;                                            \
+	for(u32 i = 0; i < a->Size; i++) {                                 \
+	    if(memcmp(&a->Data[i], t, sizeof(type)) == 0)                  \
+	        return i;                                                  \
+    }                                                                  \
+	return -1;                                                         \
+}                                                                      \
+void Array_##name##_Push(Array_##name *a, const type *t)               \
+{                                                                      \
+    if(!t) return;                                                     \
+    if(a->Size == a->Capacity) {                                       \
+		if(!a->Capacity) a->Capacity = 1;                              \
+	    a->Capacity *= 2;                                              \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);     \
+	}                                                                  \
+    memcpy(a->Data + a->Size, t, sizeof(type));                        \
+    a->Size++;                                                         \
+}                                                                      \
+void Array_##name##_PushMany(Array_##name *a, const type *t, u32 n)    \
+{                                                                      \
+    if(!t) return;                                                     \
+    if(a->Size + n >= a->Capacity) {                                   \
+		if(!a->Capacity) a->Capacity = 1;                              \
+	    while(a->Size+n <= a->Capacity) a->Capacity *= 2;              \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);     \
+	}                                                                  \
+    memcpy(a->Data + a->Size, t, sizeof(type)*n);                      \
+    a->Size += n;                                                      \
+}                                                                      \
+void Array_##name##_PushVal(Array_##name *a, const type t) {           \
+    Array_##name##_Push(a, &t);                                        \
+}                                                                      \
+void Array_##name##_Free(Array_##name *a) {                            \
+	Free(a->Data);                                                     \
+	a->Data = NULL;                                                    \
+	a->Size = 0;                                                       \
+	a->Capacity = 0;                                                   \
+}                                                                      \
+void Array_##name##_Remove(Array_##name *a, u32 idx)                   \
+{                                                                      \
+	if(idx >= a->Size) return;                                         \
+	memmove(&a->Data[idx  ],                                           \
+			&a->Data[idx+1],                                           \
+			sizeof(type)*(a->Size-idx));                               \
+	a->Size--;                                                         \
+}                                                                      \
+void Array_##name##_Insert(Array_##name *a, u32 idx, const type* t)    \
+{                                                                      \
+	if(idx >= a->Size || !t) return;                                   \
+    if(a->Size == a->Capacity) {                                       \
+		if(!a->Capacity) a->Capacity = 1;                              \
+	    a->Capacity *= 2;                                              \
+	    a->Data = Reallocate(a->Data, sizeof(type) * a->Capacity);     \
+	}                                                                  \
+	memmove(&a->Data[idx+1],                                           \
+			&a->Data[idx  ],                                           \
+			sizeof(type)*(a->Size-idx));                               \
+    memcpy(a->Data + idx, t, sizeof(type));                            \
+    a->Size++;                                                         \
+}                                                                      \
+void Array_##name##_InsertVal(Array_##name *a, u32 idx, const type t)  \
+{                                                                      \
+    Array_##name##_Insert(a, idx, &t);                                 \
+}                                                                      \
+void Array_##name##_Pop(Array_##name *a)                               \
+{                                                                      \
+    if(!a || !a->Size) return;                                         \
+    a->Size--;                                                         \
+}                                                                      \
+void Array_##name##_SizeToFit(Array_##name *a)                         \
+{                                                                      \
+    a->Data = Reallocate(a->Data, a->Size * sizeof(type));             \
+    a->Capacity = a->Size;                                             \
+}                                                                      \
+void Array_##name##_Reverse(Array_##name *a)                           \
+{                                                                      \
+    for(u32 i = 0; i < a->Size/2; ++i) {                               \
+		type tmp = a->Data[i];                                         \
+		a->Data[i] = a->Data[a->Size-1-i];                             \
+		a->Data[a->Size-1-i] = tmp;                                    \
+	}                                                                  \
 }
 DEF_ARRAY(u8, u8);
 DEF_ARRAY(u16, u16);
@@ -258,25 +259,27 @@ extern u128 Hash_MD5(const u8 *bytes, u32 length);
 extern u128 Hash_String_MD5(const char* str);
 extern bool8 Hash_Equal(const u128 *a, const u128 *b);
 
-#define DEF_HASHMAP(name, type) \
-struct HashMap_##name {         \
-	u128 *Keys;                 \
-	type *Values;               \
-	u32 Size, Capacity;         \
-};                              \
-                                \
- void HashMap_##name##_Add(struct HashMap_##name *map, const u8* key, u32 keyLen, const type *t);   \
- void HashMap_##name##_AddVal(struct HashMap_##name *map, const u8* key, u32 keyLen, const type t); \
+#define DEF_HASHMAP(name, type)               \
+	                                          \
+typedef struct HashMap_##name HashMap_##name; \
+struct HashMap_##name {                       \
+	u128 *Keys;                               \
+	type *Values;                             \
+	u32 Size, Capacity;                       \
+};                                            \
+                                              \
+ void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const type *t);   \
+ void HashMap_##name##_AddVal(HashMap_##name *map, const u8* key, u32 keyLen, const type t); \
                                                                                                     \
- void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyLen);               \
+ void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen);               \
                                                                                                     \
-type* HashMap_##name##_Find(const struct HashMap_##name *map, const u8* key, u32 keyLen);           \
- i32  HashMap_##name##_FindIdx(const struct HashMap_##name *map, const u8* key, u32 keyLen);        \
+type* HashMap_##name##_Find(const HashMap_##name *map, const u8* key, u32 keyLen);           \
+ i32  HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLen);        \
                                                                                                     \
- void HashMap_##name##_Free(struct HashMap_##name *map);                                            \
+ void HashMap_##name##_Free(HashMap_##name *map);                                            \
 
 #define DECL_HASHMAP(name, type) \
-void HashMap_##name##_Add(struct HashMap_##name *map, const u8* key, u32 keyLen, const type *t){   \
+void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const type *t){   \
 	if(!t) return;                                                                                 \
 	if(map->Size == map->Capacity) {                                                               \
 		if(!map->Capacity) map->Capacity = 1;                                                      \
@@ -290,11 +293,11 @@ void HashMap_##name##_Add(struct HashMap_##name *map, const u8* key, u32 keyLen,
 	map->Size++;                                                                                   \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_AddVal(struct HashMap_##name *map, const u8* key, u32 keyLen, const type t){ \
+void HashMap_##name##_AddVal(HashMap_##name *map, const u8* key, u32 keyLen, const type t){ \
 	HashMap_##name##_Add(map, key, keyLen, &t);                                                    \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyLen){               \
+void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen){               \
 	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
 	if(i < 0) return;                                                                              \
 	memmove(map->Keys   + i + 1, map->Keys   + i, sizeof(u128) * (map->Size-i));                   \
@@ -302,11 +305,11 @@ void HashMap_##name##_Remove(struct HashMap_##name *map, const u8* key, u32 keyL
 	map->Size--;                                                                                   \
 }                                                                                                  \
                                                                                                    \
-type* HashMap_##name##_Find(const struct HashMap_##name *map, const u8* key, u32 keyLen){          \
+type* HashMap_##name##_Find(const HashMap_##name *map, const u8* key, u32 keyLen){          \
 	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
 	return (i >= 0 ? map->Values + i : NULL);                                                      \
 }                                                                                                  \
-i32 HashMap_##name##_FindIdx(const struct HashMap_##name *map, const u8* key, u32 keyLen){         \
+i32 HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLen){         \
 	if(!map->Size) return -1;                                                                      \
 	u128 k = Hash_MD5(key, keyLen);                                                                \
 	for(u32 i = 0; i < map->Size; ++i) {                                                           \
@@ -316,7 +319,7 @@ i32 HashMap_##name##_FindIdx(const struct HashMap_##name *map, const u8* key, u3
 	return -1;                                                                                     \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_Free(struct HashMap_##name *map) {                                           \
+void HashMap_##name##_Free(HashMap_##name *map) {                                           \
 	Free(map->Keys);                                                                               \
 	Free(map->Values);                                                                             \
 	map->Keys = NULL;                                                                              \

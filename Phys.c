@@ -8,7 +8,7 @@
 
 /// Checks if the box b is inside a.
 /// Does not check the reverse.
-bool8 AABB_CheckInside(struct AABB a, struct AABB b)
+bool8 AABB_CheckInside(AABB a, AABB b)
 {
 	a = AABB_Fix(a);
 	b = AABB_Fix(b);
@@ -24,7 +24,7 @@ bool8 AABB_CheckInside(struct AABB a, struct AABB b)
 		InRange_R32(b.Max.z, a.Min.z, a.Max.z);
 }
 
-bool8 AABB_CheckCollision(struct AABB a, struct AABB b)
+bool8 AABB_CheckCollision(AABB a, AABB b)
 {
 	a = AABB_Fix(a);
 	b = AABB_Fix(b);
@@ -34,9 +34,9 @@ bool8 AABB_CheckCollision(struct AABB a, struct AABB b)
 		&& RangesOverlap_R32(a.Min.z, a.Max.z, b.Min.z, b.Max.z);
 }
 
-struct AABB AABB_Fix(struct AABB aabb)
+AABB AABB_Fix(AABB aabb)
 {
-	return (struct AABB) {
+	return (AABB) {
 		.Min = V3C(MIN(aabb.Min.x, aabb.Max.x),
 				   MIN(aabb.Min.y, aabb.Max.y),
 				   MIN(aabb.Min.z, aabb.Max.z)),
@@ -47,13 +47,13 @@ struct AABB AABB_Fix(struct AABB aabb)
 	};
 }
 
-struct AABB 
-AABB_ApplyTransform3D (struct AABB aabb, Transform3D t)
+AABB 
+AABB_ApplyTransform3D (AABB aabb, Transform3D t)
 {
 	Mat4 model;
 	Transform3D_Mat4(t, model);
 
-	struct AABB res; 
+	AABB res; 
 	res.Min = Mat4_MultVec4(model, V4_V3(aabb.Min, 1)).xyz;
 	res.Max = Mat4_MultVec4(model, V4_V3(aabb.Max, 1)).xyz;
 	return AABB_Fix(res);
@@ -85,7 +85,7 @@ Triangle_PointInside(const Vec2 t[3], Vec2 p)
 
 // Thank you,
 // https://web.stanford.edu/class/cs277/resources/papers/Moller1997b.pdf
-static struct Intersection
+static Intersection
 TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 {
 	const r32 epsilon = 1e-8;
@@ -104,7 +104,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 	   TRIEQ(GetSign_R32(dist1[0]), GetSign_R32(dist1[1]), GetSign_R32(dist1[2])))
 	{
 		Log(DEBUG, "Early reject 1. dist1[%.2f, %.2f, %.2f]", dist1[0], dist1[1], dist1[2]);
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 	}
 
 	Vec3 N1 = Vec3_Cross(Vec3_Sub(Tri1[1], Tri1[0]), Vec3_Sub(Tri1[2], Tri1[0]));
@@ -120,7 +120,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 	   TRIEQ(GetSign_R32(dist2[0]), GetSign_R32(dist2[1]), GetSign_R32(dist2[2])))
 	{
 		Log(DEBUG, "Early reject 2. dist2[%.2f, %.2f, %.2f]", dist2[0], dist2[1], dist2[2]);
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 	}
 
 	if(dist2[0] == 0 && TRIEQ(dist2[0], dist2[1], dist2[2])) {
@@ -191,7 +191,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 					   / ((a1.x - a2.x)*(b1.y - b2.y) - (a1.y-a2.y)*(b1.x-b2.x));
 
 				if(InRange_R32(t, 0, 1) && InRange_R32(u, 0, 1))
-					return (struct Intersection) { 
+					return (Intersection) { 
 						.Occurred = 1,
 						.Point = Vec3_Add(Tri1[i], Vec3_MultScal(Vec3_Sub(Tri1[(i+1)%3], Tri1[i]), t)) 
 					};
@@ -207,7 +207,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 			}
 		}
 		if(triInside)
-			return (struct Intersection) {
+			return (Intersection) {
 				.Occurred = 1,
 				.Point = Vec3_TriCenter(Tri2[0], Tri2[1], Tri2[2])
 			};
@@ -220,7 +220,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 			}
 		}
 
-		return (struct Intersection) {
+		return (Intersection) {
 			.Occurred = 1,
 			.Point = Vec3_TriCenter(Tri1[0], Tri1[1], Tri1[2])
 		};
@@ -258,14 +258,14 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 
 		// TODO: Check the case where the collision Occurred again, it looks wrong...
 		if(!Occurred)
-			return (struct Intersection) { .Occurred = 0 };
+			return (Intersection) { .Occurred = 0 };
 		else
-			return (struct Intersection) { .Occurred = 1, .Point = O };
+			return (Intersection) { .Occurred = 1, .Point = O };
 	}
 }
 
-struct Intersection 
-TriHull_Intersect(struct TriHull a, struct TriHull b)
+Intersection 
+TriHull_Intersect(TriHull a, TriHull b)
 {
 	// TODO: Optimizations go here.
 	
@@ -286,7 +286,7 @@ TriHull_Intersect(struct TriHull a, struct TriHull b)
 				for(u32 p = 0; p < 3; p++) triB[p] = Mat4_MultVec4(m, V4_V3(triB[p], 1)).xyz;
 			}
 
-			struct Intersection res = TriTri_Intersect(triA, triB);
+			Intersection res = TriTri_Intersect(triA, triB);
 
 			if(res.Occurred) {
 				Log(INFO, "Triangles #%d and #%d intersect at Point (%.2f, %.2f, %.2f)!", 
@@ -296,13 +296,13 @@ TriHull_Intersect(struct TriHull a, struct TriHull b)
 		}
 	}
 
-	return (struct Intersection) { .Occurred = 0 };
+	return (Intersection) { .Occurred = 0 };
 }
 
 // Thank you,
 // https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-static struct Intersection
-TriRay_Intersect(Vec3 *tri, struct Ray ray)
+static Intersection
+TriRay_Intersect(Vec3 *tri, Ray ray)
 {
 	const r32 epsilon = 1e-8;
 
@@ -313,33 +313,33 @@ TriRay_Intersect(Vec3 *tri, struct Ray ray)
 	r32 a = Vec3_Dot(ab, h);
 
 	if(InRange_R32(a, -epsilon, epsilon))
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 
 	r32 f = 1.0/a;
 	Vec3 s = Vec3_Sub(ray.Start, tri[0]);
 	r32 u = f * Vec3_Dot(s, h);
 
 	if(!InRange_R32(u, 0.0, 1.0))
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 
 	Vec3 q = Vec3_Cross(s, ab);
 	r32 v = f * Vec3_Dot(ray.Dir, q);
 	if(!InRange_R32(v, 0.0, 1.0 - u))
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 
 	r32 t = f * Vec3_Dot(ac, q);
 
 	if(t < epsilon)
-		return (struct Intersection) { .Occurred = 0 };
+		return (Intersection) { .Occurred = 0 };
 
-	return (struct Intersection) {
+	return (Intersection) {
 		.Occurred = 1,
 		.Point = Vec3_Add(ray.Start, Vec3_MultScal(ray.Dir, t)) 
 	};
 }
 
-struct Intersection 
-TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
+Intersection 
+TriHull_RayIntersect(TriHull hull, Ray ray)
 {
 	// TODO: Optimizations go here?
 	
@@ -352,7 +352,7 @@ TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
 			for(u32 p = 0; p < 3; p++) tri[p] = Mat4_MultVec4(m, V4_V3(tri[p], 1)).xyz;
 		}
 
-		struct Intersection res = TriRay_Intersect(tri, ray);
+		Intersection res = TriRay_Intersect(tri, ray);
 
 		if(res.Occurred) {
 			Log(INFO, "Triangle #%d and ray intersect at Point (%.2f, %.2f, %.2f)!", 
@@ -361,37 +361,38 @@ TriHull_RayIntersect(struct TriHull hull, struct Ray ray)
 		}
 	}
 
-	return (struct Intersection) { .Occurred = 0 };
+	return (Intersection) { .Occurred = 0 };
 }
+typedef struct OctreeNode OctreeNode;
 
 struct PhysWorld_Cache {
 	u128 LastHash;
 
-	struct OctreeNode* OctreeRoot;
+	OctreeNode* OctreeRoot;
 };
 
-void PhysWorld_Init(struct PhysWorld* world)
+void PhysWorld_Init(PhysWorld* world)
 {
 	world->Gravity = 9.8;
-	world->Objects = (struct Array_PhysObject) {0};
-	world->_cache = Allocate(sizeof(struct PhysWorld_Cache));
-	memset(world->_cache, 0, sizeof(struct PhysWorld_Cache));
+	world->Objects = (Array_PhysObject) {0};
+	world->_cache = Allocate(sizeof(PhysWorld_Cache));
+	memset(world->_cache, 0, sizeof(PhysWorld_Cache));
 }
 
 // How many objects max before we need to split the octree again?
 const u32 Octree_SplitTreshold = 4;
 struct OctreeNode {
-	struct OctreeNode* Parent;
-	struct OctreeNode* Children;
+	OctreeNode* Parent;
+	OctreeNode* Children;
 
-	struct AABB Extents;
+	AABB Extents;
 
 	// Array of indices into the PhysWorld Objects array.
-	struct Array_u32 ObjectInds;
+	Array_u32 ObjectInds;
 };
 
-DEF_ARRAY(OctreeNodePtr, struct OctreeNode*);
-DECL_ARRAY(OctreeNodePtr, struct OctreeNode*);
+DEF_ARRAY(OctreeNodePtr, OctreeNode*);
+DECL_ARRAY(OctreeNodePtr, OctreeNode*);
 
 // NOTE: This may need to change if any weird tree traversal
 //       leads to lots of cache misses.
@@ -404,10 +405,10 @@ enum OctreePos
 
 /// Creates an octree node's children and sets their extents.
 static void
-OctreeNode_Split(struct OctreeNode* n)
+OctreeNode_Split(OctreeNode* n)
 {
-	n->Children = Allocate(sizeof(struct OctreeNode) * 8);
-	memset(n->Children, 0, sizeof(struct OctreeNode) * 8);
+	n->Children = Allocate(sizeof(OctreeNode) * 8);
+	memset(n->Children, 0, sizeof(OctreeNode) * 8);
 
 	/* 
 	 *             _
@@ -459,7 +460,7 @@ OctreeNode_Split(struct OctreeNode* n)
 			maxY = i & Pos_Top   ? max.y : mid.y,
 			maxZ = i & Pos_Front ? max.z : mid.z;
 
-		n->Children[i].Extents = (struct AABB) {
+		n->Children[i].Extents = (AABB) {
 			.Min = V3(minX, minY, minZ),
 			.Max = V3(maxX, maxY, maxZ)
 		};
@@ -467,13 +468,13 @@ OctreeNode_Split(struct OctreeNode* n)
 }
 
 static void 
-PhysWorld_OctreeSplit(const struct PhysWorld* world)
+PhysWorld_OctreeSplit(const PhysWorld* world)
 {
-	struct OctreeNode *root = world->_cache->OctreeRoot;
+	OctreeNode *root = world->_cache->OctreeRoot;
 
 	if(!root) {
-		root = Allocate(sizeof(struct OctreeNode));
-		*root = (struct OctreeNode) {0};
+		root = Allocate(sizeof(OctreeNode));
+		*root = (OctreeNode) {0};
 
 		world->_cache->OctreeRoot = root;
 
@@ -496,11 +497,11 @@ PhysWorld_OctreeSplit(const struct PhysWorld* world)
 
 	// A queue for tracking which nodes of the octree 
 	// still haven't been checked for passing the threshold.
-	struct Array_OctreeNodePtr queue;
+	Array_OctreeNodePtr queue;
 	Array_OctreeNodePtr_PushVal(&queue, root);
 
 	while(queue.Size) {
-		struct OctreeNode *n = queue.Data[0];
+		OctreeNode *n = queue.Data[0];
 
 		if(n->ObjectInds.Size > Octree_SplitTreshold) {
 			// Create the octree split.
@@ -510,10 +511,10 @@ PhysWorld_OctreeSplit(const struct PhysWorld* world)
 
 			// Split objects depending on which child node's extents their AABB fits in.
 			for(u32 i = 0; i < n->ObjectInds.Size; ++i) {
-				struct PhysObject* o = world->Objects.Data + n->ObjectInds.Data[i];
+				PhysObject* o = world->Objects.Data + n->ObjectInds.Data[i];
 
 				for(u32 j = 0; j < 8; ++j) {
-					struct OctreeNode* c = n->Children + j;
+					OctreeNode* c = n->Children + j;
 
 					if(AABB_CheckInside(c->Extents, AABB_ApplyTransform3D(o->AABB, o->Transform))) {
 						Array_u32_Push(&c->ObjectInds, n->ObjectInds.Data + i);
@@ -528,8 +529,8 @@ PhysWorld_OctreeSplit(const struct PhysWorld* world)
 	}
 }
 
-struct PhysObject*
-PhysWorld_RayCollide(const struct PhysWorld* world, struct Ray ray)
+PhysObject*
+PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 {
 	// 1. Split world into octree
 	PhysWorld_OctreeSplit(world);
@@ -537,7 +538,7 @@ PhysWorld_RayCollide(const struct PhysWorld* world, struct Ray ray)
 	// 2. 
 }
 
-void PhysWorld_Update(struct PhysWorld* world, r32 dt)
+void PhysWorld_Update(PhysWorld* world, r32 dt)
 {
 	// 1. Split world into octree.
 	PhysWorld_OctreeSplit(world);

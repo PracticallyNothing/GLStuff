@@ -7,21 +7,21 @@
 
 DECL_ARRAY(Hash, u128);
 DECL_ARRAY(String, char *);
-DECL_ARRAY(JSON_Value, struct JSON_Value);
-DECL_HASHMAP(JSON_Value, struct JSON_Value);
+DECL_ARRAY(JSON_Value, JSON_Value);
+DECL_HASHMAP(JSON_Value, JSON_Value);
 
-struct JSON_Value
+JSON_Value
 JSON_FromFile(const char* filename)
 {
 	Log(INFO, "Reading JSON file \"%s\".", filename);
 	u32 size;
 	u8* buf = File_ReadToBuffer_Alloc(filename, &size);
-	struct JSON_Value res = JSON_FromString_N((char*) buf, size);
+	JSON_Value res = JSON_FromString_N((char*) buf, size);
 	Free(buf);
 	return res;
 }
 
-struct JSON_Value 
+JSON_Value 
 JSON_FromString(const char* str)
 {
 	return JSON_FromString_N(str, strlen(str));
@@ -81,16 +81,17 @@ const char *TokenType_Strings[Token_TotalTypes+1] = {
 	"Token_TotalTypes"
 };
 
+typedef struct Token Token;
 struct Token {
 	enum TokenType Type;
 	const char* Start;
 	const char* End;
 };
 
-DEF_ARRAY(Token, struct Token);
-DECL_ARRAY(Token, struct Token);
+DEF_ARRAY(Token, Token);
+DECL_ARRAY(Token, Token);
 
-static void PrintToken(const struct Token *t)
+static void PrintToken(const Token *t)
 {
 	printf("%s", TokenType_Strings[t->Type]);
 	switch(t->Type) {
@@ -101,12 +102,12 @@ static void PrintToken(const struct Token *t)
 	printf(" ");
 }
 
-static struct Array_Token 
+static Array_Token 
 JSON_ToTokens(const char* str, u32 len) 
 {
 	const char* p = str;
 
-	struct Array_Token tokens = {
+	Array_Token tokens = {
 		.Size = 0,
 		.Capacity = 0,
 		.Data = NULL
@@ -151,7 +152,7 @@ JSON_ToTokens(const char* str, u32 len)
 					if(gotDot) { 
 						Log(ERROR, "JSON number with too many decimal points.", ""); 
 						Array_Token_Free(&tokens);
-						return (struct Array_Token) {0};
+						return (Array_Token) {0};
 					}
 					else 
 						gotDot = 1;
@@ -171,7 +172,7 @@ JSON_ToTokens(const char* str, u32 len)
 
 		// Allocate more space for tokens
 
-		struct Token t = {
+		Token t = {
 			.Type = type,
 			.Start = start,
 			.End = end
@@ -181,22 +182,22 @@ JSON_ToTokens(const char* str, u32 len)
 	}
 
 	// Push final Token_EOF
-	struct Token t = { .Type = Token_EOF };
+	Token t = { .Type = Token_EOF };
 	Array_Token_Push(&tokens, &t);
 	Array_Token_SizeToFit(&tokens);
 	return tokens;
 }
 
-const struct JSON_Value Error = { .Type = JSON_Error };
+const JSON_Value Error = { .Type = JSON_Error };
 
-static struct JSON_Value JSON_ParsePrimitive(const struct Token **curr);
-static struct JSON_Value JSON_ParseArray(const struct Token **curr);
-static struct JSON_Value JSON_ParseObject(const struct Token **curr);
+static JSON_Value JSON_ParsePrimitive(const Token **curr);
+static JSON_Value JSON_ParseArray(const Token **curr);
+static JSON_Value JSON_ParseObject(const Token **curr);
 
-static struct JSON_Value 
-JSON_ParsePrimitive(const struct Token **curr) 
+static JSON_Value 
+JSON_ParsePrimitive(const Token **curr) 
 {
-	struct JSON_Value res = { .Type = JSON_Error };
+	JSON_Value res = { .Type = JSON_Error };
 
 	switch((*curr)->Type) {
 		case Token_String: {
@@ -229,17 +230,17 @@ JSON_ParsePrimitive(const struct Token **curr)
 	return res;
 }
 
-static struct JSON_Value
-JSON_ParseArray(const struct Token **curr) {
+static JSON_Value
+JSON_ParseArray(const Token **curr) {
 	(*curr)++;
 
-	struct JSON_Value array;
+	JSON_Value array;
 	array.Type = JSON_Array;
-	array.Array = (struct Array_JSON_Value) {0};
+	array.Array = (Array_JSON_Value) {0};
 
 	while((*curr)->Type != Token_EndArray && (*curr)->Type != Token_EOF)
 	{
-		struct JSON_Value v;
+		JSON_Value v;
 		switch((*curr)->Type) {
 			case Token_BeginArray:
 				v = JSON_ParseArray(curr);
@@ -297,14 +298,14 @@ ParseArray_error:
 	return Error;
 }
 
-static struct JSON_Value
-JSON_ParseObject(const struct Token **curr) {
+static JSON_Value
+JSON_ParseObject(const Token **curr) {
 	(*curr)++;
 
-	struct JSON_Value object;
+	JSON_Value object;
 	object.Type = JSON_Object;
-	object.Object.Map        = (struct HashMap_JSON_Value) {0};
-	object.Object.StringKeys = (struct Array_String) {0};
+	object.Object.Map        = (HashMap_JSON_Value) {0};
+	object.Object.StringKeys = (Array_String) {0};
 
 	while((*curr)->Type != Token_EndObject && (*curr)->Type != Token_EOF)
 	{
@@ -344,7 +345,7 @@ JSON_ParseObject(const struct Token **curr) {
 			goto ParseObject_error;
 		}
 
-		struct JSON_Value v;
+		JSON_Value v;
 		switch((*curr)->Type) {
 			case Token_BeginArray:
 				v = JSON_ParseArray(curr);
@@ -405,7 +406,7 @@ ParseObject_error:
 	return Error;
 }
 
-struct JSON_Value 
+JSON_Value 
 JSON_FromString_N(const char* str, u32 len)
 {
 	if(!str || !len) {
@@ -413,15 +414,15 @@ JSON_FromString_N(const char* str, u32 len)
 		return Error;
 	}
 
-	struct Array_Token tokens = JSON_ToTokens(str, len);
+	Array_Token tokens = JSON_ToTokens(str, len);
 
 	if(!tokens.Data) {
 		Log(ERROR, "No tokens parsed.", "");
 		return Error;
 	}
 
-	const struct Token *currToken = tokens.Data;
-	struct JSON_Value res;
+	const Token *currToken = tokens.Data;
+	JSON_Value res;
 
 	switch(currToken->Type) {
 		case Token_BeginArray:  
@@ -455,7 +456,7 @@ error:
 	return Error;
 }
 
-void JSON_Free(struct JSON_Value *v)
+void JSON_Free(JSON_Value *v)
 {
 	switch(v->Type) {
 		case JSON_Array:
@@ -484,7 +485,7 @@ void JSON_Free(struct JSON_Value *v)
 	}
 }
 
-struct JSON_Value* JSON_ObjectFind(const struct JSON_Value* v, const char* str)
+JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str)
 {
 	if(!v || !str) return NULL;
 	return HashMap_JSON_Value_Find(&v->Object.Map, (u8*) str, strlen(str));

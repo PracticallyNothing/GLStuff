@@ -37,15 +37,15 @@ bool32 Char_IsNewline(char c)    { return c == '\r' || c == '\n'; }
 bool32 Char_IsLetter(char c)     { return ('A' >= c && c <= 'Z') || ('a' >= c && c <= 'z'); }
 bool32 Char_IsDigit(char c)      { return '0' >= c && c <= '9'; }
 
-DEF_ARRAY(WMat,  struct WObj_Material);
-DEF_ARRAY(WObj,  struct WObj_Object);
-DEF_ARRAY(WVert, struct WObj_Vertex);
+DEF_ARRAY(WMat,  WObj_Material);
+DEF_ARRAY(WObj,  WObj_Object);
+DEF_ARRAY(WVert, WObj_Vertex);
 
-DECL_ARRAY(WMat,  struct WObj_Material);
-DECL_ARRAY(WObj,  struct WObj_Object);
-DECL_ARRAY(WVert, struct WObj_Vertex);
+DECL_ARRAY(WMat,  WObj_Material);
+DECL_ARRAY(WObj,  WObj_Object);
+DECL_ARRAY(WVert, WObj_Vertex);
 
-void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
+void WObj_ReadMtl(const char *filename, Array_WMat *Mats) {
 	u32 Size = 0;
 	u8 *Buffer = File_ReadToBuffer_Alloc(filename, &Size);
 	if(!Buffer) {
@@ -157,6 +157,9 @@ void WObj_ReadMtl(const char *filename, struct Array_WMat *Mats) {
 	Free(Buffer);
 }
 
+typedef struct FaceVertex FaceVertex;
+typedef struct Object     Object;
+
 struct FaceVertex {
 	i32 PosId;
 	i32 UVId;
@@ -165,26 +168,26 @@ struct FaceVertex {
 	bool32 HasUV;
 	bool32 HasNormal;
 };
-DEF_ARRAY(FaceVert, struct FaceVertex);
-DECL_ARRAY(FaceVert, struct FaceVertex);
+DEF_ARRAY(FaceVert, FaceVertex);
+DECL_ARRAY(FaceVert, FaceVertex);
 
-DEF_ARRAY(Face, struct Array_FaceVert);
-DECL_ARRAY(Face, struct Array_FaceVert);
+DEF_ARRAY(Face, Array_FaceVert);
+DECL_ARRAY(Face, Array_FaceVert);
 
 struct Object {
 	WObj_Material *Material;
 
 	char Name[256];
-	struct Array_Face Faces;
+	Array_Face Faces;
 };
- DEF_ARRAY(Obj, struct Object);
-DECL_ARRAY(Obj, struct Object);
+ DEF_ARRAY(Obj, Object);
+DECL_ARRAY(Obj, Object);
 
 
-void Object_Init(struct Object *o) {
-	memset(o, 0, sizeof(struct Object));
+void Object_Init(Object *o) {
+	memset(o, 0, sizeof(Object));
 }
-void Object_Free(struct Object *o) {
+void Object_Free(Object *o) {
 	if(!o) return;
 	for(u32 j = 0; j < o->Faces.Size; j++)
 		Array_FaceVert_Free(o->Faces.Data + j);
@@ -211,17 +214,17 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	WObj_Library *res = Allocate(sizeof(WObj_Library));
 	bool8 HasMTL = 0;
 
-	struct Object *CurrObject = NULL;
+	Object *CurrObject = NULL;
 
-	struct Array_Vec3 Positions = { .Capacity = 0, .Size = 0, .Data = NULL };
-	struct Array_Vec3 Normals   = { .Capacity = 0, .Size = 0, .Data = NULL };
-	struct Array_Vec2 UVs       = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_Vec3 Positions = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_Vec3 Normals   = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_Vec2 UVs       = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 	// TODO: Figure out what this is supposed to do.
 	// bool32 SmoothingEnabled = 0;
 
-	struct Array_WMat Materials = { .Capacity = 0, .Size = 0, .Data = NULL }; 
-	struct Array_Obj  Objects   = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_WMat Materials = { .Capacity = 0, .Size = 0, .Data = NULL }; 
+	Array_Obj  Objects   = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 	u32 i = 0;
 	while(i < Size) {
@@ -231,7 +234,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 		READ_NEXT_WORD(Command);
 
 		if(strncmp(Command, "o", 1) == 0) {
-			struct Object obj;
+			Object obj;
 			Object_Init(&obj);
 			READ_NEXT_WORD(obj.Name);
 			Array_Obj_Push(&Objects, &obj);
@@ -297,10 +300,10 @@ WObj_Library *WObj_FromFile(const char *filename) {
 			Vec3 Normal = V3(atof(x), atof(y), atof(z));
 			Array_Vec3_Push(&Normals, &Normal);
 		} else if(strncmp(Command, "f", 1) == 0) {
-			struct Array_FaceVert FaceVerts = { .Capacity = 0, .Size = 0, .Data = NULL };
+			Array_FaceVert FaceVerts = { .Capacity = 0, .Size = 0, .Data = NULL };
 
 			while(!Char_IsNewline(Buffer[i])) {
-				struct FaceVertex FV;
+				FaceVertex FV;
 				FV.HasUV = FV.HasNormal = 0;
 
 				char Vertex[32] = {0};
@@ -343,7 +346,7 @@ face_vertex_end:
 			}
 
 			// Flip faces to correspond to OpenGL CCW front face requirements.
-			struct FaceVertex tmp = FaceVerts.Data[0];
+			FaceVertex tmp = FaceVerts.Data[0];
 			FaceVerts.Data[0] = FaceVerts.Data[1];
 			FaceVerts.Data[1] = tmp;
 
@@ -363,25 +366,25 @@ face_vertex_end:
 	// Take all the vertices with IDs and convert them to vertices with values.
 	// If a vertex already exists, add an index to it.
 
-	struct Array_WVert Vertices = { .Capacity = 0, .Size = 0, .Data = NULL };
-	struct Array_u32   Indices  = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_WVert Vertices = { .Capacity = 0, .Size = 0, .Data = NULL };
+	Array_u32   Indices  = { .Capacity = 0, .Size = 0, .Data = NULL };
 
-	struct Array_WObj FinalObjects = { .Capacity = 0, .Size = 0, .Data = NULL }; 
+	Array_WObj FinalObjects = { .Capacity = 0, .Size = 0, .Data = NULL }; 
 
 	for(u32 i = 0; i < Objects.Size; i++) {
-		struct Object *obj = Objects.Data + i;
+		Object *obj = Objects.Data + i;
 		u32 NextIndex = 0;
 
 		for(u32 i = 0; i < obj->Faces.Size; i++) {
-			struct Array_FaceVert FVs = obj->Faces.Data[i];
+			Array_FaceVert FVs = obj->Faces.Data[i];
 
 			for(u32 j = 0; j < FVs.Size; j++) {
-				struct FaceVertex v = FVs.Data[j];
+				FaceVertex v = FVs.Data[j];
 
 				i32 FoundVertexId = -1;
 				// Check to see if this vertex exists.
 				for(u32 q = 0; q < j; q++) {
-					struct FaceVertex v2 = FVs.Data[q];
+					FaceVertex v2 = FVs.Data[q];
 					if(v.PosId == v2.PosId) {
 						FoundVertexId = q;
 						break;
