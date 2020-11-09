@@ -275,9 +275,16 @@ Audio_Source_ReadPlayHeadPos(Audio_Source src)
 }
 
 void
-Audio_Source_Seek(Audio_Source src, r32 seekSeconds)
+Audio_Source_SeekTo(Audio_Source src, r32 seekSeconds)
 {
 	alSourcef(src.Id, AL_SEC_OFFSET, seekSeconds);
+}
+
+void
+Audio_Source_SeekBy(Audio_Source src, r32 seekSeconds)
+{
+	r32 s = Audio_Source_ReadPlayHeadPos(src) + seekSeconds;
+	alSourcef(src.Id, AL_SEC_OFFSET, s);
 }
 
 enum Audio_SourceState 

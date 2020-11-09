@@ -135,7 +135,8 @@ extern Audio_SourceProps Audio_Source_ReadProps(Audio_Source src);
 extern void              Audio_Source_SetProps(Audio_Source src, const Audio_SourceProps* props);  
 
 extern r32  Audio_Source_ReadPlayHeadPos(Audio_Source src);
-extern void Audio_Source_Seek(Audio_Source src, r32 seekSeconds);
+extern void Audio_Source_SeekTo(Audio_Source src, r32 seekSeconds);
+extern void Audio_Source_SeekBy(Audio_Source src, r32 seekSeconds);
 
 extern enum Audio_SourceState Audio_Source_ReadState(Audio_Source src);
 

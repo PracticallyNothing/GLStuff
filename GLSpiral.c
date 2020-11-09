@@ -28,6 +28,7 @@ void DrawGrid(OrbitCamera c, i32 size)
 	Free(points);
 }
 
+typedef struct Configuration Configuration;
 struct Configuration {
 	u32 ScreenWidth;
 	u32 ScreenHeight;
@@ -35,16 +36,15 @@ struct Configuration {
 };
 
 static const 
-struct Configuration DefaultConf = {
+Configuration DefaultConf = {
 	.ScreenWidth = 1280,
 	.ScreenHeight = 720,
 	.FPSCap = 60,
 };
 
-struct Configuration
-ReadJSONConf()
+Configuration ReadJSONConf()
 {
-	struct Configuration Conf = DefaultConf;
+	Configuration Conf = DefaultConf;
 
 	JSON_Value v = JSON_FromFile("conf.json");
 	if(v.Type == JSON_Error)
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 	srand(time(NULL));
 
-	struct Configuration Conf = ReadJSONConf();
+	Configuration Conf = ReadJSONConf();
 	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
 	RSys_SetFPSCap(Conf.FPSCap);
 
@@ -110,10 +110,10 @@ int main(int argc, char *argv[]) {
 	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
 	srcProps.Loop = 1;
 	srcProps.PosRelative = 1;
-	srcProps.Pitch = 1.2;
+	srcProps.Pitch = 1;
 	Audio_Source_SetProps(src, &srcProps);
 	Audio_Source_Play(src);
-	Audio_Source_Seek(src, 30);
+	Audio_Source_SeekTo(src, 5);
 
 	Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
