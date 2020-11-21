@@ -98,18 +98,23 @@ int main(int argc, char *argv[]) {
 	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
 	RSys_SetFPSCap(Conf.FPSCap);
 
-
 	RGB ClearColor = HexToRGB("52a9e0");
 	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
 
 	Audio_Init(NULL);
-	Audio_Buffer b = Audio_Buffer_FromFile("res/audio/test.wav");
+	Audio_Buffer buffers[3] = {
+		Audio_Buffer_FromFile("res/audio/left.wav"),
+		Audio_Buffer_FromFile("res/audio/right.wav"),
+		Audio_Buffer_FromFile("res/audio/test.wav"),
+	};
+	Audio_Buffer *b = buffers;
+
 	Audio_Source src = Audio_Source_Init();
-	Audio_Source_SetBuffer(src, b);
+	Audio_Source_SetBuffer(src, *b);
 
 	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
 	srcProps.Loop = 1;
-	srcProps.PosRelative = 1;
+	srcProps.PosRelative = AL_FALSE;
 	srcProps.Pitch = 1;
 	Audio_Source_SetProps(src, &srcProps);
 	Audio_Source_Play(src);
@@ -131,11 +136,14 @@ int main(int argc, char *argv[]) {
 		.ZNear = 1e-2,
 		.ZFar = 1e10,
 		.VerticalFoV = Pi_Half,
-		.Yaw = DegToRad(290),
+		.Yaw   = DegToRad(0),
 		.Pitch = DegToRad(45),
 		.Radius = 20,
 		.AspectRatio = RSys_GetSize().AspectRatio
 	};
+
+	Camera cc = OrbitCamera_ToCamera(Cam);
+	Audio_Listener_SyncToCamera(cc);
 
 	while(1) {
 		SDL_Event e;
@@ -151,6 +159,13 @@ int main(int argc, char *argv[]) {
 								Audio_Source_Pause(src);
 							else
 								Audio_Source_Play(src);
+							break;
+						case SDLK_TAB:
+							Log(INFO, "Switched buffers (%d to %d).", b - buffers, (b - buffers + 1) % 3);
+							b = buffers + ((b - buffers + 1) % 3);
+							Audio_Source_Stop(src);
+							Audio_Source_SetBuffer(src, *b);
+							Audio_Source_Play(src);
 							break;
 						default:
 							break;
@@ -204,23 +219,51 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		cc = OrbitCamera_ToCamera(Cam);
+		Audio_Listener_SyncToCamera(cc);
+
 		// Render frame to back buffer.
 		if(RSys_NeedRedraw()) {
 			DrawGrid(Cam, 200);
 
+			srcProps.Position = V3(5*sinf(Time), 0, 5*cosf(Time));
+			srcProps.Direction = Vec3_Norm(Vec3_Neg(srcProps.Position));
+			Audio_Source_SetProps(src, &srcProps);
+
 			r32 playpos = Audio_Source_ReadPlayHeadPos(src);
-			Audio_BufferProps bProps = Audio_Buffer_ReadProps(b);
+			Audio_BufferProps bProps = Audio_Buffer_ReadProps(*b);
 			r32 len = bProps.LenSeconds;
+
+			R3D_DrawWireSphere(cc, srcProps.Position, 0.5, V4(1,1,1,1));
+
+			/*
+			Vec3 a = Vec3_Add(srcProps.Position, V3( 0.5, 0, -0.5)),
+				 b = Vec3_Add(srcProps.Position, V3(-0.5, 0, -0.5)),
+				 c = Vec3_Add(srcProps.Position, V3( 0,   0,  0.5));
+			R3D_DrawTriangle(cc, a, b, c,  V4(1,1,1,1));
+			*/
+
+			R3D_DrawLine(cc, V3(0,0,0), srcProps.Position, V4(1,1,1,1));
+			R3D_DrawLine(cc, srcProps.Position, Vec3_Add(srcProps.Position, srcProps.Direction), V4(1,1,1,1));
+			R3D_DrawLine(cc, srcProps.Position, Vec3_Add(srcProps.Position, Vec3_Norm(Vec3_Sub(srcProps.Position, cc.Position))), V4(1,1,1,1));
+
+			glClear(GL_DEPTH_BUFFER_BIT);
+			Vec3 x = Vec3_Neg(V3(cc.Position.x, 0, 0)),
+				 y = V3(0, cc.Position.y, 0),
+				 z = Vec3_Neg(V3(0, 0, cc.Position.z));
+			R3D_DrawLine(cc, V3(0,0,0), x, V4(1, 0.3, 0.3, 1));
+			R3D_DrawLine(cc, x, Vec3_Add(x, z), V4(0.3, 0.3, 1, 1));
+			R3D_DrawLine(cc, Vec3_Add(x, z), Vec3_Add(y, Vec3_Add(x,z)), V4(0.3, 1, 0.3, 1));
 
 			R2D_DrawText(
 				V2(10,10),
 				V4(1,1,1,1),
 				V4(0,0,0,0),
 				&R2D_DefaultFont_Large,
-				"%s Playing sound: %02.0f:%02.0f/%02.0f:%02.0f (%d channels)",
+				"%s Playing sound: %02.0f:%05.2f/%02.0f:%05.2f (%d channels)",
 				(Audio_Source_ReadState(src) == SourceState_Playing ? ">>" : "||"),
-				floor(playpos / 60.0f), floor(fmodf(playpos, 60)),
-				floor(len / 60.0f),     floor(fmodf(len, 60)),
+				floor(playpos / 60.0f), fmodf(playpos, 60),
+				floor(len / 60.0f),     fmodf(len, 60),
 				bProps.NumChannels
 			);
 

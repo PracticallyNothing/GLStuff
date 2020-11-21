@@ -96,6 +96,21 @@ Audio_Listener_SetProps(const Audio_ListenerProps* p)
 	alListenerfv(AL_ORIENTATION, p->Orientation.d);
 }
 
+void
+Audio_Listener_SyncToCamera(Camera c)
+{
+	Audio_ListenerProps lp = {
+		.MasterGain  = 1,
+		.Position    = c.Position,
+		.Velocity    = V3(0, 0, 0),
+		.Orientation = {
+			.Forward = Vec3_Norm(Vec3_Sub(c.Position, c.Target)),
+			.Up = Vec3_Norm(c.Up)
+		}
+	};
+	Audio_Listener_SetProps(&lp);
+}
+
 //
 // Audio_Buffer
 //
@@ -240,9 +255,9 @@ Audio_Source_SetProps(Audio_Source src, const Audio_SourceProps* p)
 
 	alSourcei(src.Id, AL_SOURCE_RELATIVE, p->PosRelative);
 
-	alSourcefv(src.Id, AL_POSITION,  p->Position.d);
-	alSourcefv(src.Id, AL_DIRECTION, p->Direction.d);
-	alSourcefv(src.Id, AL_VELOCITY,  p->Velocity.d);
+	alSource3f(src.Id, AL_POSITION,  p->Position.x, p->Position.y, p->Position.z);
+	alSource3f(src.Id, AL_DIRECTION, p->Direction.x, p->Direction.y, p->Direction.z);
+	alSource3f(src.Id, AL_VELOCITY,  p->Velocity.x, p->Velocity.y, p->Velocity.z);
 
 	alSourcei(src.Id, AL_LOOPING, p->Loop);
 

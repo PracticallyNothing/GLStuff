@@ -3,6 +3,7 @@
 
 #include "Common.h"
 #include "Math3D.h"
+#include "Camera.h"
 
 #include <AL/al.h>
 
@@ -56,6 +57,7 @@ struct Audio_ListenerProps {
 
 extern Audio_ListenerProps Audio_Listener_ReadProps();
 extern void                Audio_Listener_SetProps(const Audio_ListenerProps* props);
+extern void                Audio_Listener_SyncToCamera(Camera cam);
 
 //
 // Audio_Buffer
