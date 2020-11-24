@@ -149,7 +149,7 @@ void WObj_ReadMtl(const char *filename, Array_WMat *Mats) {
 			READ_NEXT_WORD(value);
 			CurrMat->IllumMode = String_ToI32(value);
 		} else {
-			Log(Log_Error, "Unknown MTL directive %s", Command);
+			Log(ERROR, "Unknown MTL directive %s", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}
@@ -339,7 +339,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 face_vertex_end:
 				if(FaceVerts.Size == 3) {
-					Log(ERR, "OBJ file \"%s\" has a non-triangulated face.", filename);
+					Log(ERROR, "OBJ file \"%s\" has a non-triangulated face.", filename);
 				}
 
 				Array_FaceVert_Push(&FaceVerts, &FV);
@@ -356,7 +356,7 @@ face_vertex_end:
 			READ_NEXT_WORD(word);
 			// SmoothingEnabled = (strncmp(word, "on", 2) == 0);
 		} else {
-			Log(Log_Error, "Unknown OBJ directive %s.", Command);
+			Log(ERROR, "Unknown OBJ directive %s.", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}

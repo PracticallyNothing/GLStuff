@@ -49,7 +49,7 @@ Configuration ReadJSONConf()
 	JSON_Value v = JSON_FromFile("conf.json");
 	if(v.Type == JSON_Error)
 	{
-		Log(ERR, "Couldn't load config, using default values.", "");
+		Log(ERROR, "Couldn't load config, using default values.", "");
 		return Conf;
 	}
 
@@ -109,20 +109,20 @@ int main(int argc, char *argv[]) {
 	};
 	Audio_Buffer *b = buffers;
 
-	Audio_Source src = Audio_Source_Init();
-	Audio_Source_SetBuffer(src, *b);
+	Audio_Src src = Audio_Src_Init();
+	Audio_Src_SetBuffer(src, *b);
 
-	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
+	Audio_SrcProps srcProps = Audio_Src_ReadProps(src);
 	srcProps.Loop = 1;
 	srcProps.PosRelative = AL_FALSE;
 	srcProps.Pitch = 1;
-	Audio_Source_SetProps(src, &srcProps);
-	Audio_Source_Play(src);
-	Audio_Source_SeekTo(src, 5);
+	Audio_Src_SetProps(src, &srcProps);
+	Audio_Src_Play(src);
+	Audio_Src_SeekTo(src, 5);
 
 	Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
-	Log(Log_Info, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
+	Log(INFO, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
 	float Time = 0;
@@ -155,17 +155,17 @@ int main(int argc, char *argv[]) {
 						case SDLK_ESCAPE:
 							goto end;
 						case SDLK_SPACE:
-							if(Audio_Source_ReadState(src) == SourceState_Playing)
-								Audio_Source_Pause(src);
+							if(Audio_Src_ReadState(src) == SourceState_Playing)
+								Audio_Src_Pause(src);
 							else
-								Audio_Source_Play(src);
+								Audio_Src_Play(src);
 							break;
 						case SDLK_TAB:
 							Log(INFO, "Switched buffers (%d to %d).", b - buffers, (b - buffers + 1) % 3);
 							b = buffers + ((b - buffers + 1) % 3);
-							Audio_Source_Stop(src);
-							Audio_Source_SetBuffer(src, *b);
-							Audio_Source_Play(src);
+							Audio_Src_Stop(src);
+							Audio_Src_SetBuffer(src, *b);
+							Audio_Src_Play(src);
 							break;
 						default:
 							break;
@@ -228,9 +228,9 @@ int main(int argc, char *argv[]) {
 
 			srcProps.Position = V3(5*sinf(Time), 0, 5*cosf(Time));
 			srcProps.Direction = Vec3_Norm(Vec3_Neg(srcProps.Position));
-			Audio_Source_SetProps(src, &srcProps);
+			Audio_Src_SetProps(src, &srcProps);
 
-			r32 playpos = Audio_Source_ReadPlayHeadPos(src);
+			r32 playpos = Audio_Src_ReadPlayheadPos(src);
 			Audio_BufferProps bProps = Audio_Buffer_ReadProps(*b);
 			r32 len = bProps.LenSeconds;
 
@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
 				V4(0,0,0,0),
 				&R2D_DefaultFont_Large,
 				"%s Playing sound: %02.0f:%05.2f/%02.0f:%05.2f (%d channels)",
-				(Audio_Source_ReadState(src) == SourceState_Playing ? ">>" : "||"),
+				(Audio_Src_ReadState(src) == SourceState_Playing ? ">>" : "||"),
 				floor(playpos / 60.0f), fmodf(playpos, 60),
 				floor(len / 60.0f),     fmodf(len, 60),
 				bProps.NumChannels

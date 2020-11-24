@@ -91,7 +91,8 @@ struct Token {
 DEF_ARRAY(Token, Token);
 DECL_ARRAY(Token, Token);
 
-static void PrintToken(const Token *t)
+static void
+PrintToken(const Token *t)
 {
 	printf("%s", TokenType_Strings[t->Type]);
 	switch(t->Type) {
@@ -121,7 +122,7 @@ JSON_ToTokens(const char* str, u32 len)
 		// Eat whitespace
 		while(p < str+len && Char_OneOf(*p, " \t\n\r")) ++p;
 
-		     if(*p == '{') { type = Token_BeginObject; ++p;}
+		if(*p == '{') { type = Token_BeginObject; ++p;}
 		else if(*p == '}') { type = Token_EndObject;   ++p;} 
 		else if(*p == '[') { type = Token_BeginArray;  ++p;} 
 		else if(*p == ']') { type = Token_EndArray;    ++p;}
@@ -371,7 +372,7 @@ JSON_ParseObject(const Token **curr) {
 
 		i32 i = HashMap_JSON_Value_FindIdx(&object.Object.Map, (u8*) Key, KeyLen);
 		if(i >= 0) {
-			Log(WARNING, "JSON Object, key-value pair with already existing key \"%s\", replacing value.", Key);
+			Log(WARN, "JSON Object, key-value pair with already existing key \"%s\", replacing value.", Key);
 			object.Object.Map.Values[i] = v;
 		} else {
 			HashMap_JSON_Value_Add(&object.Object.Map, (u8*) Key, KeyLen, &v);
@@ -447,7 +448,7 @@ JSON_FromString_N(const char* str, u32 len)
 
 end:
 	if(currToken->Type != Token_EOF)
-		Log(WARNING, "There are still unparsed JSON tokens.", "");
+		Log(WARN, "There are still unparsed JSON tokens.", "");
 	Array_Token_Free(&tokens);
 	return res;
 error:

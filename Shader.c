@@ -58,7 +58,7 @@ static GLuint _Shader_GenShader(GLenum type, const char *src, const char* filena
 		LogStr = Allocate(sizeof(char) * LogLength);
 		glGetShaderInfoLog(Shader, LogLength, NULL, LogStr);
 
-		Log(Log_Error, "%s shader compilation failed.\n%s",
+		Log(ERROR, "%s shader compilation failed.\n%s",
 		    (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), LogStr);
 		Free(LogStr);
 	}
@@ -84,7 +84,7 @@ GLuint _Shader_Link(Shader *s) {
 		LogStr = Allocate(sizeof(char) * LogLength);
 		glGetProgramInfoLog(ShaderProgram, LogLength, NULL, LogStr);
 
-		Log(Log_Error, "[%s] Shader program linking failed.\n%s", 
+		Log(ERROR, "[%s] Shader program linking failed.\n%s", 
 			s->SrcFile ? s->SrcFile : "Unknown source", LogStr);
 		Free(LogStr);
 	}

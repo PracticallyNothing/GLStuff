@@ -24,9 +24,9 @@ struct AABB {
 	Vec3 Max;
 };
 
-extern bool8 AABB_Intersect        (AABB a, AABB b);
-extern AABB  AABB_Fix              (AABB aabb);
-extern AABB  AABB_ApplyTransform3D (AABB aabb, Transform3D t);
+bool8 AABB_Intersect        (AABB a, AABB b);
+AABB  AABB_Fix              (AABB aabb);
+AABB  AABB_ApplyTransform3D (AABB aabb, Transform3D t);
 
 struct TriHull { 
 	Vec3 *TriPoints;
@@ -34,8 +34,8 @@ struct TriHull {
 	Transform3D *Transform;
 };
 
-extern Intersection TriHull_RayIntersect(TriHull hull, Ray ray);
-extern Intersection TriHull_Intersect(TriHull a, TriHull b);
+Intersection TriHull_RayIntersect(TriHull hull, Ray ray);
+Intersection TriHull_Intersect(TriHull a, TriHull b);
 
 typedef struct PhysObject      PhysObject;
 typedef struct PhysWorld       PhysWorld;
@@ -78,8 +78,8 @@ struct PhysWorld {
 	PhysWorld_Cache *_cache;
 };
 
-extern void        PhysWorld_Init(PhysWorld* world);
-extern PhysObject* PhysWorld_RayCollide(const PhysWorld* world, Ray ray);
-extern void        PhysWorld_Update(PhysWorld* world, r32 dt);
+void        PhysWorld_Init(PhysWorld* world);
+PhysObject* PhysWorld_RayCollide(const PhysWorld* world, Ray ray);
+void        PhysWorld_Update(PhysWorld* world, r32 dt);
 
 #endif

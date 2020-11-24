@@ -10,44 +10,8 @@
 #include "Shader.h"
 #include "Phys.h"
 
-enum R3D_Light_Type {
-	LightType_Point,
-	LightType_Directional,
-	LightType_Spotlight,
-};
-
-struct R3D_Light {
-	enum R3D_Light_Type Type;
-
-	Vec3 Ambient;
-	Vec3 Diffuse;
-	Vec3 Specular;
-
-	union {
-		struct PointLight {
-			Vec3 Position;
-			r32 ConstantAttenuation;
-			r32 LinearAttenuation;
-			r32 QuadraticAttenuation;
-		} Point;
-
-		struct DirectionalLight {
-			Vec3 Direction;
-		} Dir;
-
-		struct Spotlight {
-			Vec3 Position;
-			Vec3 Direction;
-			r32 CutoffAngle_Inner;
-			r32 CutoffAngle_Outer;
-		} Spot;
-	};
-};
-
 // 
-// ------------------
-//  Rendering system
-// ------------------
+// Rendering system
 //
 
 typedef struct RSys_Size_t RSys_Size;
@@ -57,22 +21,22 @@ struct RSys_Size_t {
 	r32 AspectRatio;
 };
 
-extern void RSys_LogVideoDriverInfo(void);
+void RSys_LogVideoDriverInfo(void);
 
-extern void RSys_Init(u32 Width, u32 Height);
-extern void RSys_Quit();
+void RSys_Init(u32 Width, u32 Height);
+void RSys_Quit();
 
-extern void RSys_FinishFrame();
-extern void RSys_HandleWindowEvent(const SDL_WindowEvent *);
+void RSys_FinishFrame();
+void RSys_HandleWindowEvent(const SDL_WindowEvent *);
 
-extern void RSys_SetFPSCap(u32 capFps);
-extern void RSys_SetFrametimeCap(r32 capMs);
+void RSys_SetFPSCap(u32 capFps);
+void RSys_SetFrametimeCap(r32 capMs);
 
-extern bool8 RSys_NeedRedraw();
-extern RSys_Size RSys_GetSize();
+bool8 RSys_NeedRedraw();
+RSys_Size RSys_GetSize();
 
-extern GLuint RSys_GetTempVAO();
-extern void RSys_FreeTempVAO(GLuint);
+GLuint RSys_GetTempVAO();
+void RSys_FreeTempVAO(GLuint);
 
 typedef struct RSys_Texture RSys_Texture;
 
@@ -81,8 +45,8 @@ struct RSys_Texture {
 	i32 Width, Height;
 	i32 NumComponents;
 };
-extern RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
-extern RSys_Texture RSys_TextureFromFile(const char *filename);
+RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
+RSys_Texture RSys_TextureFromFile(const char *filename);
 
 enum RSys_RT_Type {
 	RenderTarget_DefaultRT = -1,
@@ -105,7 +69,10 @@ void RSys_RT_Free(RSys_RT);
 void RSys_RT_ReadFrom(RSys_RT);
 void RSys_RT_DrawTo(RSys_RT);
 
-// ---=== 2D rendering ===---
+
+// 
+// 2D
+//
 
 typedef struct R2D_Rect        R2D_Rect;
 typedef struct R2D_Triangle    R2D_Triangle;
@@ -140,21 +107,23 @@ extern R2D_Spritesheet
 	R2D_DefaultFont_Medium,
 	R2D_DefaultFont_Large;
 
-extern void R2D_DrawTriangle (const R2D_Triangle *triangle);
-extern void R2D_DrawTriangles(const R2D_Triangle *triangles, u32 NumTriangles);
+void R2D_DrawTriangle (const R2D_Triangle *triangle);
+void R2D_DrawTriangles(const R2D_Triangle *triangles, u32 NumTriangles);
 
-extern void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill);
+void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill);
 
-extern void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs);
+void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs);
 
-extern void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const R2D_Spritesheet *font, const char *fmt, ...);
+void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const R2D_Spritesheet *font, const char *fmt, ...);
 
-extern Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...);
+Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...);
 
-extern void R2D_DrawConsole();
-// ---===##############===---
+void R2D_DrawConsole();
 
-// ---=== 3D rendering ===---
+
+//
+// 3D
+//
 
 enum R3D_ShaderType {
 	R3D_Shader_None = -1,
@@ -178,9 +147,10 @@ extern Shader *R3D_Shader_UnlitColor,
 
 extern struct R3D_State_t R3D_State;
 
-typedef struct R3D_SceneNode_t R3D_SceneNode;
+typedef struct Actor Actor;
+typedef struct Light Light;
 
-struct R3D_Actor {
+struct Actor {
 	enum {
 		RenderMode_Wireframe,
 		RenderMode_UnlitColor,
@@ -192,42 +162,85 @@ struct R3D_Actor {
 	GLuint VAO, ElementBuffer;
 };
 
-enum R3D_SceneNode_Type {
-	R3D_SceneNode_None = -1,
-
-	R3D_SceneNode_Camera,
-	R3D_SceneNode_Actor,
-	R3D_SceneNode_Particles,
-	R3D_SceneNode_Light,
-
-	R3D_SceneNode_NumTypes
+enum R3D_Light_Type {
+	LightType_Point,
+	LightType_Directional,
+	LightType_Spotlight,
 };
-struct R3D_SceneNode_t {
-	R3D_SceneNode *Children;
-	u32 NumChildren;
 
-	Transform3D LocalTransform;
+struct Light {
+	enum R3D_Light_Type Type;
 
-	enum R3D_SceneNode_Type Type;
+	RGB Ambient;
+	RGB Diffuse;
+	RGB Specular;
 
 	union {
-		struct Camera Camera;
-		struct R3D_Actor Actor;
-		struct R3D_Light Light;
+		struct PointLight {
+			Vec3 Position;
+			r32 ConstantAttenuation;
+			r32 LinearAttenuation;
+			r32 QuadraticAttenuation;
+		} Point;
+
+		struct DirectionalLight {
+			Vec3 Direction;
+		} Dir;
+
+		struct Spotlight {
+			Vec3 Position;
+			Vec3 Direction;
+			r32 CutoffAngle_Inner;
+			r32 CutoffAngle_Outer;
+		} Spot;
 	};
 };
 
-typedef struct R3D_Scene_t {
-	R3D_SceneNode Root;
+enum R3D_Node_Type {
+	Node_None = -1,
+
+	Node_Camera,
+	Node_Actor,
+	Node_Particles,
+	Node_Light,
+
+	Node_NumTypes
+};
+
+typedef struct R3D_Node R3D_Node;
+typedef struct R3D_Scene R3D_Scene;
+
+DEF_ARRAY(Node, R3D_Node);
+
+struct R3D_Node {
+	const R3D_Node *Parent;
+	Array_Node Children;
+
+	Transform3D LocalTransform;
+
+	enum R3D_Node_Type Type;
+
+	union {
+		Camera Camera;
+		Actor Actor;
+		Light Light;
+	};
+};
+
+struct R3D_Scene {
+	R3D_Node Root;
 	Camera *ActiveCamera;
-} R3D_Scene;
+};
 
-extern void R3D_Init();
-extern void R3D_RenderScene(R3D_Scene *Scene);
+void R3D_Init();
+void R3D_RenderScene(R3D_Scene *Scene);
 
-extern void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color);
-extern void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color);
-extern void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color);
-extern void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color);
+R3D_Node* R3D_Node_Create(enum R3D_Node_Type);
+R3D_Node* R3D_Node_AttachNew(enum R3D_Node_Type);
+
+void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color);
+void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color);
+void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color);
+void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color);
 
 #endif

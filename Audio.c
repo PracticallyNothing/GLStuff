@@ -54,7 +54,7 @@ void Audio_Init(const char *deviceName) {
 		return;
 	}
 
-	alDistanceModel(Audio_DistModel_Inverse);
+	alDistanceModel(DistModel_Default);
 }
 
 void Audio_Quit()
@@ -194,24 +194,24 @@ Audio_Buffer_ReadProps(Audio_Buffer buf)
 // Audio_Source
 //
 
-Audio_Source
-Audio_Source_Init()
+Audio_Src
+Audio_Src_Init()
 {
-	Audio_Source s;
+	Audio_Src s;
 	alGenSources(1, &s.Id);
 	return s;
 }
 
-void Audio_Source_Free(Audio_Source src)
+void Audio_Src_Free(Audio_Src src)
 {
 	alDeleteSources(1, &src.Id);
 }
 
-Audio_SourceProps 
-Audio_Source_ReadProps(Audio_Source src)
+Audio_SrcProps 
+Audio_Src_ReadProps(Audio_Src src)
 {
-	Audio_SourceProps p;
-	p.State = Audio_Source_ReadState(src);
+	Audio_SrcProps p;
+	p.State = Audio_Src_ReadState(src);
 
 	ALint buf;
 	alGetSourcei(src.Id, AL_BUFFER, &buf);
@@ -238,13 +238,13 @@ Audio_Source_ReadProps(Audio_Source src)
 	alGetSourcef(src.Id, AL_ROLLOFF_FACTOR, &p.RolloffFactor);
 	alGetSourcef(src.Id, AL_REFERENCE_DISTANCE, &p.HalfVolumeDistance);
 
-	alGetSourcef(src.Id, AL_SEC_OFFSET, &p.PlayHeadSeconds);
+	alGetSourcef(src.Id, AL_SEC_OFFSET, &p.PlayheadSeconds);
 
 	return p;
 }
 
 void
-Audio_Source_SetProps(Audio_Source src, const Audio_SourceProps* p)
+Audio_Src_SetProps(Audio_Src src, const Audio_SrcProps* p)
 {
 	alSourcei(src.Id, AL_BUFFER, p->BufferId);
 
@@ -268,7 +268,7 @@ Audio_Source_SetProps(Audio_Source src, const Audio_SourceProps* p)
 
 
 Audio_Buffer
-Audio_Source_ReadBuffer(Audio_Source s)
+Audio_Src_ReadBuffer(Audio_Src s)
 {
 	ALint buf;
 	alGetSourcei(s.Id, AL_BUFFER, &buf);
@@ -276,13 +276,13 @@ Audio_Source_ReadBuffer(Audio_Source s)
 }
 
 void
-Audio_Source_SetBuffer(Audio_Source s, Audio_Buffer buf)
+Audio_Src_SetBuffer(Audio_Src s, Audio_Buffer buf)
 {
 	alSourcei(s.Id, AL_BUFFER, buf.Id);
 }
 
 r32 
-Audio_Source_ReadPlayHeadPos(Audio_Source src)
+Audio_Src_ReadPlayheadPos(Audio_Src src)
 {
 	ALfloat f;
 	alGetSourcef(src.Id, AL_SEC_OFFSET, &f);
@@ -290,27 +290,27 @@ Audio_Source_ReadPlayHeadPos(Audio_Source src)
 }
 
 void
-Audio_Source_SeekTo(Audio_Source src, r32 seekSeconds)
+Audio_Src_SeekTo(Audio_Src src, r32 seekSeconds)
 {
 	alSourcef(src.Id, AL_SEC_OFFSET, seekSeconds);
 }
 
 void
-Audio_Source_SeekBy(Audio_Source src, r32 seekSeconds)
+Audio_Src_SeekBy(Audio_Src src, r32 seekSeconds)
 {
-	r32 s = Audio_Source_ReadPlayHeadPos(src) + seekSeconds;
+	r32 s = Audio_Src_ReadPlayheadPos(src) + seekSeconds;
 	alSourcef(src.Id, AL_SEC_OFFSET, s);
 }
 
-enum Audio_SourceState 
-Audio_Source_ReadState(Audio_Source src)
+enum Audio_SrcState 
+Audio_Src_ReadState(Audio_Src src)
 {
 	ALint s;
 	alGetSourcei(src.Id, AL_SOURCE_STATE, &s);
 	return s;
 }
 
-void Audio_Source_Play(Audio_Source src)   { alSourcePlay(src.Id); }
-void Audio_Source_Pause(Audio_Source src)  { alSourcePause(src.Id); }
-void Audio_Source_Rewind(Audio_Source src) { alSourceRewind(src.Id); }
-void Audio_Source_Stop(Audio_Source src)   { alSourceStop(src.Id); }
+void Audio_Src_Play  (Audio_Src src) { alSourcePlay  (src.Id); }
+void Audio_Src_Pause (Audio_Src src) { alSourcePause (src.Id); }
+void Audio_Src_Rewind(Audio_Src src) { alSourceRewind(src.Id); }
+void Audio_Src_Stop  (Audio_Src src) { alSourceStop  (src.Id); }

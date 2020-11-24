@@ -49,7 +49,6 @@ struct WObj_Material {
 	enum WObj_IllumMode IllumMode;  // illum <mode>
 };
 
-
 struct WObj_Vertex {
 	Vec3 Position;
 	Vec2 UV;
@@ -76,7 +75,7 @@ struct WObj_Library {
 	WObj_Object *Objects;
 };
 
-extern WObj_Library *WObj_FromFile(const char *filename);
-extern void WObj_Library_Free(WObj_Library *);
+WObj_Library *WObj_FromFile(const char *filename);
+void WObj_Library_Free(WObj_Library *);
 
 #endif

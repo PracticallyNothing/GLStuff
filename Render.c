@@ -105,7 +105,7 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	// If it wasn't created, error and exit.
 	if(!RSys_State.Window)
-		Log(Log_Fatal, "SDL_CreateWindow() failed: %s", SDL_GetError());
+		Log(FATAL, "SDL_CreateWindow() failed: %s", SDL_GetError());
 
 	// Create an OpenGL context for the window,
 	// according to the earlier parameters.
@@ -113,11 +113,11 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	// If our parameters couldn't be met, error and exit.
 	if(!RSys_State.GLContext)
-		Log(Log_Fatal, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
+		Log(FATAL, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
 
 	// Load OpenGL functions.
 	if(!gladLoadGL())
-		Log(Log_Fatal, "%s", "gladLoadGL() failed, OpenGL couldn't be loaded.");
+		Log(FATAL, "%s", "gladLoadGL() failed, OpenGL couldn't be loaded.");
 
 	// Set a few default parameters.
 
@@ -204,7 +204,7 @@ GLuint RSys_GetTempVAO() {
 	}
 
 	// Uh oh...
-	Log(Log_Error, "Could not find temp VAO, even though there should be.", "");
+	Log(ERROR, "Could not find temp VAO, even though there should be.", "");
 	return 0;
 }
 
@@ -220,7 +220,7 @@ GLuint RSys_GetTempVBO() {
 	}
 
 	// Uh oh...
-	Log(Log_Error, "Could not find temp Vertex Buffer, even though there should be.", "");
+	Log(ERROR, "Could not find temp Vertex Buffer, even though there should be.", "");
 	return 0;
 }
 
@@ -249,7 +249,7 @@ void RSys_FreeTempVBO(GLuint VBO) {
 		}
 	}
 
-	Log(Log_Warning, "Attempted to free temp VBO %d, which doesn't exist.", VBO);
+	Log(WARN, "Attempted to free temp VBO %d, which doesn't exist.", VBO);
 }
 
 void RSys_FreeTempVBOs(const GLuint* VBOs, u32 N) {
@@ -266,7 +266,7 @@ void RSys_FreeTempVAO(GLuint VAO) {
 		}
 	}
 
-	Log(Log_Warning, "Attempted to free temp VAO %d, which doesn't exist.", VAO);
+	Log(WARN, "Attempted to free temp VAO %d, which doesn't exist.", VAO);
 }
 
 bool8 RSys_NeedRedraw() {

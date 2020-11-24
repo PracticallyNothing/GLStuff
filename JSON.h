@@ -38,12 +38,12 @@ struct JSON_Value {
 	};
 };
 
-extern JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str);
+JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str);
 
-extern JSON_Value JSON_FromString(const char* str);
-extern JSON_Value JSON_FromString_N(const char* str, u32 len);
-extern JSON_Value JSON_FromFile(const char* filename);
+JSON_Value JSON_FromString(const char* str);
+JSON_Value JSON_FromString_N(const char* str, u32 len);
+JSON_Value JSON_FromFile(const char* filename);
 
-extern void JSON_Free(JSON_Value *v);
+void JSON_Free(JSON_Value *v);
 
 #endif

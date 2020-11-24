@@ -29,44 +29,46 @@
 		}                                      \
 	} while(0)
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+typedef uint8_t  u8;  // 8-bit unsigned integer
+typedef uint16_t u16; // 16-bit unsigned integer
+typedef uint32_t u32; // 32-bit unsigned integer
+typedef uint64_t u64; // 64-bit unsigned integer
 
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
+typedef int8_t  i8;  // 8-bit signed integer
+typedef int16_t i16; // 16-bit signed integer
+typedef int32_t i32; // 32-bit signed integer
+typedef int64_t i64; // 64-bit signed integer
 
-typedef float r32;
-typedef double r64;
+typedef float  r32; // 32-bit real (floating point) number
+typedef double r64; // 64-bit real (floating point) number
 
-typedef i8 bool8;
-typedef i32 bool32;
+typedef i8  bool8;  // 8-bit boolean
+typedef i32 bool32; // 32-bit boolean
 
 // 
 // Memory management
 //
 
-extern u32 Alloc_GetTotalSize();
-extern void Alloc_PrintInfo();
-extern void Alloc_FreeAll();
+u32 Alloc_GetTotalSize();
+void Alloc_PrintInfo();
+void Alloc_FreeAll();
 
 #ifdef ALLOC_DEBUG
-extern void *Allocate(u32 size, const char *__func, const char *__file, u32 __line);
-extern void *Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file, u32 __line);
-extern void Free(void *ptr, const char *__func, const char *__file, u32 __line);
-#  define Allocate(size)           Allocate(size, __func__, __FILE__, __LINE__)
+void* Allocate  (u32 size,               const char *__func, const char *__file, u32 __line);
+void* Reallocate(void *ptr, u32 newSize, const char *__func, const char *__file, u32 __line);
+void  Free      (void *ptr,              const char *__func, const char *__file, u32 __line);
+#  define Allocate(size)           Allocate  (size,         __func__, __FILE__, __LINE__)
 #  define Reallocate(ptr, newSize) Reallocate(ptr, newSize, __func__, __FILE__, __LINE__)
-#  define Free(ptr)                Free(ptr, __func__, __FILE__, __LINE__)
+#  define Free(ptr)                Free      (ptr,          __func__, __FILE__, __LINE__)
 #else
-extern void *Allocate(u32 size);
-extern void *Reallocate(void *ptr, u32 newSize);
-extern void Free(void *ptr);
+void* Allocate  (u32 size);               // Allocate some memory
+void* Reallocate(void *ptr, u32 newSize); // Move memory to a bigger/smaller location
+void  Free      (void *ptr);              // Free allocated memory
 #endif
 
-// --- String operations --- //
+//
+// String operations
+//
 
 i32 String_ToI32(const char *);
 i32 String_ToI32_N(const char *, u32 len);
@@ -74,14 +76,17 @@ i32 String_ToI32_N(const char *, u32 len);
 r32 String_ToR32(const char *);
 r32 String_ToR32_N(const char *, u32 len);
 
-// --- Pi, degrees and radians --- //
-extern const r64 Tau;
-extern const r64 Pi;
-extern const r64 Pi_Half;
-extern const r64 Pi_Quarter;
+//
+// Pi, degrees and radians
+//
 
-extern r64 DegToRad(r64 degrees);
-extern r64 RadToDeg(r64 radians);
+extern const r64 Tau;        // Pi*2
+extern const r64 Pi;         // A constant representing pi.
+extern const r64 Pi_Half;    // Pi/2
+extern const r64 Pi_Quarter; // Pi/4
+
+r64 DegToRad(r64 degrees); // Convert degrees to radians.
+r64 RadToDeg(r64 radians); // Convert radians to degrees.
 
 // --- Util. maths --- //
 #define MAX(a, b)        ((a) > (b) ? (a) : (b))
@@ -105,30 +110,30 @@ extern r64 RadToDeg(r64 radians);
 #define TRIEQ(a, b, c)  ((a) == (b) && (a) == (c))
 #define TRINEQ(a, b, c) ((a) != (b) && (a) != (c) && (b) != (c))
 
-extern i32 Clamp_I32(i32 value, i32 min, i32 max);
-extern r32 Clamp_R32(r32 value, r32 min, r32 max);
-extern r64 Clamp_R64(r64 value, r64 min, r64 max);
+i32 Clamp_I32(i32 value, i32 min, i32 max); // Limit an integer between a min and a max value.
+r32 Clamp_R32(r32 value, r32 min, r32 max); // Limit a float between a min and a max value.
+r64 Clamp_R64(r64 value, r64 min, r64 max); // Limit a double between a min and a max value.
 
-extern bool8 InRange_I32(i32 value, i32 min, i32 max);
-extern bool8 InRange_R32(r32 value, r32 min, r32 max);
-extern bool8 InRange_R64(r64 value, r64 min, r64 max);
+bool8 InRange_I32(i32 value, i32 min, i32 max);
+bool8 InRange_R32(r32 value, r32 min, r32 max);
+bool8 InRange_R64(r64 value, r64 min, r64 max);
 
-extern bool8 RangesOverlap_I32(i32 aMin, i32 aMax, i32 bMin, i32 bMax);
-extern bool8 RangesOverlap_R32(r32 aMin, r32 aMax, r32 bMin, r32 bMax);
-extern bool8 RangesOverlap_R64(r64 aMin, r64 aMax, r64 bMin, r64 bMax);
+bool8 RangesOverlap_I32(i32 aMin, i32 aMax, i32 bMin, i32 bMax);
+bool8 RangesOverlap_R32(r32 aMin, r32 aMax, r32 bMin, r32 bMax);
+bool8 RangesOverlap_R64(r64 aMin, r64 aMax, r64 bMin, r64 bMax);
 
-// --- File operations --- //
+// 
+// Files
+//
 
-/// Put the contents of a file inside a buffer allocated by the function.
-extern u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size);
+u8*  File_ReadToBuffer_Alloc(const char *filename, u32 *outSize);                        // Put the contents of a file inside a buffer allocated by the function.
+i32  File_ReadToBuffer      (const char *filename, u8 *buf, u32 bufSize, u32 *realSize); // Put the contents of a file inside a user-allocated buffer.
+void File_DumpBuffer        (const char *filename, const u8 *buf, u32 bufSize);          // Dump the contents of a buffer to a file.
 
-/// Put the contents of a file inside a user-allocated buffer.
-extern i32 File_ReadToBuffer(const char *filename, u8 *buf, u32 bufSize, u32 *realSize);
+//
+// Array
+//
 
-/// Dump the contents of a buffer to a file.
-extern void File_DumpBuffer(const char *filename, const u8 *buf, u32 bufSize);
-
-// --- Array --- //
 #define DEF_ARRAY(name, type)                                        \
 typedef struct Array_##name Array_##name;                            \
 struct Array_##name { u32 Size, Capacity; type *Data; };             \
@@ -252,13 +257,24 @@ DEF_ARRAY(i64, i64);
 DEF_ARRAY(r32, r32);
 DEF_ARRAY(r64, r64);
 
-// --- Hash map --- //
+// 
+// Hash map
+//
 
-typedef struct { union {u64 a[2]; u32 b[4]; }; } u128;
-extern u128 Hash_MD5(const u8 *bytes, u32 length);
-extern u128 Hash_String_MD5(const char* str);
-extern bool8 Hash_Equal(const u128 *a, const u128 *b);
+// Hash result type
+typedef struct u128 u128;
+struct u128 { 
+	union {
+		u64 a[2]; 
+		u32 b[4]; 
+	};
+};
 
+u128  Hash_MD5       (const u8 *bytes, u32 length);  // Calc the MD5 hash for an array of bytes.
+u128  Hash_String_MD5(const char *str);              // Calc the MD5 hash for a NULL-terminated string.
+bool8 Hash_Equal     (const u128 *a, const u128 *b); // Compare two hashes for equality.
+
+// Create a struct and prototype functions for a hashmap type HashMap_##name.
 #define DEF_HASHMAP(name, type)               \
 	                                          \
 typedef struct HashMap_##name HashMap_##name; \
@@ -270,16 +286,19 @@ struct HashMap_##name {                       \
                                               \
  void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const type *t);   \
  void HashMap_##name##_AddVal(HashMap_##name *map, const u8* key, u32 keyLen, const type t); \
-                                                                                                    \
+                                                                                             \
  void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen);               \
-                                                                                                    \
+                                                                                             \
+type* HashMap_##name##_FindStr(const HashMap_##name *map, const char* str);                  \
 type* HashMap_##name##_Find(const HashMap_##name *map, const u8* key, u32 keyLen);           \
  i32  HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLen);        \
-                                                                                                    \
+                                                                                             \
  void HashMap_##name##_Free(HashMap_##name *map);                                            \
 
-#define DECL_HASHMAP(name, type) \
-void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const type *t){   \
+// Declare all the functions for a hashmap.
+#define DECL_HASHMAP(name, type)                                                                   \
+                                                                                                   \
+void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const type *t){          \
 	if(!t) return;                                                                                 \
 	if(map->Size == map->Capacity) {                                                               \
 		if(!map->Capacity) map->Capacity = 1;                                                      \
@@ -293,11 +312,11 @@ void HashMap_##name##_Add(HashMap_##name *map, const u8* key, u32 keyLen, const 
 	map->Size++;                                                                                   \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_AddVal(HashMap_##name *map, const u8* key, u32 keyLen, const type t){ \
+void HashMap_##name##_AddVal(HashMap_##name *map, const u8* key, u32 keyLen, const type t){        \
 	HashMap_##name##_Add(map, key, keyLen, &t);                                                    \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen){               \
+void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen){                      \
 	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
 	if(i < 0) return;                                                                              \
 	memmove(map->Keys   + i + 1, map->Keys   + i, sizeof(u128) * (map->Size-i));                   \
@@ -305,11 +324,14 @@ void HashMap_##name##_Remove(HashMap_##name *map, const u8* key, u32 keyLen){   
 	map->Size--;                                                                                   \
 }                                                                                                  \
                                                                                                    \
-type* HashMap_##name##_Find(const HashMap_##name *map, const u8* key, u32 keyLen){          \
+type* HashMap_##name##_FindStr(const HashMap_##name *map, const char* str){                        \
+	return HashMap_##name##_Find(map, (u8*)str, strlen(str));                                      \
+}                                                                                                  \
+type* HashMap_##name##_Find(const HashMap_##name *map, const u8* key, u32 keyLen){                 \
 	i32 i = HashMap_##name##_FindIdx(map, key, keyLen);                                            \
 	return (i >= 0 ? map->Values + i : NULL);                                                      \
 }                                                                                                  \
-i32 HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLen){         \
+i32 HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLen){                \
 	if(!map->Size) return -1;                                                                      \
 	u128 k = Hash_MD5(key, keyLen);                                                                \
 	for(u32 i = 0; i < map->Size; ++i) {                                                           \
@@ -319,7 +341,7 @@ i32 HashMap_##name##_FindIdx(const HashMap_##name *map, const u8* key, u32 keyLe
 	return -1;                                                                                     \
 }                                                                                                  \
                                                                                                    \
-void HashMap_##name##_Free(HashMap_##name *map) {                                           \
+void HashMap_##name##_Free(HashMap_##name *map) {                                                  \
 	Free(map->Keys);                                                                               \
 	Free(map->Values);                                                                             \
 	map->Keys = NULL;                                                                              \
@@ -341,16 +363,20 @@ DEF_HASHMAP(i16, i16);
 DEF_HASHMAP(i32, i32);
 DEF_HASHMAP(i64, i64);
 
-// --- Size units --- //
+//
+// Size units
+//
 
-extern u64 Bytes(u32 amt);
-extern u64 Kilobytes(u32 amt);
-extern u64 Megabytes(u32 amt);
-extern u64 Gigabytes(u32 amt);
+u64 Bytes(u32 amt);
+u64 Kilobytes(u32 amt);
+u64 Megabytes(u32 amt);
+u64 Gigabytes(u32 amt);
 
-// --- Utility --- //
+//
+// Utility
+//
 
-extern bool8 PC_IsLittleEndian(void);
+bool8 PC_IsLittleEndian(void); // Check if the system is little endian (false means it's big endian).
 
 // Comparison function type
 // Must return the following:
@@ -359,42 +385,33 @@ extern bool8 PC_IsLittleEndian(void);
 //   1 if the second item is larger than the first
 typedef i32 (*Util_CompFunc)(const u8 *, const u8 *);
 
-extern void Util_Quicksort_i32(i32 *arr, u32 size);
-extern void Util_Quicksort_r32(r32 *arr, u32 size);
-extern void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize,
-                                Util_CompFunc compFunc);
+void Util_Quicksort_i32(i32 *arr, u32 size);
+void Util_Quicksort_r32(r32 *arr, u32 size);
+void Util_Quicksort_func(u8 *arr, u32 itemSize, u32 arrSize, Util_CompFunc compFunc);
 
-// --- GL Initialized --- //
+// 
+// GL Initialized 
+//
 
-/// Has an OpenGL context been initialized yet?
-extern bool8 GL_Initialized;
+extern bool8 GL_Initialized; // Has an OpenGL context been initialized yet?
 
-// --- Logging --- //
+// 
+// Logging
+//
 
-extern enum Log_Level {
-	Log_Debug = 0,
-	Log_Info = 1,
-	Log_Warning = 2,
-	Log_Error = 3,
-	Log_Fatal = 4,
+enum Log_Level {
+	DEBUG = 0,
+	INFO  = 1,
+	WARN  = 2,
+	ERROR = 3,
+	FATAL = 4,
+};
+extern enum Log_Level Log_Level_Global;
 
-	DBG   = Log_Debug,
-	INFO  = Log_Info,
-	WARN  = Log_Warning,
-	ERR   = Log_Error,
-	FATAL = Log_Fatal,
-
-	DEBUG   = Log_Debug,
-	WARNING = Log_Warning,
-	ERROR   = Log_Error,
-} Log_Level_Global;
-
-extern void Log(const char *__func, const char *__file, u32 __line,
-                enum Log_Level level, const char *fmt, ...);
+void Log(const char *__func, const char *__file, u32 __line,
+         enum Log_Level level, const char *fmt, ...);
 
 #define Log(level, fmt, ...) \
 	Log(__func__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
-
 #endif
-

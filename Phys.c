@@ -47,7 +47,7 @@ AABB AABB_Fix(AABB aabb)
 	};
 }
 
-AABB 
+AABB
 AABB_ApplyTransform3D (AABB aabb, Transform3D t)
 {
 	Mat4 model;
@@ -64,10 +64,10 @@ static bool8 GetSign_R32(r32 s) { return signbit(s); }
 
 // Thank you,
 // https://stackoverflow.com/a/2049593
-static r32 
+static r32
 sign(Vec2 p1, Vec2 p2, Vec2 p3) { return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y); }
 
-static bool8 
+static bool8
 Triangle_PointInside(const Vec2 t[3], Vec2 p)
 {
     r32 d1, d2, d3;
@@ -93,7 +93,6 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 	Vec3 N2 = Vec3_Cross(Vec3_Sub(Tri2[1], Tri2[0]), Vec3_Sub(Tri2[2], Tri2[0]));
 	r32 d2 = Vec3_Dot(Vec3_Neg(N2), Tri2[0]);
 	r32 dist1[3] = {0};
-
 
 	for(u32 i = 0; i < 3; i++) {
 		dist1[i] = Vec3_Dot(N2, Tri1[i]) + d2;
@@ -467,6 +466,7 @@ OctreeNode_Split(OctreeNode* n)
 	}
 }
 
+// TODO: Fix this, it isn't doing what it's supposed to.
 static void 
 PhysWorld_OctreeSplit(const PhysWorld* world)
 {
@@ -529,6 +529,7 @@ PhysWorld_OctreeSplit(const PhysWorld* world)
 	}
 }
 
+// TODO: Implement.
 PhysObject*
 PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 {
@@ -536,8 +537,10 @@ PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 	PhysWorld_OctreeSplit(world);
 	
 	// 2. 
+	return NULL;
 }
 
+// TODO: Implement
 void PhysWorld_Update(PhysWorld* world, r32 dt)
 {
 	// 1. Split world into octree.

@@ -90,7 +90,7 @@ void Camera_Mat4(Camera c, Mat4 out_view, Mat4 out_proj) {
 			Mat4_RectProj(out_proj, c.VerticalFoV, c.AspectRatio, c.ZNear, c.ZFar);
 			break;
 		default: 
-			Log(ERR, "Unknown camera mode value %d", c.Mode);
+			Log(ERROR, "Unknown camera mode value %d", c.Mode);
 			break;
 	}
 }

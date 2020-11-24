@@ -8,34 +8,24 @@
 #include <AL/al.h>
 
 DEF_ARRAY(CharPtr, char *);
-extern struct Array_CharPtr Audio_GetDevices();
+struct Array_CharPtr Audio_GetDevices();
 
 /// Initialize the audio system. A call with NULL makes it guess the best device.
-extern void Audio_Init(const char* Device);
-extern void Audio_Quit();
+void Audio_Init(const char* Device);
+void Audio_Quit();
 
 enum Audio_DistModel {
-	/// Audio will not get attenuated with distance.
-	Audio_DistModel_None = AL_NONE,
-	/// Volume will realistically lower with the inverse of the distance,
-	/// but won't disappear beyond the max distance of the AL::Source.
-	Audio_DistModel_Inverse = AL_INVERSE_DISTANCE,
-	/// Default value: Volume realistically lowers with the inverse of the distance
-	/// and will not go higher than the original level,
-	/// but won't disappear beyond the max distance of the source.
-	Audio_DistModel_InverseClamped = AL_INVERSE_DISTANCE_CLAMPED,
-	/// Volume lowers with distance, disappearing beyond the source's max distance.
-	Audio_DistModel_Linear = AL_LINEAR_DISTANCE,
-	/// Volume lowers with distance and will not go higher than the original level,
-	/// disappearing beyond the source's max distance.
-	Audio_DistModel_LinearClamped = AL_LINEAR_DISTANCE_CLAMPED,
-	/// Volume will exponentially decrease with the power of the source's roloff factor.
-	Audio_DistModel_Exponential = AL_EXPONENT_DISTANCE,
-	/// Volume will exponentially decrease with the power of the source's roloff factor
-	/// and will not go higher than the original level.
-	Audio_DistModel_ExponentialClamped = AL_EXPONENT_DISTANCE_CLAMPED,
+	DistModel_None               = AL_NONE,                      // Volume doesn't change with distance.
+	DistModel_Inverse            = AL_INVERSE_DISTANCE,          // Volume changes inversely with distance.
+	DistModel_InverseClamped     = AL_INVERSE_DISTANCE_CLAMPED,  // Volume changes inversely with distance up to a maximum.
+	DistModel_Linear             = AL_LINEAR_DISTANCE,           // Volume changes linearly with distance.
+	DistModel_LinearClamped      = AL_LINEAR_DISTANCE_CLAMPED,   // Volume changes linearly with distance up to a maximum.
+	DistModel_Exponential        = AL_EXPONENT_DISTANCE,         // Volume changes exponentially with distance.
+	DistModel_ExponentialClamped = AL_EXPONENT_DISTANCE_CLAMPED, // Volume changes exponentially with distance up to a maximum.
+
+	DistModel_Default = DistModel_InverseClamped, // Default value.
 };
-extern void Audio_SetDistModel(enum Audio_DistModel model);
+void Audio_SetDistModel(enum Audio_DistModel model);
 
 //
 // Audio_Listener
@@ -55,9 +45,9 @@ struct Audio_ListenerProps {
 	} Orientation;
 };
 
-extern Audio_ListenerProps Audio_Listener_ReadProps();
-extern void                Audio_Listener_SetProps(const Audio_ListenerProps* props);
-extern void                Audio_Listener_SyncToCamera(Camera cam);
+Audio_ListenerProps Audio_Listener_ReadProps();
+void                Audio_Listener_SetProps(const Audio_ListenerProps* props);
+void                Audio_Listener_SyncToCamera(Camera cam);
 
 //
 // Audio_Buffer
@@ -80,26 +70,26 @@ struct Audio_Buffer {
 	u32 Id; 
 };
 
-extern Audio_Buffer      Audio_Buffer_FromFile(const char* file);
-extern void              Audio_Buffer_Free(Audio_Buffer buf);
-extern Audio_BufferProps Audio_Buffer_ReadProps(Audio_Buffer buf);
+Audio_Buffer      Audio_Buffer_FromFile(const char* file);
+void              Audio_Buffer_Free(Audio_Buffer buf);
+Audio_BufferProps Audio_Buffer_ReadProps(Audio_Buffer buf);
 
 //
 // Audio_Source
 //
 
-enum Audio_SourceState {
+enum Audio_SrcState {
 	SourceState_Initial = AL_INITIAL,
 	SourceState_Playing = AL_PLAYING,
-	SourceState_Paused = AL_PAUSED,
+	SourceState_Paused  = AL_PAUSED,
 	SourceState_Stopped = AL_STOPPED
 };
 
-typedef struct Audio_SourceProps Audio_SourceProps;
-typedef struct Audio_Source      Audio_Source;
+typedef struct Audio_SrcProps Audio_SrcProps;
+typedef struct Audio_Src      Audio_Src;
 
-struct Audio_SourceProps {
-	enum Audio_SourceState State;
+struct Audio_SrcProps {
+	enum Audio_SrcState State;
 
 	u32 BufferId;
 
@@ -120,31 +110,29 @@ struct Audio_SourceProps {
 	r32 RolloffFactor;
 	r32 HalfVolumeDistance;
 
-	/// Position of the play head in seconds.
-	r32 PlayHeadSeconds;
+	r32 PlayheadSeconds; // Position of the play head in seconds.
 };
 
-struct Audio_Source { 
-	u32 Id;
-};
-extern Audio_Source Audio_Source_Init();
-extern void         Audio_Source_Free(Audio_Source src);
+struct Audio_Src { u32 Id; }; // A thing emitting audio somewhere.
 
-extern Audio_Buffer Audio_Source_ReadBuffer(Audio_Source s);
-extern void         Audio_Source_SetBuffer(Audio_Source s, Audio_Buffer buf);
+Audio_Src Audio_Src_Init();
+void      Audio_Src_Free(Audio_Src src);
 
-extern Audio_SourceProps Audio_Source_ReadProps(Audio_Source src); 
-extern void              Audio_Source_SetProps(Audio_Source src, const Audio_SourceProps* props);  
+Audio_Buffer Audio_Src_ReadBuffer(Audio_Src s);
+void         Audio_Src_SetBuffer(Audio_Src s, Audio_Buffer buf);
 
-extern r32  Audio_Source_ReadPlayHeadPos(Audio_Source src);
-extern void Audio_Source_SeekTo(Audio_Source src, r32 seekSeconds);
-extern void Audio_Source_SeekBy(Audio_Source src, r32 seekSeconds);
+Audio_SrcProps Audio_Src_ReadProps(Audio_Src src); 
+void           Audio_Src_SetProps(Audio_Src src, const Audio_SrcProps* props);  
 
-extern enum Audio_SourceState Audio_Source_ReadState(Audio_Source src);
+r32  Audio_Src_ReadPlayheadPos(Audio_Src src);
+void Audio_Src_SeekTo(Audio_Src src, r32 seekSeconds);
+void Audio_Src_SeekBy(Audio_Src src, r32 seekSeconds);
 
-extern void Audio_Source_Play(Audio_Source src);
-extern void Audio_Source_Pause(Audio_Source src);
-extern void Audio_Source_Rewind(Audio_Source src);
-extern void Audio_Source_Stop(Audio_Source src);
+enum Audio_SrcState Audio_Src_ReadState(Audio_Src src);
+
+void Audio_Src_Play  (Audio_Src src);
+void Audio_Src_Pause (Audio_Src src);
+void Audio_Src_Rewind(Audio_Src src);
+void Audio_Src_Stop  (Audio_Src src);
 
 #endif

@@ -594,34 +594,34 @@ static const char *BOLDRED = "\033[31;1m";
 enum Log_Level Log_Level_Global;
 void Log(const char *__func, const char *__file, u32 __line,
          enum Log_Level level, const char *fmt, ...) {
-	if(level < Log_Level_Global && level != Log_Fatal) { return; }
+	if(level < Log_Level_Global && level != FATAL) { return; }
 
 	switch(level) {
-		case Log_Debug:
+		case DEBUG:
 			fprintf(stdout,
 					"%sDEBUG%s [%s:%d %s()]: ",
 					BLUE, RESET,
 					__file, __line, __func);
 			break;
-		case Log_Info:
+		case INFO:
 			fprintf(stdout,
 					"INFO [%s:%d %s()]: ",
 					__file, __line, __func);
 			break;
-		case Log_Warning:
+		case WARN:
 			fprintf(stdout,
 					"%sWARNING%s [%s:%d %s()]: ",
 					YELLOW, RESET,
 					__file, __line, __func);
 			break;
-		case Log_Error:
+		case ERROR:
 			fprintf(stdout,
 					"%sERROR%s [%s:%d %s()]: ",
 					RED, RESET,
 					__file, __line, __func);
 			break;
 
-		case Log_Fatal:
+		case FATAL:
 			fprintf(stderr,
 					"%sFATAL ERROR%s [%s:%d %s()]: ",
 					BOLDRED, RESET,
@@ -636,7 +636,7 @@ void Log(const char *__func, const char *__file, u32 __line,
 	vsprintf(msg, fmt, args);
 	va_end(args);
 
-	if(level == Log_Fatal) {
+	if(level == FATAL) {
 		fprintf(stderr, "%s", msg);
 		//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "FATAL ERROR", msg, NULL);
 		exit(EXIT_FAILURE);
