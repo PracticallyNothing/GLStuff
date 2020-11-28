@@ -1,5 +1,5 @@
 {
-	"ScreenWidth"  : 640, 
-	"ScreenHeight" : 480,
+	"ScreenWidth"  : 1920,
+	"ScreenHeight" : 1080,
 	"FPS": 60
 }

@@ -124,7 +124,6 @@ u8* File_ReadToBuffer_Alloc(const char *filename, u32 *size)
 {
 	FILE *File = fopen(filename, "rb");
 	if(!File) {
-		Log(ERROR, "File \"%s\" doesn't exist.", filename);
 		if(size) *size = 0;
 		return NULL;
 	}
@@ -574,9 +573,9 @@ void Alloc_FreeAll()
 void* Allocate(u32 size)                 { return malloc(size); }
 void* Reallocate(void *ptr, u32 newSize) { return realloc(ptr, newSize); }
 void  Free(void *ptr)                    { free(ptr); }
-u32 Alloc_GetTotalSize() { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); return 0; }
-void Alloc_PrintInfo()   { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); }
-void Alloc_FreeAll()     { Log(WARN, "Allocation debugging disabled. Enable with compiler flag ALLOC_DEBUG.", ""); }
+u32 Alloc_GetTotalSize() { Log(WARN, "Allocation debugging disabled.", ""); return 0; }
+void Alloc_PrintInfo()   { Log(WARN, "Allocation debugging disabled.", ""); }
+void Alloc_FreeAll()     { Log(WARN, "Allocation debugging disabled.", ""); }
 
 // --- Logging --- //
 
@@ -591,41 +590,40 @@ static const char *BOLDRED = "\033[31;1m";
 
 #undef Log
 
+bool8 Log_ShortMode = 1;
 enum Log_Level Log_Level_Global;
+
 void Log(const char *__func, const char *__file, u32 __line,
          enum Log_Level level, const char *fmt, ...) {
 	if(level < Log_Level_Global && level != FATAL) { return; }
 
 	switch(level) {
 		case DEBUG:
-			fprintf(stdout,
-					"%sDEBUG%s [%s:%d %s()]: ",
-					BLUE, RESET,
+			fprintf(stdout, 
+					Log_ShortMode ? "%sDEBUG%s: " : "%sDEBUG%s [%s:%d %s()]: "
+					, BLUE, RESET,
 					__file, __line, __func);
 			break;
 		case INFO:
-			fprintf(stdout,
-					"INFO [%s:%d %s()]: ",
-					__file, __line, __func);
+			if(!Log_ShortMode)
+				fprintf(stdout, 
+						"INFO [%s:%d %s()]: ",
+						__file, __line, __func);
 			break;
 		case WARN:
 			fprintf(stdout,
-					"%sWARNING%s [%s:%d %s()]: ",
+					Log_ShortMode ? "%sWARNING%s: " : "%sWARNING%s [%s:%d %s()]: ", 
 					YELLOW, RESET,
 					__file, __line, __func);
 			break;
 		case ERROR:
-			fprintf(stdout,
-					"%sERROR%s [%s:%d %s()]: ",
+			fprintf(stdout, 
+					Log_ShortMode ? "%sERROR%s: " : "%sERROR%s [%s:%d %s()]: ",
 					RED, RESET,
 					__file, __line, __func);
 			break;
-
 		case FATAL:
-			fprintf(stderr,
-					"%sFATAL ERROR%s [%s:%d %s()]: ",
-					BOLDRED, RESET,
-			        __file, __line, __func);
+			fprintf(stderr, "%sFATAL ERROR%s [%s:%d %s()]: ", BOLDRED, RESET, __file, __line, __func);
 			break;
 	}
 

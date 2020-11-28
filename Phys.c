@@ -1,10 +1,44 @@
 #include "Phys.h"
 
+#include <float.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 #include "Common.h"
 #include "Math3D.h"
+
+Plane Plane_ChangeType(Plane p)
+{
+	Plane res = {
+		.Normal = p.Normal,
+		.IsPointPlane = !p.IsPointPlane
+	};
+
+	if(p.IsPointPlane)
+		res.Distance = Vec3_Dot(p.Point, p.Normal);
+	else
+		res.Point = Vec3_MultScal(p.Normal, p.Distance);
+
+	return res;
+}
+
+// Thank you,
+// http://www.miguelcasillas.com/?p=43
+enum HSRes 
+HalfSpaceTest(Vec3 pNorm, Vec3 pPoint, Vec3 point)
+{
+	pNorm = Vec3_Norm(pNorm);
+
+	Vec3 v = Vec3_Sub(point, pPoint);
+	r32 dist = Vec3_Dot(pNorm, v);
+
+	if(dist > FLT_EPSILON)
+		return HS_Front;
+	else if(dist < -FLT_EPSILON)
+		return HS_Back;
+	else
+		return HS_On;
+}
 
 /// Checks if the box b is inside a.
 /// Does not check the reverse.
@@ -47,8 +81,20 @@ AABB AABB_Fix(AABB aabb)
 	};
 }
 
-AABB
-AABB_ApplyTransform3D (AABB aabb, Transform3D t)
+AABB AABB_Add(AABB a, AABB b)
+{
+	return (AABB) {
+		.Min = V3C(MIN(a.Min.x, b.Min.x),
+				   MIN(a.Min.y, b.Min.y),
+				   MIN(a.Min.z, b.Min.z)),
+
+		.Max = V3C(MAX(a.Max.x, b.Max.x),
+				   MAX(a.Max.y, b.Max.y),
+				   MAX(a.Max.z, b.Max.z)),
+	};
+}
+
+AABB AABB_ApplyTransform3D(AABB aabb, Transform3D t)
 {
 	Mat4 model;
 	Transform3D_Mat4(t, model);
@@ -59,7 +105,7 @@ AABB_ApplyTransform3D (AABB aabb, Transform3D t)
 	return AABB_Fix(res);
 }
 
-/// Function for debugging purposes.
+/// Function for debugging.
 static bool8 GetSign_R32(r32 s) { return signbit(s); }
 
 // Thank you,

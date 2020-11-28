@@ -26,19 +26,18 @@ struct Array_CharPtr Audio_GetDevices() {
 	return arr;
 }
 
+static bool8 Audio_Initialized = 0;
+
 static ALCdevice  *Device = NULL;
 static ALCcontext *Context = NULL;
 
 void Audio_Init(const char *deviceName) {
-	if(Device) {
-		Log(WARN, "Attempt to initialize audio system, but it's already initialized.", "");
-		return;
-	}
+	if(Audio_Initialized) return;
 
 	Device = alcOpenDevice(deviceName);
 
 	if(!Device) {
-		Log(ERROR, "OpenAL couldn't open audio device \"%s\".", (deviceName ? deviceName : "[DEFAULT]"));
+		Log(ERROR, "[Audio] Can't open device %s.", (deviceName ? deviceName : "[DEFAULT]"));
 		return;
 	}
 
@@ -47,28 +46,39 @@ void Audio_Init(const char *deviceName) {
 
 	if(!alutInitWithoutContext(NULL, NULL))
 	{
-		Log(ERROR, 
-				"Failed to initialize ALUT.\n"
-				"ALUT reports the following error: %s", 
-				alutGetErrorString(alutGetError()));
+		Log(ERROR, "[Audio] ALUT init fail: %s.", alutGetErrorString(alutGetError()));
 		return;
 	}
 
+	Log(INFO, "[Audio] Started", "");
+	Audio_Initialized = 1;
 	alDistanceModel(DistModel_Default);
+
+	// Clear error state.
+	alGetError();
+	alutGetError();
 }
 
 void Audio_Quit()
 {
+	if(!Audio_Initialized)
+		return;
+
 	alutExit();
 	alcDestroyContext(Context);
 	alcCloseDevice(Device);
 
 	Context = NULL;
 	Device = NULL;
+
+	Audio_Initialized = 0;
+	Log(INFO, "[Audio] Quit", "");
 }
 
 void Audio_SetDistModel(enum Audio_DistModel model)
 {
+	if(!Audio_Initialized)
+		return;
 	alDistanceModel(model);
 }
 
@@ -79,6 +89,9 @@ void Audio_SetDistModel(enum Audio_DistModel model)
 Audio_ListenerProps 
 Audio_Listener_ReadProps()
 {
+	if(!Audio_Initialized)
+		return (Audio_ListenerProps){0};
+
 	Audio_ListenerProps p;
 	alGetListenerf(AL_GAIN, &p.MasterGain);
 	alGetListenerfv(AL_POSITION, p.Position.d);
@@ -90,6 +103,9 @@ Audio_Listener_ReadProps()
 void 
 Audio_Listener_SetProps(const Audio_ListenerProps* p)
 {
+	if(!Audio_Initialized)
+		return;
+
 	alListenerf(AL_GAIN, p->MasterGain);
 	alListenerfv(AL_POSITION, p->Position.d);
 	alListenerfv(AL_VELOCITY, p->Velocity.d);
@@ -99,6 +115,9 @@ Audio_Listener_SetProps(const Audio_ListenerProps* p)
 void
 Audio_Listener_SyncToCamera(Camera c)
 {
+	if(!Audio_Initialized)
+		return;
+
 	Audio_ListenerProps lp = {
 		.MasterGain  = 1,
 		.Position    = c.Position,
@@ -118,22 +137,25 @@ Audio_Listener_SyncToCamera(Camera c)
 Audio_Buffer
 Audio_Buffer_FromFile(const char* file)
 {
+	Audio_Buffer res = { .Id = 0 };
+
+	if(!Audio_Initialized) {
+		Log(ERROR, "[Audio] \"%s\" load fail - audio not started.", file);
+		return res;
+	}
+
 	u32 sz;
 	u8 *Data = File_ReadToBuffer_Alloc(file, &sz);
 
-	Audio_Buffer res = { .Id = 0 };
+	if(!Data) {
+		Log(ERROR, "[Audio] %s load fail - file not found.", file);
+		return res;
+	}
 
-	if(Data) {
-		alutGetError(); // Clear any errors.
-
-		res.Id = alutCreateBufferFromFileImage(Data, sz);
-		if(!res.Id) {
-			ALenum err = alutGetError();
-			Log(ERROR, 
-				"Failed to load audio buffer from file \"%s\".\n"
-				"ALUT reports the following error: %s", 
-				file, alutGetErrorString(err));
-		}
+	res.Id = alutCreateBufferFromFileImage(Data, sz);
+	if(!res.Id) {
+		ALenum err = alutGetError();
+		Log(ERROR, "[Audio] %s load fail - ALUT error: %s.", file, alutGetErrorString(err));
 	}
 
 	return res;
@@ -141,30 +163,26 @@ Audio_Buffer_FromFile(const char* file)
 void
 Audio_Buffer_Free(Audio_Buffer buf)
 {
-	if(buf.Id == 0)
+	if(!Audio_Initialized)
 		return;
 
-	alGetError();
+	if(buf.Id == 0)
+		return;
 
 	alDeleteBuffers(1, &buf.Id);
 	ALenum err = alGetError();
 	switch(err)
 	{
+		case AL_NO_ERROR: 
+			break;
 		case AL_INVALID_OPERATION: 
-			Log(ERROR, 
-				"(AL_INVALID_OPERATION: %d) Buffer #%d is still in use and cannot be freed yet.",
-				AL_INVALID_OPERATION, buf.Id);
+			Log(ERROR, "[Audio] Buffer #%d free fail - still in use.", buf.Id);
 			break;
 		case AL_INVALID_NAME:
-			Log(ERROR,
-				"(AL_INVALID_NAME: %d) Buffer #%d doesn't exist and cannot be freed yet.",
-				AL_INVALID_NAME, buf.Id);
+			Log(ERROR, "[Audio] Buffer #%d free fail - doesn't exist.", buf.Id);
 			break;
-		case AL_NO_ERROR: break;
 		default:
-			Log(ERROR, 
-				"(Unknown error: %d) An unknown error occured during buffer #%d's deletion.",
-				err, buf.Id);
+			Log(ERROR, "[Audio] Buffer #%d free fail - unknown error (code: %d).", buf.Id, err);
 			break;
 	}
 }
@@ -172,6 +190,9 @@ Audio_Buffer_Free(Audio_Buffer buf)
 Audio_BufferProps 
 Audio_Buffer_ReadProps(Audio_Buffer buf)
 {
+	if(!Audio_Initialized)
+		return (Audio_BufferProps){0};
+
 	ALint sz, freq, chan, bitD;
 	alGetBufferi(buf.Id, AL_SIZE, &sz);
 	alGetBufferi(buf.Id, AL_BITS, &bitD);
@@ -197,6 +218,9 @@ Audio_Buffer_ReadProps(Audio_Buffer buf)
 Audio_Src
 Audio_Src_Init()
 {
+	if(!Audio_Initialized)
+		return (Audio_Src){0};
+
 	Audio_Src s;
 	alGenSources(1, &s.Id);
 	return s;
@@ -204,12 +228,18 @@ Audio_Src_Init()
 
 void Audio_Src_Free(Audio_Src src)
 {
+	if(!Audio_Initialized)
+		return;
+
 	alDeleteSources(1, &src.Id);
 }
 
 Audio_SrcProps 
 Audio_Src_ReadProps(Audio_Src src)
 {
+	if(!Audio_Initialized)
+		return (Audio_SrcProps){0};
+
 	Audio_SrcProps p;
 	p.State = Audio_Src_ReadState(src);
 
@@ -246,6 +276,9 @@ Audio_Src_ReadProps(Audio_Src src)
 void
 Audio_Src_SetProps(Audio_Src src, const Audio_SrcProps* p)
 {
+	if(!Audio_Initialized)
+		return;
+
 	alSourcei(src.Id, AL_BUFFER, p->BufferId);
 
 	alSourcef(src.Id, AL_PITCH,    p->Pitch);
@@ -270,6 +303,9 @@ Audio_Src_SetProps(Audio_Src src, const Audio_SrcProps* p)
 Audio_Buffer
 Audio_Src_ReadBuffer(Audio_Src s)
 {
+	if(!Audio_Initialized)
+		return (Audio_Buffer){0};
+	
 	ALint buf;
 	alGetSourcei(s.Id, AL_BUFFER, &buf);
 	return (Audio_Buffer) { .Id = buf };
@@ -278,12 +314,21 @@ Audio_Src_ReadBuffer(Audio_Src s)
 void
 Audio_Src_SetBuffer(Audio_Src s, Audio_Buffer buf)
 {
+	if(!Audio_Initialized)
+		return;
+
+	if(Audio_Src_ReadState(s) == SrcState_Playing)
+		Audio_Src_Stop(s);
+
 	alSourcei(s.Id, AL_BUFFER, buf.Id);
 }
 
 r32 
 Audio_Src_ReadPlayheadPos(Audio_Src src)
 {
+	if(!Audio_Initialized)
+		return 0;
+
 	ALfloat f;
 	alGetSourcef(src.Id, AL_SEC_OFFSET, &f);
 	return f;
@@ -292,12 +337,18 @@ Audio_Src_ReadPlayheadPos(Audio_Src src)
 void
 Audio_Src_SeekTo(Audio_Src src, r32 seekSeconds)
 {
+	if(!Audio_Initialized)
+		return;
+
 	alSourcef(src.Id, AL_SEC_OFFSET, seekSeconds);
 }
 
 void
 Audio_Src_SeekBy(Audio_Src src, r32 seekSeconds)
 {
+	if(!Audio_Initialized)
+		return;
+
 	r32 s = Audio_Src_ReadPlayheadPos(src) + seekSeconds;
 	alSourcef(src.Id, AL_SEC_OFFSET, s);
 }
@@ -305,12 +356,16 @@ Audio_Src_SeekBy(Audio_Src src, r32 seekSeconds)
 enum Audio_SrcState 
 Audio_Src_ReadState(Audio_Src src)
 {
+	if(!Audio_Initialized)
+		return SrcState_Invalid;
+
 	ALint s;
 	alGetSourcei(src.Id, AL_SOURCE_STATE, &s);
 	return s;
 }
 
-void Audio_Src_Play  (Audio_Src src) { alSourcePlay  (src.Id); }
-void Audio_Src_Pause (Audio_Src src) { alSourcePause (src.Id); }
-void Audio_Src_Rewind(Audio_Src src) { alSourceRewind(src.Id); }
-void Audio_Src_Stop  (Audio_Src src) { alSourceStop  (src.Id); }
+#define X() do { if(!Audio_Initialized) return; } while(0)
+void Audio_Src_Play  (Audio_Src src) { X(); alSourcePlay  (src.Id); }
+void Audio_Src_Pause (Audio_Src src) { X(); alSourcePause (src.Id); }
+void Audio_Src_Rewind(Audio_Src src) { X(); alSourceRewind(src.Id); }
+void Audio_Src_Stop  (Audio_Src src) { X(); alSourceStop  (src.Id); }

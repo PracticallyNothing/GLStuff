@@ -90,6 +90,15 @@ Configuration ReadJSONConf()
 	return Conf;
 }
 
+u32 CurrentSize = 3;
+u32 Sizes[] = {
+	 256,  144,
+	 640,  360, 
+	1280,  720,
+	1920, 1080,
+	3840, 2160
+};
+
 int main(int argc, char *argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 	srand(time(NULL));
@@ -99,15 +108,19 @@ int main(int argc, char *argv[]) {
 	RSys_SetFPSCap(Conf.FPSCap);
 
 	RGB ClearColor = HexToRGB("52a9e0");
-	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1);
+	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 0);
 
-	Audio_Init(NULL);
+	//Audio_Init(NULL);
 	Audio_Buffer buffers[3] = {
 		Audio_Buffer_FromFile("res/audio/left.wav"),
 		Audio_Buffer_FromFile("res/audio/right.wav"),
 		Audio_Buffer_FromFile("res/audio/test.wav"),
 	};
 	Audio_Buffer *b = buffers;
+
+	RT def = RT_Init(640, 480);
+	RT_Clear(def);
+	//RT_Clear(def2);
 
 	Audio_Src src = Audio_Src_Init();
 	Audio_Src_SetBuffer(src, *b);
@@ -139,11 +152,20 @@ int main(int argc, char *argv[]) {
 		.Yaw   = DegToRad(0),
 		.Pitch = DegToRad(45),
 		.Radius = 20,
-		.AspectRatio = RSys_GetSize().AspectRatio
+		.AspectRatio = RT_GetCurrentAspectRatio()
 	};
 
 	Camera cc = OrbitCamera_ToCamera(Cam);
 	Audio_Listener_SyncToCamera(cc);
+
+	TextStyle style = {
+		.Align = Align_Center,
+		.Anchor = Anchor_Center,
+		.Color = V4(1,1,1,1),
+		.BackgroundEnabled = 1,
+		.Background = V4(0,0,0,1),
+		.Font = &Font_Small
+	};
 
 	while(1) {
 		SDL_Event e;
@@ -155,17 +177,20 @@ int main(int argc, char *argv[]) {
 						case SDLK_ESCAPE:
 							goto end;
 						case SDLK_SPACE:
-							if(Audio_Src_ReadState(src) == SourceState_Playing)
+							if(Audio_Src_ReadState(src) == SrcState_Playing)
 								Audio_Src_Pause(src);
 							else
 								Audio_Src_Play(src);
 							break;
 						case SDLK_TAB:
-							Log(INFO, "Switched buffers (%d to %d).", b - buffers, (b - buffers + 1) % 3);
-							b = buffers + ((b - buffers + 1) % 3);
-							Audio_Src_Stop(src);
-							Audio_Src_SetBuffer(src, *b);
-							Audio_Src_Play(src);
+							//Log(INFO, "Switched buffers (%d to %d).", b - buffers, (b - buffers + 1) % 3);
+							//b = buffers + ((b - buffers + 1) % 3);
+							//Audio_Src_SetBuffer(src, *b);
+							//Audio_Src_Play(src);
+							CurrentSize++;
+							CurrentSize %= sizeof(Sizes) / sizeof(Sizes[0]) / 2;
+							RT_SetSize(&def, Sizes[CurrentSize*2], Sizes[CurrentSize*2+1]);
+							Log(INFO, "[Main] Current size: %ux%u", Sizes[CurrentSize*2], Sizes[CurrentSize*2+1]);
 							break;
 						default:
 							break;
@@ -224,6 +249,9 @@ int main(int argc, char *argv[]) {
 
 		// Render frame to back buffer.
 		if(RSys_NeedRedraw()) {
+			RT_Clear(def);
+			RT_Use(def);
+
 			DrawGrid(Cam, 200);
 
 			srcProps.Position = V3(5*sinf(Time), 0, 5*cosf(Time));
@@ -255,18 +283,42 @@ int main(int argc, char *argv[]) {
 			R3D_DrawLine(cc, x, Vec3_Add(x, z), V4(0.3, 0.3, 1, 1));
 			R3D_DrawLine(cc, Vec3_Add(x, z), Vec3_Add(y, Vec3_Add(x,z)), V4(0.3, 1, 0.3, 1));
 
-			R2D_DrawText(
-				V2(10,10),
-				V4(1,1,1,1),
-				V4(0,0,0,0),
-				&R2D_DefaultFont_Large,
+			RT_UseDefault();
+			Vec2 scrSz = RT_GetScreenSize();
+			Vec2 halfScrSz = Vec2_DivScal(scrSz, 2);
+
+			Rect2D screen[4] = {
+				(Rect2D){ .Position = V2C(0, 0), .Size = halfScrSz },
+				(Rect2D){ .Position = V2C(halfScrSz.x, 0), .Size = halfScrSz },
+				(Rect2D){ .Position = V2C(0, halfScrSz.y), .Size = halfScrSz },
+				(Rect2D){ .Position = halfScrSz, .Size = halfScrSz },
+			};
+			for(u32 i = 0; i < 4; i++)
+				Rect2D_DrawImage(screen[i], def.Color.Id, 0);
+
+			Rect2D horizDiv = {
+				.Position = V2C(0, halfScrSz.y - 2),
+				.Size = V2C(scrSz.x, 4),
+				.Color = V4C(0,0,0,1)
+			};
+			Rect2D vertDiv = {
+				.Position = V2C(halfScrSz.x - 2, 0),
+				.Size = V2C(4, scrSz.y),
+				.Color = V4C(0,0,0,1)
+			};
+			Rect2D_Draw(horizDiv, 1);
+			Rect2D_Draw(vertDiv, 1);
+
+			Text2D_Draw(V2(10,10), &style,
 				"%s Playing sound: %02.0f:%05.2f/%02.0f:%05.2f (%d channels)",
-				(Audio_Src_ReadState(src) == SourceState_Playing ? ">>" : "||"),
-				floor(playpos / 60.0f), fmodf(playpos, 60),
-				floor(len / 60.0f),     fmodf(len, 60),
+				(Audio_Src_ReadState(src) == SrcState_Playing ? ">>" : "||"),
+				floor(playpos / 60.0f),
+				fmodf(playpos, 60),
+				floor(len / 60.0f),
+				fmodf(len, 60),
 				bProps.NumChannels
 			);
-
+			
 			// Display the work onto the screen.
 			RSys_FinishFrame();
 			Time += 1e-2;

@@ -14,9 +14,9 @@
 // Rendering system
 //
 
-typedef struct RSys_Size_t RSys_Size;
+typedef struct RSys_Size RSys_Size;
 
-struct RSys_Size_t {
+struct RSys_Size {
 	i32 Width, Height;
 	r32 AspectRatio;
 };
@@ -29,56 +29,99 @@ void RSys_Quit();
 void RSys_FinishFrame();
 void RSys_HandleWindowEvent(const SDL_WindowEvent *);
 
-void RSys_SetFPSCap(u32 capFps);
-void RSys_SetFrametimeCap(r32 capMs);
-
+void  RSys_SetFPSCap(u32 capFps);
+void  RSys_SetFrametimeCap(r32 capMs);
 bool8 RSys_NeedRedraw();
-RSys_Size RSys_GetSize();
 
-GLuint RSys_GetTempVAO();
-void RSys_FreeTempVAO(GLuint);
+GLuint VAO_GetTemp();
+void   VAO_FreeTemp(GLuint);
 
-typedef struct RSys_Texture RSys_Texture;
+enum Texture_Format {
+	Format_Red  = GL_RED,  // Only one color per pixel.
+	Format_RG   = GL_RG,   // Two colors per pixel
+	Format_RGB  = GL_RGB,  // Three colors per pixel, Red Green Blue
+	Format_RGBA = GL_RGBA, // Four colors per pixel, Red Green Blue Alpha
 
-struct RSys_Texture {
-	GLuint Id;
-	i32 Width, Height;
-	i32 NumComponents;
-};
-RSys_Texture RSys_TextureFromMemory(const u8* buf, u32 bufSize, u32 numComponents);
-RSys_Texture RSys_TextureFromFile(const char *filename);
+	Format_BGR  = GL_BGR,  // Three colors per pixel, Blue Green Red
+	Format_BGRA = GL_BGRA, // Four colors per pixel, Blue Green Red Alpha
 
-enum RSys_RT_Type {
-	RenderTarget_DefaultRT = -1,
-
-	RenderTarget_Texture,
-	RenderTarget_Renderbuffer,
+	Format_Depth        = GL_DEPTH_COMPONENT, // Pixels record depth
+	Format_DepthStencil = GL_DEPTH_STENCIL    // Pixels record depth + stencil
 };
 
-typedef struct RSys_RT RSys_RT;
-
-struct RSys_RT {
-	enum RSys_RT_Type Type;
-
-	GLuint FramebufferId;
-	GLuint ColorAttachmentId, DepthAttachmentId;
+enum Texture_Filter {
+	Filter_Nearest = GL_NEAREST, // Looks pixelated
+	Filter_Linear  = GL_LINEAR   // Looks blurry
+};
+enum Texture_Wrap {
+	Wrap_Repeat        = GL_REPEAT,         // If sampling outside texture, return pixel from inside texture
+	Wrap_ClampToBorder = GL_CLAMP_TO_BORDER // If sampling outside texture, return black
 };
 
-RSys_RT RSys_RT_Init(enum RSys_RT_Type type);
-void RSys_RT_Free(RSys_RT);
-void RSys_RT_ReadFrom(RSys_RT);
-void RSys_RT_DrawTo(RSys_RT);
+// OpenGL texture
+typedef struct Texture Texture;
 
+// OpenGL texture.
+struct Texture {
+	GLuint Id;                  // OpenGL ID
+	u32 Width, Height;          // Width and Height in pixels
+	enum Texture_Format Format; // The format of the pixels
+	enum Texture_Filter Filter; // Magnification and minification filter
+	enum Texture_Wrap Wrap;     // How to wrap the texture if we read outside its bounds
+	bool8 HasMipmaps;           // Whether the texture has smaller versions of itself generated
+};
+
+Texture Texture_Init(
+	u32 Width,                  // Width in pixels
+	u32 Height,                 // Height in pixels
+	enum Texture_Format Format, // Format of the pixels
+	enum Texture_Filter Filter, // How to resize the texture
+	enum Texture_Wrap Wrap      // How to sample outside the texture
+);
+void Texture_SetData(
+	Texture* Texture, // Target texture
+	const u8* Data,
+	u32 Width,
+	u32 Height,
+	bool8 GenMipmaps
+);
+Texture Texture_FromFile(const char *File);
+void    Texture_Free(Texture);
+
+// Render target type.
+typedef struct RT RT;
+
+// Render target.
+struct RT {
+	GLuint Id;            // OpenGL ID.
+	u32 Width, Height;    // Width and height in pixels
+	Texture Color, Depth; // Color and Depth attachments
+};
+
+RT   RT_Init(u32 Width, u32 Height);         // Create a render target with a given size
+RT   RT_InitScreenSize();                    // Create a render target with the same size as the screen
+void RT_Free(RT);                            // Free a render target and its attachments
+void RT_Use(RT);                             // Make the result of all render commands appear on a render target
+void RT_UseDefault();                        // Use the default render target, which is the actual screen.
+void RT_Blit(RT Source, RT Destination);     // Copy the pixels of the source to the destination render target
+void RT_BlitToScreen(RT Source);             // Copy the pixels of the source to the screen
+void RT_Clear(RT);                           // Reset the contents of a render target
+void RT_SetSize(RT*, u32 Width, u32 Height); // Set a new size for the render target
+Vec2 RT_GetCurrentSize();                    // Get the size of the current render target
+ r32 RT_GetCurrentAspectRatio();             // Get the aspect ratio of the current render target
+Vec2 RT_GetScreenSize();                     // Get the size of the screen
+ r32 RT_GetScreenAspectRatio();              // Get the aspect ratio of the screen
 
 // 
 // 2D
 //
 
-typedef struct R2D_Rect        R2D_Rect;
-typedef struct R2D_Triangle    R2D_Triangle;
-typedef struct R2D_Spritesheet R2D_Spritesheet;
+typedef struct Rect2D      Rect2D;
+typedef struct Tri2D       Tri2D;
+typedef struct Spritesheet Spritesheet;
+typedef struct TextStyle   TextStyle;
 
-struct R2D_Rect {
+struct Rect2D {
 	Vec2 Position;
 	Vec2 Size;
 	union {
@@ -87,7 +130,7 @@ struct R2D_Rect {
 	};
 };
 
-struct R2D_Triangle {
+struct Tri2D {
 	Vec2 Points[3];
 	union {
 		Vec2 UVs[3];
@@ -95,30 +138,55 @@ struct R2D_Triangle {
 	};
 };
 
-struct R2D_Spritesheet {
-	GLuint TextureId;
-	u32 Width, Height;
+struct Spritesheet {
+	const Texture *Texture;
 	u32 SpriteWidth, SpriteHeight;
 };
 
+struct TextStyle {
+	bool8 ClipEnabled;
+	Rect2D Clip;       // Cutoff rectangle.
 
-extern R2D_Spritesheet 
-	R2D_DefaultFont_Small,
-	R2D_DefaultFont_Medium,
-	R2D_DefaultFont_Large;
+	RGBA Color;              // Text color
+	RGBA Background;         // Background behind letter
+	bool8 BackgroundEnabled; // Whether the letters have a background
 
-void R2D_DrawTriangle (const R2D_Triangle *triangle);
-void R2D_DrawTriangles(const R2D_Triangle *triangles, u32 NumTriangles);
+	bool8 WrapText;
 
-void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill);
+	enum {
+		Anchor_TopLeft,
+		Anchor_TopMiddle,
+		Anchor_TopRight,
 
-void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs);
+		Anchor_CenterLeft,
+		Anchor_Center,
+		Anchor_CenterRight,
 
-void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg, const R2D_Spritesheet *font, const char *fmt, ...);
+		Anchor_BottomLeft,
+		Anchor_BottomMiddle,
+		Anchor_BottomRight,
+	} Anchor;
 
-Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...);
+	enum {
+		Align_Left,
+		Align_Center,
+		Align_Right
+	} Align;
 
-void R2D_DrawConsole();
+	const Spritesheet *Font;
+};
+extern const TextStyle TextStyle_Default;
+extern Spritesheet Font_Small, Font_Medium, Font_Large;
+
+void Tri2D_Draw    (Tri2D Triangle);
+void Tri2D_DrawMany(const Tri2D *Triangles, u32 NumTris);
+
+void Rect2D_Draw(Rect2D rect, bool8 Fill);                              // Draw a Rect2D onto the screen.
+void Rect2D_DrawMany(const Rect2D *Rects, u32 NumRects, bool8 Fill);    // Draw many Rect2Ds onto the screen.
+void Rect2D_DrawImage(Rect2D rect, GLuint TextureID, bool8 UseRectUVs); // Draw a Rect2D with an image inside.
+
+Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char *fmt, ...); // Shows text on screen, returns last pen location.
+Vec2 Text2D_Size(const TextStyle* ts, const char *fmt, ...);              // Returns the width and height of some text.
 
 
 //
@@ -171,9 +239,7 @@ enum R3D_Light_Type {
 struct Light {
 	enum R3D_Light_Type Type;
 
-	RGB Ambient;
-	RGB Diffuse;
-	RGB Specular;
+	RGB Color;
 
 	union {
 		struct PointLight {
@@ -207,7 +273,7 @@ enum R3D_Node_Type {
 	Node_NumTypes
 };
 
-typedef struct R3D_Node R3D_Node;
+typedef struct R3D_Node  R3D_Node;
 typedef struct R3D_Scene R3D_Scene;
 
 DEF_ARRAY(Node, R3D_Node);
@@ -217,6 +283,9 @@ struct R3D_Node {
 	Array_Node Children;
 
 	Transform3D LocalTransform;
+
+	AABB LocalBox; // AABB of just the stuff inside the node.
+	AABB SumBox;   // An AABB around all of the node's children.
 
 	enum R3D_Node_Type Type;
 
@@ -230,6 +299,12 @@ struct R3D_Node {
 struct R3D_Scene {
 	R3D_Node Root;
 	Camera *ActiveCamera;
+	
+	bool8 SunEnabled;
+	struct {
+		Vec3 Direction;
+		RGB Color;
+	} Sun;
 };
 
 void R3D_Init();

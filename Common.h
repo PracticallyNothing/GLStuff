@@ -407,6 +407,7 @@ enum Log_Level {
 	FATAL = 4,
 };
 extern enum Log_Level Log_Level_Global;
+extern bool8 Log_ShortMode; // If true, logs won't contain file and line.
 
 void Log(const char *__func, const char *__file, u32 __line,
          enum Log_Level level, const char *fmt, ...);

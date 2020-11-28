@@ -6,6 +6,32 @@
 #include "SDL_video.h"
 #include "stb_image.h"
 
+// Convert an error to a string.
+static const char* 
+GL_ErrorToString(GLenum err) 
+{
+	switch(err) {
+		case GL_NO_ERROR:                      return "GL OK";
+		case GL_INVALID_ENUM:                  return "GL_INVALID_ENUM";
+		case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
+		case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
+		case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
+		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+
+		case GL_FRAMEBUFFER_COMPLETE:                      return "Framebuffer OK";
+		case GL_FRAMEBUFFER_UNDEFINED:                     return "GL_FRAMEBUFFER_UNDEFINED";
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:         return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:        return "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:        return "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
+		case GL_FRAMEBUFFER_UNSUPPORTED:                   return "GL_FRAMEBUFFER_UNSUPPORTED";
+		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:        return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
+		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:      return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+
+		default:                               return "Unknown error";
+	}
+}
+
 struct RSys_State {
 	SDL_Window *Window;
 	SDL_GLContext GLContext;
@@ -57,13 +83,6 @@ void RSys_LogVideoDriverInfo(void) {
 
 	for(i32 i = 0; i < NumVideoDrivers; ++i)
 		Log(INFO, "#%d: %s\n", i, SDL_GetVideoDriver(i));
-}
-
-RSys_Size RSys_GetSize() {
-	RSys_Size sz = {-1, -1};
-	SDL_GetWindowSize(RSys_State.Window, &sz.Width, &sz.Height);
-	sz.AspectRatio = (r32) sz.Width / sz.Height;
-	return sz;
 }
 
 void R2D_Init();
@@ -192,7 +211,7 @@ void RSys_AllocMoreVBOs() {
 	memset((void *) (RSys_State.VBOIsTaken + RSys_State.NumVBOs), 0, sizeof(bool8) * (N / 2));
 }
 
-GLuint RSys_GetTempVAO() {
+GLuint VAO_GetTemp() {
 	if(RSys_State.NumTakenVAOs == RSys_State.NumVAOs) { RSys_AllocMoreVAOs(); }
 
 	for(int i = 0; i < RSys_State.NumVAOs; i++) {
@@ -208,7 +227,7 @@ GLuint RSys_GetTempVAO() {
 	return 0;
 }
 
-GLuint RSys_GetTempVBO() {
+GLuint VBO_GetTemp() {
 	if(RSys_State.NumTakenVBOs == RSys_State.NumVBOs) { RSys_AllocMoreVBOs(); }
 
 	for(int i = 0; i < RSys_State.NumVBOs; i++) {
@@ -224,7 +243,7 @@ GLuint RSys_GetTempVBO() {
 	return 0;
 }
 
-void RSys_GetTempVBOs(GLuint *Output, u32 N) {
+void VBO_GetManyTemp(GLuint *Output, u32 N) {
 	if(!Output || !N)
 		return;
 
@@ -240,7 +259,7 @@ void RSys_GetTempVBOs(GLuint *Output, u32 N) {
 	}
 }
 
-void RSys_FreeTempVBO(GLuint VBO) {
+void VBO_FreeTemp(GLuint VBO) {
 	for(int i = 0; i < RSys_State.NumVBOs; i++) {
 		if(VBO == RSys_State.TempVBOs[i]) {
 			RSys_State.VBOIsTaken[i] = 0;
@@ -252,12 +271,12 @@ void RSys_FreeTempVBO(GLuint VBO) {
 	Log(WARN, "Attempted to free temp VBO %d, which doesn't exist.", VBO);
 }
 
-void RSys_FreeTempVBOs(const GLuint* VBOs, u32 N) {
+void VBO_FreeManyTemp(const GLuint* VBOs, u32 N) {
 	while(N--)
-		RSys_FreeTempVBO(VBOs[N]);
+		VBO_FreeTemp(VBOs[N]);
 }
 
-void RSys_FreeTempVAO(GLuint VAO) {
+void VAO_FreeTemp(GLuint VAO) {
 	for(int i = 0; i < RSys_State.NumVAOs; i++) {
 		if(VAO == RSys_State.TempVAOs[i]) {
 			RSys_State.VAOIsTaken[i] = 0;
@@ -293,49 +312,248 @@ void RSys_Quit() {
 	SDL_Quit();
 }
 
-RSys_Texture RSys_TextureFromFile(const char *filename) {
-	RSys_Texture Texture = {.Id = 0};
+Texture Texture_Init(
+	u32 w, u32 h,
+	enum Texture_Format fmt,
+	enum Texture_Filter filt,
+	enum Texture_Wrap wrap)
+{
+	glGetError();
 
-	stbi_set_flip_vertically_on_load(0);
-	u8 *Data = stbi_load(filename, &Texture.Width, &Texture.Height,
-	                     &Texture.NumComponents, 0);
-	if(!Data) return Texture;
+	Texture t = {
+		.Id = 0,
+		.Width = w,
+		.Height = h,
+		.Format = fmt,
+		.Filter = filt,
+		.Wrap = wrap,
+		.HasMipmaps = 0
+	};
+	glGenTextures(1, &t.Id);
 
-	glGenTextures(1, &Texture.Id);
-	glBindTexture(GL_TEXTURE_2D, Texture.Id);
+	if(!t.Id)
+	{
+		Log(ERROR, "[Render] Texture init fail - GL error (%d).", glGetError());
+		return t;
+	}
+	glBindTexture(GL_TEXTURE_2D, t.Id);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filt);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filt);
 
-	GLenum Format;
-	switch(Texture.NumComponents) {
-		case 1: Format = GL_RED; break;
-		case 2: Format = GL_RG; break;
-		case 3: Format = GL_RGB; break;
-		case 4: Format = GL_RGBA; break;
+	Texture_SetData(&t, NULL, w, h, 0);
+
+	return t;
+}
+
+void Texture_SetData(Texture* t, const u8* data, u32 width, u32 height, bool8 mips)
+{
+	glGetError();
+
+	glBindTexture(GL_TEXTURE_2D, t->Id);
+
+	GLenum intFmt = t->Format == Format_Depth ? Format_Depth : Format_RGBA;
+	glTexImage2D(
+		GL_TEXTURE_2D,    // target:         Target texture
+		0,                // level:          LOD level, 0 because we don't have custom LOD
+		intFmt,           // internalFormat: How to store the data
+		width,            // width:          Width in pixels
+		height,           // height:         Height in pixels
+		0,                // border:         No idea, docs.gl says "This value must be 0."
+		t->Format,        // format:         Pixel format
+		GL_UNSIGNED_BYTE, // type:           How each pixel is encoded
+		data              // data:           Pointer to pixel data
+	);
+	GLenum err = glGetError();
+	if(err != GL_NO_ERROR) {
+		glBindTexture(GL_TEXTURE_2D, 0);
+		Log(ERROR, "[Render] Texture %d set data fail: %s (%d)", t->Id, GL_ErrorToString(err), err);
+		return;
 	}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Texture.Width, Texture.Height, 0,
-	             Format, GL_UNSIGNED_BYTE, Data);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	t->Width = width;
+	t->Height = height;
+	t->HasMipmaps = data && width && height && mips;
+
+	if(t->HasMipmaps)
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+Texture Texture_FromFile(const char *filename) {
+	stbi_set_flip_vertically_on_load(0);
+
+	i32 w, h, nComp;
+	u8 *Data = stbi_load(filename, &w, &h, &nComp, 0);
+
+	if(!Data) {
+		Log(ERROR, "[Render] Texture %s load fail - file doens't exist.", filename);
+		return (Texture){0};
+	}
+
+	enum Texture_Format fmt;
+	switch(nComp) {
+		case 1: fmt = Format_Red;  break;
+		case 2: fmt = Format_RG;   break;
+		case 3: fmt = Format_RGB;  break;
+		case 4: fmt = Format_RGBA; break;
+	}
+
+	Texture t = Texture_Init(w, h, fmt, Filter_Linear, Wrap_Repeat);
+	Texture_SetData(&t, Data, w, h, 1);
 
 	stbi_image_free(Data);
 
-	return Texture;
+	return t;
+}
+void Texture_Free(Texture t) { glDeleteTextures(1, &t.Id); }
+
+//
+// RT
+//
+
+static RT RT_Current = {.Id = 0}; // Currently bound render target, 0 means screen
+
+RT RT_Init(u32 w, u32 h)
+{
+	RT rt;
+	rt.Width = w;
+	rt.Height = h;
+
+	glGenFramebuffers(1, &rt.Id);
+	glBindFramebuffer(GL_FRAMEBUFFER, rt.Id);
+
+	rt.Color = Texture_Init(w, h, Format_RGBA,  Filter_Nearest, Wrap_ClampToBorder);
+	rt.Depth = Texture_Init(w, h, Format_Depth, Filter_Nearest, Wrap_ClampToBorder);
+
+	Log(INFO, "[Render] RT %d with Color %d and Depth %d.", rt.Color.Id, rt.Depth.Id);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt.Color.Id, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rt.Depth.Id, 0);
+
+	GLenum res = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if(res != GL_FRAMEBUFFER_COMPLETE) {
+		Log(ERROR, "[Render] RT create fail: %s (%d)", GL_ErrorToString(res), res);
+		return (RT){.Id = 0};
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return rt;
 }
 
-// ---=== 2D rendering ===---
+RT RT_InitScreenSize()
+{
+	Vec2 sz = RT_GetScreenSize();
+	return RT_Init(sz.w, sz.h);
+}
+
+void RT_Free(RT rt)
+{
+	Texture_Free(rt.Color);
+	Texture_Free(rt.Depth);
+	glDeleteFramebuffers(1, &rt.Id);
+}
+
+void RT_UseDefault() { 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Vec2 sz = RT_GetScreenSize();
+	glViewport(0, 0, sz.w, sz.h);
+	RT_Current = (RT){ .Id = 0 };
+}
+void RT_Use(RT rt)   { 
+	if(rt.Id == 0)
+		RT_UseDefault();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, rt.Id);
+	glViewport(0, 0, rt.Width, rt.Height);
+	RT_Current = rt;
+}
+
+void RT_Blit(RT src, RT dest)
+{
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, src.Id);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dest.Id);
+	glBlitFramebuffer(
+		0, 0, src.Width, src.Height,               // Source region, x y width height
+		0, 0, dest.Width, dest.Height,             // Destination region, x y width height
+		GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, // What to copy
+		GL_LINEAR                                  // How to account for different sizes.
+	);
+}
+
+void RT_BlitToScreen(RT src)
+{
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, src.Id);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	
+	Vec2 sz = RT_GetScreenSize();
+
+	glBlitFramebuffer(
+		0, 0, src.Width, src.Height,               // Source region, x y width height
+		0, 0, sz.w, sz.h,                 // Destination region, x y width height
+		GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, // What to copy
+		GL_LINEAR                                  // How to account for different sizes.
+	);
+}
+
+void RT_Clear(RT rt)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, rt.Id);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void RT_SetSize(RT *rt, u32 w, u32 h)
+{
+	if(!rt)
+		return;
+
+	Texture_SetData(&rt->Color, NULL, w, h, 0);
+	Texture_SetData(&rt->Depth, NULL, w, h, 0);
+	rt->Width = w;
+	rt->Height = h;
+}
+
+Vec2 RT_GetCurrentSize()
+{
+	if(RT_Current.Id == 0)
+		return RT_GetScreenSize();
+	return V2(RT_Current.Width, RT_Current.Height);
+}
+
+r32 RT_GetCurrentAspectRatio()
+{
+	if(RT_Current.Id == 0)
+		return RT_GetScreenAspectRatio();
+	return ((r32)RT_Current.Width)/RT_Current.Height;
+}
+
+Vec2 RT_GetScreenSize()
+{
+	i32 w, h;
+	SDL_GetWindowSize(RSys_State.Window, &w, &h);
+	return V2(w, h);
+}
+
+r32 RT_GetScreenAspectRatio()
+{
+	i32 w, h;
+	SDL_GetWindowSize(RSys_State.Window, &w, &h);
+	return ((r32)w)/h;
+}
+//
+// -- 2D --
+//
 
 static struct R2D_State {
 	GLuint TextVAO;
 	GLuint TextTexture;
 } R2D_State;
 
-R2D_Spritesheet R2D_DefaultFont_Small,
-			    R2D_DefaultFont_Medium,
-			    R2D_DefaultFont_Large;
+Spritesheet Font_Small, Font_Medium, Font_Large;
 Shader *RectShader = NULL;
 Shader *TextShader = NULL;
 
@@ -345,37 +563,33 @@ void R2D_Init() {
 	RectShader = Shader_FromFile("res/shaders/ui/rect.glsl");
 	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
 
-	RSys_Texture 
-		small  = RSys_TextureFromFile("res/textures/font_mono_6x12.png"),
-		medium = RSys_TextureFromFile("res/textures/font_mono_7x15.png"),
-		large  = RSys_TextureFromFile("res/textures/font_mono_15x29.png");
+	Texture *tex = malloc(sizeof(Texture)*3);
+	tex[0] = Texture_FromFile("res/textures/font_mono_6x12.png"),
+	tex[1] = Texture_FromFile("res/textures/font_mono_7x15.png"),
+	tex[2] = Texture_FromFile("res/textures/font_mono_15x29.png");
 
-	R2D_DefaultFont_Small = (R2D_Spritesheet){
-	    .TextureId = small.Id,
-	    .Width = small.Width,
-	    .Height = small.Height,
+	Font_Small = (Spritesheet){
+		.Texture = tex,
 	    .SpriteWidth = 6,
 	    .SpriteHeight = 12,
 	};
 
-	R2D_DefaultFont_Medium = (R2D_Spritesheet){
-	    .TextureId = medium.Id,
-	    .Width = medium.Width,
-	    .Height = medium.Height,
+	Font_Medium = (Spritesheet){
+		.Texture = tex+1,
 	    .SpriteWidth = 7,
 	    .SpriteHeight = 15,
 	};
 
-	R2D_DefaultFont_Large = (R2D_Spritesheet){
-	    .TextureId = large.Id,
-	    .Width = large.Width,
-	    .Height = large.Height,
+	Font_Large = (Spritesheet){
+		.Texture = tex+2,
 	    .SpriteWidth = 15,
 	    .SpriteHeight = 29,
 	};
 }
 
-void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
+void Rect2D_Draw(Rect2D rect, bool8 fill) { Rect2D_DrawMany(&rect, 1, fill); }
+
+void Rect2D_DrawMany(const Rect2D *Rects, u32 NumRects, bool8 Fill) {
 	Vec2 *Pos = Allocate(sizeof(Vec2) * NumRects * 4);
 	RGBA *Color = Allocate(sizeof(RGBA) * NumRects * 4);
 	u32 *Inds = Allocate(sizeof(u32) * NumRects * (Fill ? 6 : 8));
@@ -387,7 +601,7 @@ void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 	// bottom right.
 
 	for(u32 i = 0; i < NumRects; i++) {
-		R2D_Rect r = Rects[i];
+		Rect2D r = Rects[i];
 
 		Pos[i * 4 + 0] = r.Position;
 		Pos[i * 4 + 1] = V2(r.Position.x + r.Size.x, r.Position.y);
@@ -418,13 +632,13 @@ void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 		}
 	}
 
-	GLuint VAO = RSys_GetTempVAO();
+	GLuint VAO = VAO_GetTemp();
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
 	GLuint VBOs[3];
-	RSys_GetTempVBOs(VBOs, 3);
+	VBO_GetManyTemp(VBOs, 3);
 
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
@@ -444,10 +658,10 @@ void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 
 	// Drawing the rectangles
 	Mat4 view, proj;
-	RSys_Size size = RSys_GetSize();
+	Vec2 sz = RT_GetCurrentSize();
 	Camera cam = {.Mode = CameraMode_Orthographic,
-	              .ScreenWidth = size.Width,
-	              .ScreenHeight = size.Height,
+	              .ScreenWidth  = sz.w,
+	              .ScreenHeight = sz.h,
 	              .Position = V3(0, 0, -1),
 	              .Target = V3(0, 0, 0),
 	              .Up = V3(0, 1, 0),
@@ -465,14 +679,14 @@ void R2D_DrawRects(const R2D_Rect *Rects, u32 NumRects, bool8 Fill) {
 
 	// Cleanup
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	RSys_FreeTempVBOs(VBOs, 3);
+	VBO_FreeManyTemp(VBOs, 3);
 	Free(Pos);
 	Free(Color);
 	Free(Inds);
-	RSys_FreeTempVAO(VAO);
+	VAO_FreeTemp(VAO);
 }
 
-void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
+void Tri2D_DrawMany(const Tri2D *tris, u32 numTris)
 {
 	Vec2 *Pos = Allocate(sizeof(Vec2) * numTris * 3);
 	RGBA *Color = Allocate(sizeof(RGBA) * numTris * 3);
@@ -484,7 +698,7 @@ void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
 	// bottom right.
 
 	for(u32 i = 0; i < numTris; i++) {
-		R2D_Triangle t = tris[i];
+		Tri2D t = tris[i];
 
 		Pos[i * 4 + 0] = t.Points[0];
 		Pos[i * 4 + 1] = t.Points[1];
@@ -495,13 +709,13 @@ void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
 		Color[i * 4 + 2] = t.Color;
 	}
 
-	GLuint VAO = RSys_GetTempVAO();
+	GLuint VAO = VAO_GetTemp();
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
 	GLuint VBOs[2];
-	RSys_GetTempVBOs(VBOs, 2);
+	VBO_GetManyTemp(VBOs, 2);
 	
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
@@ -513,12 +727,12 @@ void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec4) * numTris * 3, Color, GL_STREAM_DRAW);
 	glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, NULL);
 
-	// Drawing the rectangles
+	// Drawing the tris
 	Mat4 view, proj;
-	RSys_Size size = RSys_GetSize();
+	Vec2 sz = RT_GetCurrentSize();
 	Camera cam = {.Mode = CameraMode_Orthographic,
-	              .ScreenWidth = size.Width,
-	              .ScreenHeight = size.Height,
+	              .ScreenWidth  = sz.w,
+	              .ScreenHeight = sz.h,
 	              .Position = V3(0, 0, -1),
 	              .Target = V3(0, 0, 0),
 	              .Up = V3(0, 1, 0),
@@ -534,13 +748,13 @@ void R2D_DrawTriangles(const R2D_Triangle *tris, u32 numTris)
 	glDrawArrays(GL_TRIANGLES, 0, numTris * 3);
 
 	// Cleanup
-	RSys_FreeTempVBOs(VBOs, 2);
+	VBO_FreeManyTemp(VBOs, 2);
 	Free(Pos);
 	Free(Color);
-	RSys_FreeTempVAO(VAO);
+	VAO_FreeTemp(VAO);
 }
 
-Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...) {
+Vec2 Text2D_Size(const TextStyle* s, const char *fmt, ...) {
 	char msg[512] = {0};
 
 	va_list args;
@@ -565,51 +779,50 @@ Vec2 R2D_GetTextExtents(const R2D_Spritesheet *font, const char *fmt, ...) {
 
 	maxWidth = MAX(maxWidth, width);
 
-	return V2(font->SpriteWidth * maxWidth, font->SpriteHeight * height);
+	return V2(
+		s->Font->SpriteWidth  * maxWidth, 
+		s->Font->SpriteHeight * height
+	);
 }
 
-void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *TextureUVs) {
-	GLuint VAO = RSys_GetTempVAO();
+void Rect2D_DrawImage(Rect2D r, GLuint TextureID, bool8 UseRectUVs) {
+	GLuint VAO = VAO_GetTemp();
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	GLuint VBO = RSys_GetTempVBO();
+	GLuint VBO = VBO_GetTemp();
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2), NULL);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vec2),
 	                      (void *) (sizeof(Vec2) * 4));
 
 	const Vec2 UVs[4] = { 
-		V2C(0,0), 
 		V2C(0,1), 
-		V2C(1,0),
-		V2C(1,1), 
+		V2C(0,0), 
+		V2C(1,1),
+		V2C(1,0), 
 	};
 
-	if(!TextureUVs) 
-		TextureUVs = UVs;
-
 	Vec2 PosAndUV[8] = {
-	    V2(Position.x, Position.y),                    // Top left
-	    V2(Position.x, Position.y + Size.y),           // Bottom left
-	    V2(Position.x + Size.x, Position.y),           // Top right
-	    V2(Position.x + Size.x, Position.y + Size.y),  // Bottom right
+	    V2(r.Position.x, r.Position.y),                       // Top left
+	    V2(r.Position.x, r.Position.y + r.Size.y),            // Bottom left
+	    V2(r.Position.x + r.Size.x, r.Position.y),            // Top right
+	    V2(r.Position.x + r.Size.x, r.Position.y + r.Size.y), // Bottom right
 
-	    TextureUVs[0],
-	    TextureUVs[1],
-	    TextureUVs[2],
-	    TextureUVs[3],
+	    (UseRectUVs ? r.UVs[0] : UVs[0]),
+	    (UseRectUVs ? r.UVs[1] : UVs[1]),
+	    (UseRectUVs ? r.UVs[2] : UVs[2]),
+	    (UseRectUVs ? r.UVs[3] : UVs[3]),
 	};
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * 8, PosAndUV, GL_DYNAMIC_DRAW);
 
-	RSys_Size size = RSys_GetSize();
-
 	Mat4 view, proj;
+	Vec2 sz = RT_GetCurrentSize();
 	Camera cam = {
-	    .Mode = CameraMode_Orthographic,
-	    .ScreenWidth = size.Width,
-	    .ScreenHeight = size.Height,
+		.Mode = CameraMode_Orthographic,
+	    .ScreenWidth  = sz.w,
+	    .ScreenHeight = sz.h,
 	    .Position = V3(0, 0, -1),
 	    .Target = V3(0, 0, 0),
 	    .Up = V3(0, 1, 0),
@@ -628,14 +841,11 @@ void R2D_DrawRectImage(Vec2 Position, Vec2 Size, GLuint TextureID, const Vec2 *T
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	RSys_FreeTempVBO(VBO);
-	RSys_FreeTempVAO(VAO);
+	VBO_FreeTemp(VBO);
+	VAO_FreeTemp(VAO);
 }
 
-void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
-                  const R2D_Spritesheet *font, const char *fmt, ...) {
-	static const r64 minAlpha = 0.001;
-
+Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char *fmt, ...) {
 	char msg[512] = {0};
 
 	va_list args;
@@ -644,12 +854,10 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	va_end(args);
 
 	u32 numChars = 0;
-	for(u32 i = 0; i < strlen(msg); i++) {
-		numChars +=
-		    ((bg.a <= minAlpha) ? isgraph(msg[i]) : isprint(msg[i])) ? 1 : 0;
-	}
+	for(u32 i = 0; i < strlen(msg); i++)
+		numChars += (style->BackgroundEnabled ? isgraph(msg[i]) : isprint(msg[i])) ? 1 : 0;
 
-	if(!numChars) return;
+	if(!numChars) return pos;
 
 	Vec2 *Pos = Allocate(sizeof(Vec2) * numChars * 4);
 	Vec2 *UV = Allocate(sizeof(Vec2) * numChars * 4);
@@ -668,23 +876,22 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	for(u32 i = 0, j = 0; i < strlen(msg) && j < numChars; i++) {
 		switch(msg[i]) {
 			case ' ':
-				if(bg.a <= minAlpha) {
-					pen.x += font->SpriteWidth;
+				if(style->BackgroundEnabled) {
+					pen.x += style->Font->SpriteWidth;
 					continue;
 				}
 				break;
-			case '\t': pen.x += font->SpriteWidth * 4; continue;
+			case '\t': pen.x += style->Font->SpriteWidth * 4; continue;
 			case '\n':
 				pen.x = pos.x;
-				pen.y += font->SpriteHeight;
+				pen.y += style->Font->SpriteHeight;
 				continue;
 		}
 
 		Pos[j * 4 + 0] = pen;
-		Pos[j * 4 + 1] = V2(pen.x + font->SpriteWidth, pen.y);
-		Pos[j * 4 + 2] = V2(pen.x, pen.y + font->SpriteHeight);
-		Pos[j * 4 + 3] =
-		    V2(pen.x + font->SpriteWidth, pen.y + font->SpriteHeight);
+		Pos[j * 4 + 1] = V2(pen.x + style->Font->SpriteWidth, pen.y);
+		Pos[j * 4 + 2] = V2(pen.x, pen.y + style->Font->SpriteHeight);
+		Pos[j * 4 + 3] = V2(pen.x + style->Font->SpriteWidth, pen.y + style->Font->SpriteHeight);
 
 		if(msg[i] == ' ') {
 			UV[j * 4 + 0] = V2(0, 0);
@@ -692,10 +899,10 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 			UV[j * 4 + 2] = V2(0, 0);
 			UV[j * 4 + 3] = V2(0, 0);
 		} else {
-			const Vec2 uvSize = V2((r32) font->SpriteWidth / font->Width,
-			                       (r32) font->SpriteHeight / font->Height);
+			const Vec2 uvSize = V2((r32) style->Font->SpriteWidth  / style->Font->Texture->Width,
+			                       (r32) style->Font->SpriteHeight / style->Font->Texture->Height);
 
-			u32 charsPerRow = font->Width / font->SpriteWidth;
+			u32 charsPerRow = style->Font->Texture->Width / style->Font->SpriteWidth;
 			u32 x = (msg[i] - '!') % charsPerRow;
 			u32 y = (msg[i] - '!') / charsPerRow;
 
@@ -716,16 +923,16 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 
 		j++;
 
-		pen.x += font->SpriteWidth;
+		pen.x += style->Font->SpriteWidth;
 	}
 
-	GLuint VAO = RSys_GetTempVAO();
+	GLuint VAO = VAO_GetTemp();
 	glBindVertexArray(VAO);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
 	GLuint VBOs[3];
-	RSys_GetTempVBOs(VBOs, 3);
+	VBO_GetManyTemp(VBOs, 3);
 	// Add positions
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(Vec2) * numChars * 4, Pos,
@@ -744,10 +951,10 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 
 	// Drawing the rectangles
 	Mat4 view, proj;
-	RSys_Size size = RSys_GetSize();
+	Vec2 sz = RT_GetCurrentSize();
 	Camera cam = {.Mode = CameraMode_Orthographic,
-	              .ScreenWidth = size.Width,
-	              .ScreenHeight = size.Height,
+	              .ScreenWidth = sz.w,
+	              .ScreenHeight = sz.h,
 	              .Position = V3(0, 0, -1),
 	              .Target = V3(0, 0, 0),
 	              .Up = V3(0, 1, 0),
@@ -759,11 +966,11 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	Shader_UniformMat4(TextShader, "proj", proj);
 	Shader_UniformMat4(TextShader, "view", view);
 
-	Shader_Uniform4f(TextShader, "fg", fg);
-	Shader_Uniform4f(TextShader, "bg", bg);
+	Shader_Uniform4f(TextShader, "fg", style->Color);
+	Shader_Uniform4f(TextShader, "bg", style->Background);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, font->TextureId);
+	glBindTexture(GL_TEXTURE_2D, style->Font->Texture->Id);
 
 	glDrawElements(GL_TRIANGLES, numChars * 6, GL_UNSIGNED_INT, 0);
 
@@ -773,11 +980,17 @@ void R2D_DrawText(Vec2 pos, RGBA fg, RGBA bg,
 	Free(Inds);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	RSys_FreeTempVBOs(VBOs, 3);
-	RSys_FreeTempVAO(VAO);
+	VBO_FreeManyTemp(VBOs, 3);
+	VAO_FreeTemp(VAO);
+
+	return pen;
 }
 
-// ---=== 3D rendering ===---
+
+//
+// 3D
+//
+
 Shader *R3D_Shader_UnlitColor,
 	   *R3D_Shader_UnlitTextured;
 
@@ -794,8 +1007,8 @@ void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color)
 }
 void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color)
 {
-	GLuint vao = RSys_GetTempVAO();
-	GLuint vbo = RSys_GetTempVBO();
+	GLuint vao = VAO_GetTemp();
+	GLuint vbo = VBO_GetTemp();
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -816,8 +1029,8 @@ void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color)
 	glDrawArrays(GL_LINES, 0, numLines*2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	RSys_FreeTempVBO(vbo);
-	RSys_FreeTempVAO(vao);
+	VBO_FreeTemp(vbo);
+	VAO_FreeTemp(vao);
 }
 
 void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
@@ -826,8 +1039,8 @@ void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
 	Vec3 pos[6] = { a, b, c,
 	                b, a, c };
 
-	GLuint vao = RSys_GetTempVAO();
-	GLuint vbo = RSys_GetTempVBO();
+	GLuint vao = VAO_GetTemp();
+	GLuint vbo = VBO_GetTemp();
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -848,8 +1061,8 @@ void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color)
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	RSys_FreeTempVBO(vbo);
-	RSys_FreeTempVAO(vao);
+	VBO_FreeTemp(vbo);
+	VAO_FreeTemp(vao);
 }
 
 void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
@@ -872,4 +1085,15 @@ void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
 	R3D_DrawLines(cam, points, (numPoints+1)*2, color);
 
 	Free(points);
+}
+
+DEF_ARRAY(Transform3D, Transform3D);
+DECL_ARRAY(Transform3D, Transform3D);
+
+void R3D_RenderScene(R3D_Scene *scene)
+{
+	if(!scene)
+		return;
+
+	//Array_Transform3D transforms = (Array_Transform3D){0};
 }

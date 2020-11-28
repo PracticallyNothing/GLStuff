@@ -4,10 +4,31 @@
 #include "Common.h"
 #include "Math3D.h"
 
+typedef struct Plane        Plane;
 typedef struct Intersection Intersection;
 typedef struct Ray          Ray;
 typedef struct AABB         AABB;
 typedef struct TriHull      TriHull;
+
+struct Plane {
+	Vec3 Normal;
+
+	bool8 IsPointPlane; // True means Point is set, false means Distance is set.
+
+	union {
+		Vec3 Point;   // Point on the plane.
+		r32 Distance; // Distance from origin
+	};
+};
+
+Plane Plane_ChangeType(Plane p); // Change the type of the plane according to IsPointPlane.
+
+enum HSRes {
+	HS_Front, // The point is in front of the plane
+	HS_On,    // The point is on the plane
+	HS_Back   // The point is behind the plane
+};
+enum HSRes HalfSpaceTest(Vec3 planeNormal, Vec3 planePoint, Vec3 point); // Test if point is part of a plane formed from a normal and a point on it.
 
 struct Intersection {
 	bool8 Occurred;
@@ -27,6 +48,7 @@ struct AABB {
 bool8 AABB_Intersect        (AABB a, AABB b);
 AABB  AABB_Fix              (AABB aabb);
 AABB  AABB_ApplyTransform3D (AABB aabb, Transform3D t);
+AABB  AABB_Add              (AABB a, AABB b); // Generate a sum AABB around two others.
 
 struct TriHull { 
 	Vec3 *TriPoints;

@@ -1,6 +1,7 @@
-CC    = clang
-FLAGS = -std=c99 `pkg-config sdl2 freetype2 opengl freealut openal --cflags` -I./glad_Core-33/include/ -Wall
-LIBS  = -lm -ldl `pkg-config sdl2 freetype2 opengl freealut openal --libs`
+CC = gcc
+LIBS = sdl2 freetype2 opengl openal freealut
+CFLAGS = -std=c99 `pkg-config $(LIBS) --cflags` -I./glad_Core-33/include/ -Wall
+LFLAGS = -lm -ldl `pkg-config $(LIBS) --libs`
 
 SOURCES := $(shell find . -name '*.c')
 OBJS_REL = $(patsubst %.c, obj/release/%.o, $(SOURCES))
@@ -13,23 +14,29 @@ all: dbg
 rel: dirs GLSpiral_release
 dbg: dirs GLSpiral_debug
 
-GLSpiral_release: $(OBJS_REL)
-	$(CC) -o $@ $(OBJS_REL_EX) $(LIBS) $(FLAGS) -O2
+GLSpiral_release: flags $(OBJS_REL)
+	@echo "LD obj/release/*.o -> $@"
+	@$(CC) -o $@ $(OBJS_REL_EX) $(LFLAGS) -O2
 $(OBJS_REL): obj/release/%.o: %.c
-	@$(CC) -c $< -o obj/release/$(shell echo '$@' | sed 's/.*\///') $(FLAGS) -O2
 	@echo "CC -O2 $<"
+	@$(CC) -c $< -o obj/release/$(shell echo '$@' | sed 's/.*\///') $(CFLAGS) -O2
 
-GLSpiral_debug: $(OBJS_DBG)
-	$(CC) -o $@ $(OBJS_DBG_EX) $(LIBS) $(FLAGS) -g #-fsanitize=leak
+GLSpiral_debug: flags $(OBJS_DBG)
+	@echo "LD obj/debug/*.o -> $@"
+	@$(CC) -o $@ $(OBJS_DBG_EX) $(LFLAGS) -g
 $(OBJS_DBG): obj/debug/%.o: %.c
-	@$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(FLAGS) -g
 	@echo "CC -g $<"
+	@$(CC) -c $< -o obj/debug/$(shell echo '$@' | sed 's/.*\///') $(CFLAGS) -g
 
-
-.PHONY: clean dirs
+.PHONY: clean dirs flags
 
 clean:
 	rm -rf obj/ GLSpiral_*
 
 dirs:
 	mkdir -p obj obj/release obj/debug
+
+flags:
+	@printf "    LIBS: %s\n" "$(LIBS)"
+	@printf "  CFLAGS: %s\n" "$(CFLAGS)"
+	@printf "LIBFLAGS: %s\n" "$(LFLAGS)"

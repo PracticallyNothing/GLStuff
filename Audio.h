@@ -79,10 +79,11 @@ Audio_BufferProps Audio_Buffer_ReadProps(Audio_Buffer buf);
 //
 
 enum Audio_SrcState {
-	SourceState_Initial = AL_INITIAL,
-	SourceState_Playing = AL_PLAYING,
-	SourceState_Paused  = AL_PAUSED,
-	SourceState_Stopped = AL_STOPPED
+	SrcState_Invalid = -1,
+	SrcState_Initial = AL_INITIAL,
+	SrcState_Playing = AL_PLAYING,
+	SrcState_Paused  = AL_PAUSED,
+	SrcState_Stopped = AL_STOPPED
 };
 
 typedef struct Audio_SrcProps Audio_SrcProps;

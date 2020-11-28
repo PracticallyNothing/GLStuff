@@ -26,6 +26,7 @@ struct Camera {
 	// Orthographic specific:
 	i32 ScreenWidth;
 	i32 ScreenHeight;
+
 	// Perspective specific:
 	r32 VerticalFoV;
 	r32 AspectRatio;

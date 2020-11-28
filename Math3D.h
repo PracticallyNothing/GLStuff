@@ -4,19 +4,20 @@
 #include "Common.h"
 
 // Vectors
-typedef struct Vec2_t Vec2;
-typedef struct Vec3_t Vec3;
-typedef struct Vec4_t Vec4;
+typedef struct Vec2 Vec2;
+typedef struct Vec3 Vec3;
+typedef struct Vec4 Vec4;
 
-struct Vec2_t {
+struct Vec2 {
 	union {
 		r32 d[2];
-		struct { r32 x, y; };
-		struct { r32 u, v; };
+		struct { r32 x, y; }; // X and Y
+		struct { r32 u, v; }; // UV coordinates
+		struct { r32 w, h; }; // Width and height
 	};
 };
 
-struct Vec3_t {
+struct Vec3 {
 	union {
 		r32 d[3];
 		struct { r32 x, y, z; };
@@ -27,7 +28,7 @@ struct Vec3_t {
 		Vec2 rg;
 	};
 };
-struct Vec4_t {
+struct Vec4 {
 	union {
 		r32 d[4];
 		struct { r32 x, y, z, w; };
