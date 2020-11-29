@@ -164,13 +164,13 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 	if(dist2[0] != 0 && dist2[1] != 0 && dist2[2] != 0 &&
 	   TRIEQ(GetSign_R32(dist2[0]), GetSign_R32(dist2[1]), GetSign_R32(dist2[2])))
 	{
-		Log(DEBUG, "Early reject 2. dist2[%.2f, %.2f, %.2f]", dist2[0], dist2[1], dist2[2]);
+		Log(DEBUG, "[Phys] Early reject 2. dist2[%.2f, %.2f, %.2f]", dist2[0], dist2[1], dist2[2]);
 		return (Intersection) { .Occurred = 0 };
 	}
 
 	if(dist2[0] == 0 && TRIEQ(dist2[0], dist2[1], dist2[2])) {
 		// The triangles are co-planar.
-		Log(DEBUG, "Triangles are co-planar.", "");
+		Log(DEBUG, "[Phys] Triangles are co-planar.", "");
 		
 		//
 		// TODO: This is most likely horrible code, but the document says that the triangles 
@@ -271,7 +271,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		};
 	} else {
 		// The triangles are not co-planar.
-		Log(DEBUG, "Triangles are NOT co-planar.", "");
+		Log(DEBUG, "[Phys] Triangles are NOT co-planar.", "");
 
 		// Thank you,
 		// https://stackoverflow.com/a/32410473
@@ -296,8 +296,8 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		};
 		r32 t3 = pv2[0] + (pv2[1] - pv2[0]) * (dist2[0] / (dist2[0] - dist2[1]));
 		r32 t4 = pv2[1] + (pv2[2] - pv2[1]) * (dist2[1] / (dist2[1] - dist2[2]));
-		Log(DEBUG, "Ranges: t1 = %12.2f | t3 = %12.2f", t1, t3);
-		Log(DEBUG, "        t2 = %12.2f | t4 = %12.2f", t2, t4);
+		Log(DEBUG, "[Phys] Ranges: t1 = %12.2f | t3 = %12.2f", t1, t3);
+		Log(DEBUG, "               t2 = %12.2f | t4 = %12.2f", t2, t4);
 
 		bool8 Occurred = RangesOverlap_R32(t1, t2, t3, t4);
 
@@ -334,7 +334,7 @@ TriHull_Intersect(TriHull a, TriHull b)
 			Intersection res = TriTri_Intersect(triA, triB);
 
 			if(res.Occurred) {
-				Log(INFO, "Triangles #%d and #%d intersect at Point (%.2f, %.2f, %.2f)!", 
+				Log(INFO, "[Phys] Triangles #%d and #%d intersect at Point (%.2f, %.2f, %.2f)!", 
 					      i, j, res.Point.x, res.Point.y, res.Point.z);
 				return res;
 			}
@@ -400,8 +400,8 @@ TriHull_RayIntersect(TriHull hull, Ray ray)
 		Intersection res = TriRay_Intersect(tri, ray);
 
 		if(res.Occurred) {
-			Log(INFO, "Triangle #%d and ray intersect at Point (%.2f, %.2f, %.2f)!", 
-					i, res.Point.x, res.Point.y, res.Point.z);
+			Log(INFO, "[Phys] Triangle #%d and ray intersect at Point (%.2f, %.2f, %.2f)!", 
+				i, res.Point.x, res.Point.y, res.Point.z);
 			return res;
 		}
 	}

@@ -18,14 +18,65 @@ void DrawGrid(OrbitCamera c, i32 size)
 	Vec3 *points = Allocate(sizeof(Vec3) * 4 * size);
 	for(u32 i = 0; i < size; i++)
 	{
-		points[(i*4)+0] = V3((r32) i-size/2, 0, -size);
-		points[(i*4)+1] = V3((r32) i-size/2, 0,  size);
+		points[(i*4)+0] = V3(i-size/2.0, 0, -size);
+		points[(i*4)+1] = V3(i-size/2.0, 0,  size);
 
-		points[(i*4)+2] = V3(-size, 0, ((r32) i)-size/2);
-		points[(i*4)+3] = V3( size, 0, ((r32) i)-size/2);
+		points[(i*4)+2] = V3(-size, 0, i-size/2.0);
+		points[(i*4)+3] = V3( size, 0, i-size/2.0);
 	}
 	R3D_DrawLines(OrbitCamera_ToCamera(c), points, size*2, V4(0.8, 0.8, 0.8, 1));
 	Free(points);
+}
+
+typedef struct CamControl CamControl;
+struct CamControl {
+	OrbitCamera* Camera;
+
+	r32 Sensitivity;
+
+	bool8 MouseDragging;
+	Vec2 InitialDragMousePos;
+	Vec2 InitialYawPitch;
+};
+
+bool8 OrbitCamera_Control(CamControl* cc, SDL_Event e)
+{
+	switch(e.type) {
+		default:
+			return 0;
+		case SDL_MOUSEMOTION: {
+			if(cc->MouseDragging) {
+				r32 dx = (e.motion.x - cc->InitialDragMousePos.x) / 512.0 * cc->Sensitivity;
+				r32 dy = (e.motion.y - cc->InitialDragMousePos.y) / 256.0 * cc->Sensitivity;
+
+				cc->Camera->Yaw = (-dx) * Pi_Half + cc->InitialYawPitch.x;
+				cc->Camera->Pitch = Clamp_R32(
+					(-dy) * Pi_Half + cc->InitialYawPitch.y,
+					DegToRad(0.1),
+					DegToRad(179.9)
+				);
+			}
+		} break;
+		case SDL_MOUSEBUTTONDOWN: {
+			if(e.button.button == SDL_BUTTON_RIGHT) {
+				// Begin camera drag if it hasn't been started yet.
+				cc->MouseDragging = 1;
+
+				cc->InitialDragMousePos = V2(e.button.x, e.button.y);
+				cc->InitialYawPitch     = V2(cc->Camera->Yaw, cc->Camera->Pitch);
+			}
+		} break;
+		case SDL_MOUSEWHEEL: {
+			//Cam.VerticalFoV = MAX(Pi_Quarter + 0.05, MIN(Pi, Cam.VerticalFoV - e.wheel.y * 0.1));
+			cc->Camera->Radius = MAX(2, MIN(50, cc->Camera->Radius - e.wheel.y));
+		} break;
+		case SDL_MOUSEBUTTONUP: {
+			if(e.button.button == SDL_BUTTON_RIGHT)
+				cc->MouseDragging = 0;
+		} break;
+	}
+
+	return 1;
 }
 
 typedef struct Configuration Configuration;
@@ -46,10 +97,11 @@ Configuration ReadJSONConf()
 {
 	Configuration Conf = DefaultConf;
 
+	Log(INFO, "[Main] Loading conf.json.", "");
 	JSON_Value v = JSON_FromFile("conf.json");
 	if(v.Type == JSON_Error)
 	{
-		Log(ERROR, "Couldn't load config, using default values.", "");
+		Log(ERROR, "[Main] Couldn't load config, using default values.", "");
 		return Conf;
 	}
 
@@ -91,10 +143,10 @@ Configuration ReadJSONConf()
 }
 
 u32 CurrentSize = 3;
-u32 Sizes[] = {
-	 256,  144,
-	 640,  360, 
-	1280,  720,
+static const u32 Sizes[] = {
+	256, 144,
+	640, 360, 
+	1280, 720,
 	1920, 1080,
 	3840, 2160
 };
@@ -107,8 +159,8 @@ int main(int argc, char *argv[]) {
 	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
 	RSys_SetFPSCap(Conf.FPSCap);
 
-	RGB ClearColor = HexToRGB("52a9e0");
-	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 0);
+	//RGB ClearColor = HexToRGB("52a9e0");
+	glClearColor(0, 0, 0, 0);
 
 	//Audio_Init(NULL);
 	Audio_Buffer buffers[3] = {
@@ -122,38 +174,35 @@ int main(int argc, char *argv[]) {
 	RT_Clear(def);
 	//RT_Clear(def2);
 
-	Audio_Src src = Audio_Src_Init();
-	Audio_Src_SetBuffer(src, *b);
+	Audio_Source src = Audio_Source_Init();
+	Audio_Source_SetBuffer(src, *b);
 
-	Audio_SrcProps srcProps = Audio_Src_ReadProps(src);
+	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
 	srcProps.Loop = 1;
 	srcProps.PosRelative = AL_FALSE;
 	srcProps.Pitch = 1;
-	Audio_Src_SetProps(src, &srcProps);
-	Audio_Src_Play(src);
-	Audio_Src_SeekTo(src, 5);
+	Audio_Source_SetProps(src, &srcProps);
+	Audio_Source_Play(src);
+	Audio_Source_SeekTo(src, 5);
 
 	Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
-	Log(INFO, "Startup time: %u ms", SDL_GetTicks() - StartupTime);
+	Log(INFO, "[Main] Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
 	float Time = 0;
 
-	Vec2 InitialDragMousePos = V2C(0, 0);
-	Vec2 InitialYawPitch = V2C(0, 0);
-	bool8 MouseDragging = 0;
-
 	OrbitCamera Cam = {
-		.Center = V3C(0,0,0),
-		.ZNear = 1e-2,
-		.ZFar = 1e10,
+		.Center      = V3C(0,0,0),
+		.ZNear       = 1e-2,
+		.ZFar        = 1e10,
 		.VerticalFoV = Pi_Half,
-		.Yaw   = DegToRad(0),
-		.Pitch = DegToRad(45),
-		.Radius = 20,
+		.Yaw         = DegToRad(0),
+		.Pitch       = DegToRad(1),
+		.Radius      = 20,
 		.AspectRatio = RT_GetCurrentAspectRatio()
 	};
+	CamControl cControl = {&Cam, 1, 0, V2(0,0), V2(0,0)};
 
 	Camera cc = OrbitCamera_ToCamera(Cam);
 	Audio_Listener_SyncToCamera(cc);
@@ -164,12 +213,15 @@ int main(int argc, char *argv[]) {
 		.Color = V4(1,1,1,1),
 		.BackgroundEnabled = 1,
 		.Background = V4(0,0,0,1),
-		.Font = &Font_Small
+		.Font = &Font_Large
 	};
 
 	while(1) {
 		SDL_Event e;
 		while(SDL_PollEvent(&e)) {
+			if(OrbitCamera_Control(&cControl, e))
+				continue;
+
 			switch(e.type) {
 				case SDL_QUIT: goto end;
 				case SDL_KEYUP: {
@@ -177,10 +229,10 @@ int main(int argc, char *argv[]) {
 						case SDLK_ESCAPE:
 							goto end;
 						case SDLK_SPACE:
-							if(Audio_Src_ReadState(src) == SrcState_Playing)
-								Audio_Src_Pause(src);
+							if(Audio_Source_ReadState(src) == SourceState_Playing)
+								Audio_Source_Pause(src);
 							else
-								Audio_Src_Play(src);
+								Audio_Source_Play(src);
 							break;
 						case SDLK_TAB:
 							//Log(INFO, "Switched buffers (%d to %d).", b - buffers, (b - buffers + 1) % 3);
@@ -192,6 +244,10 @@ int main(int argc, char *argv[]) {
 							RT_SetSize(&def, Sizes[CurrentSize*2], Sizes[CurrentSize*2+1]);
 							Log(INFO, "[Main] Current size: %ux%u", Sizes[CurrentSize*2], Sizes[CurrentSize*2+1]);
 							break;
+						case SDLK_r: {
+							Vec2 sz = RT_GetScreenSize();
+							RT_SetSize(&def, sz.w/2, sz.h/2);
+						} break;
 						default:
 							break;
 					}
@@ -202,45 +258,18 @@ int main(int argc, char *argv[]) {
 						case SDL_WINDOWEVENT_SIZE_CHANGED:
 						case SDL_WINDOWEVENT_RESIZED: {
 							i32 w = e.window.data1, h = e.window.data2;
+							RT_SetSize(&def, w/2, h/2);
 							glViewport(0, 0, w, h);
 							Cam.AspectRatio = (r32) w/h;
 							break;
 						}
 					}
 				} break;
-				case SDL_MOUSEMOTION: {
-					if(MouseDragging) {
-						r32 dx = (e.motion.x - InitialDragMousePos.x) / 512.0;
-						r32 dy = (e.motion.y - InitialDragMousePos.y) / 256.0;
-
-						Cam.Yaw = (-dx) * Pi_Half + InitialYawPitch.x;
-						Cam.Pitch = Clamp_R32(
-							(-dy) * Pi_Half + InitialYawPitch.y,
-							DegToRad(0.1),
-							DegToRad(179.9)
-						);
-						//Log(INFO, "New Pitch: %.2f", RadToDeg(Cam.Pitch));
-					}
-				} break;
-				case SDL_MOUSEBUTTONDOWN: {
-					if(e.button.button == SDL_BUTTON_RIGHT) {
-						// Begin camera drag if it hasn't been started yet.
-						MouseDragging = 1;
-
-						InitialDragMousePos = V2(e.button.x, e.button.y);
-						InitialYawPitch     = V2(Cam.Yaw, Cam.Pitch);
-					}
-				} break;
-				case SDL_MOUSEWHEEL: {
-					//Cam.VerticalFoV = MAX(Pi_Quarter + 0.05, MIN(Pi, Cam.VerticalFoV - e.wheel.y * 0.1));
-					Cam.Radius = MAX(2, MIN(50, Cam.Radius - e.wheel.y));
-				} break;
-				case SDL_MOUSEBUTTONUP: {
-					if(e.button.button == SDL_BUTTON_RIGHT)
-						MouseDragging = 0;
-				} break;
-				default: {
-				} break;
+				case SDL_MOUSEMOTION:     {} break;
+				case SDL_MOUSEBUTTONDOWN: {} break;
+				case SDL_MOUSEWHEEL:      {} break;
+				case SDL_MOUSEBUTTONUP:   {} break;
+				default:                  {} break;
 			}
 		}
 
@@ -256,20 +285,13 @@ int main(int argc, char *argv[]) {
 
 			srcProps.Position = V3(5*sinf(Time), 0, 5*cosf(Time));
 			srcProps.Direction = Vec3_Norm(Vec3_Neg(srcProps.Position));
-			Audio_Src_SetProps(src, &srcProps);
+			Audio_Source_SetProps(src, &srcProps);
 
-			r32 playpos = Audio_Src_ReadPlayheadPos(src);
+			r32 playpos = Audio_Source_ReadPlayheadPos(src);
 			Audio_BufferProps bProps = Audio_Buffer_ReadProps(*b);
 			r32 len = bProps.LenSeconds;
 
 			R3D_DrawWireSphere(cc, srcProps.Position, 0.5, V4(1,1,1,1));
-
-			/*
-			Vec3 a = Vec3_Add(srcProps.Position, V3( 0.5, 0, -0.5)),
-				 b = Vec3_Add(srcProps.Position, V3(-0.5, 0, -0.5)),
-				 c = Vec3_Add(srcProps.Position, V3( 0,   0,  0.5));
-			R3D_DrawTriangle(cc, a, b, c,  V4(1,1,1,1));
-			*/
 
 			R3D_DrawLine(cc, V3(0,0,0), srcProps.Position, V4(1,1,1,1));
 			R3D_DrawLine(cc, srcProps.Position, Vec3_Add(srcProps.Position, srcProps.Direction), V4(1,1,1,1));
@@ -311,14 +333,14 @@ int main(int argc, char *argv[]) {
 
 			Text2D_Draw(V2(10,10), &style,
 				"%s Playing sound: %02.0f:%05.2f/%02.0f:%05.2f (%d channels)",
-				(Audio_Src_ReadState(src) == SrcState_Playing ? ">>" : "||"),
+				(Audio_Source_ReadState(src) == SourceState_Playing ? ">>" : "||"),
 				floor(playpos / 60.0f),
 				fmodf(playpos, 60),
 				floor(len / 60.0f),
 				fmodf(len, 60),
 				bProps.NumChannels
 			);
-			
+
 			// Display the work onto the screen.
 			RSys_FinishFrame();
 			Time += 1e-2;

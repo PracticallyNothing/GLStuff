@@ -28,7 +28,7 @@ GL_ErrorToString(GLenum err)
 		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:        return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
 		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:      return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
 
-		default:                               return "Unknown error";
+		default: return "Unknown error";
 	}
 }
 
@@ -187,6 +187,8 @@ void RSys_Init(u32 Width, u32 Height) {
 
 	R2D_Init();
 	R3D_Init();
+
+	Log(INFO, "[Render] Started", "");
 }
 
 void RSys_AllocMoreVAOs() {
@@ -331,9 +333,10 @@ Texture Texture_Init(
 	};
 	glGenTextures(1, &t.Id);
 
-	if(!t.Id)
+	GLenum err = glGetError();
+	if(!t.Id || err != GL_NO_ERROR)
 	{
-		Log(ERROR, "[Render] Texture init fail - GL error (%d).", glGetError());
+		Log(ERROR, "[Render] Texture init fail - %s (%d).", GL_ErrorToString(err), err);
 		return t;
 	}
 	glBindTexture(GL_TEXTURE_2D, t.Id);
@@ -355,21 +358,24 @@ void Texture_SetData(Texture* t, const u8* data, u32 width, u32 height, bool8 mi
 	glBindTexture(GL_TEXTURE_2D, t->Id);
 
 	GLenum intFmt = t->Format == Format_Depth ? Format_Depth : Format_RGBA;
+	GLenum type   = t->Format == Format_Depth ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE;
+
 	glTexImage2D(
-		GL_TEXTURE_2D,    // target:         Target texture
-		0,                // level:          LOD level, 0 because we don't have custom LOD
-		intFmt,           // internalFormat: How to store the data
-		width,            // width:          Width in pixels
-		height,           // height:         Height in pixels
-		0,                // border:         No idea, docs.gl says "This value must be 0."
-		t->Format,        // format:         Pixel format
-		GL_UNSIGNED_BYTE, // type:           How each pixel is encoded
-		data              // data:           Pointer to pixel data
+		GL_TEXTURE_2D, // target:         Target texture
+		0,             // level:          LOD level, 0 because we don't have custom LOD
+		intFmt,        // internalFormat: How to store the data
+		width,         // width:          Width in pixels
+		height,        // height:         Height in pixels
+		0,             // border:         No idea, docs.gl says "This value must be 0."
+		t->Format,     // format:         Pixel format
+		type,          // type:           How each pixel is encoded
+		data           // data:           Pointer to pixel data
 	);
+
 	GLenum err = glGetError();
 	if(err != GL_NO_ERROR) {
-		glBindTexture(GL_TEXTURE_2D, 0);
 		Log(ERROR, "[Render] Texture %d set data fail: %s (%d)", t->Id, GL_ErrorToString(err), err);
+		glBindTexture(GL_TEXTURE_2D, 0);
 		return;
 	}
 
@@ -429,10 +435,10 @@ RT RT_Init(u32 w, u32 h)
 	rt.Color = Texture_Init(w, h, Format_RGBA,  Filter_Nearest, Wrap_ClampToBorder);
 	rt.Depth = Texture_Init(w, h, Format_Depth, Filter_Nearest, Wrap_ClampToBorder);
 
-	Log(INFO, "[Render] RT %d with Color %d and Depth %d.", rt.Color.Id, rt.Depth.Id);
+	Log(INFO, "[Render] RT %u with Color %u and Depth %u.", rt.Color.Id, rt.Depth.Id);
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt.Color.Id, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rt.Depth.Id, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,  GL_TEXTURE_2D, rt.Depth.Id, 0);
 
 	GLenum res = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if(res != GL_FRAMEBUFFER_COMPLETE) {
@@ -855,7 +861,7 @@ Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char *fmt, ...) {
 
 	u32 numChars = 0;
 	for(u32 i = 0; i < strlen(msg); i++)
-		numChars += (style->BackgroundEnabled ? isgraph(msg[i]) : isprint(msg[i])) ? 1 : 0;
+		numChars += (style->BackgroundEnabled ? isprint(msg[i]) : isgraph(msg[i])) ? 1 : 0;
 
 	if(!numChars) return pos;
 
@@ -876,7 +882,7 @@ Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char *fmt, ...) {
 	for(u32 i = 0, j = 0; i < strlen(msg) && j < numChars; i++) {
 		switch(msg[i]) {
 			case ' ':
-				if(style->BackgroundEnabled) {
+				if(!style->BackgroundEnabled) {
 					pen.x += style->Font->SpriteWidth;
 					continue;
 				}

@@ -49,10 +49,10 @@ void WObj_ReadMtl(const char *filename, Array_WMat *Mats) {
 	u32 Size = 0;
 	u8 *Buffer = File_ReadToBuffer_Alloc(filename, &Size);
 	if(!Buffer) {
-		Log(ERROR, "MAT file \"%s\" couldn't be opened.", filename);
+		Log(ERROR, "[WObj] MAT \"%s\" read fail - file not found.", filename);
 		return;
 	}
-	Log(INFO, "Loading MAT file \"%s\"...", filename);
+	Log(INFO, "[WObj] Loading MAT file \"%s\"", filename);
 
 	WObj_Material *CurrMat = NULL;
 
@@ -69,7 +69,7 @@ void WObj_ReadMtl(const char *filename, Array_WMat *Mats) {
 			READ_ALLOC_NEXT_WORD(NewMaterial.Name);
 			Array_WMat_Push(Mats, &NewMaterial);
 			CurrMat = (WObj_Material *) Mats->Data + (Mats->Size - 1);
-			Log(INFO, "    Adding new material \"%s\".", NewMaterial.Name);
+			Log(INFO, "[WObj]    Adding new material \"%s\".", NewMaterial.Name);
 		} else if(strncmp(Command, "Ka", 2) == 0) {
 			char r[32] = {0};
 			char g[32] = {0};
@@ -149,7 +149,7 @@ void WObj_ReadMtl(const char *filename, Array_WMat *Mats) {
 			READ_NEXT_WORD(value);
 			CurrMat->IllumMode = String_ToI32(value);
 		} else {
-			Log(ERROR, "Unknown MTL directive %s", Command);
+			Log(ERROR, "[WObj] Unknown MTL directive %s", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}
@@ -205,11 +205,11 @@ WObj_Library *WObj_FromFile(const char *filename) {
 	u32 Size;
 	u8 *Buffer = File_ReadToBuffer_Alloc(filename, &Size);
 	if(!Buffer) {
-		Log(ERROR, "File \"%s\" couldn't be read.", filename);
+		Log(ERROR, "[WObj] OBJ \"%s\" read fail - file not found.", filename);
 		return NULL;
 	}
 
-	Log(INFO, "Loading OBJ file \"%s\"...", filename);
+	Log(INFO, "[WObj] OBJ read \"%s\"", filename);
 
 	WObj_Library *res = Allocate(sizeof(WObj_Library));
 	bool8 HasMTL = 0;
@@ -261,12 +261,12 @@ WObj_Library *WObj_FromFile(const char *filename) {
 				}
 
 				if(!FoundMaterial)
-					Log(WARN, "File \"%s\": Object \"%s\" wants material \"%s\", but that material isn't defined.", 
+					Log(WARN, "[WObj] File \"%s\": Object \"%s\" wants material \"%s\", but that material isn't defined.", 
 					    filename, CurrObject->Name, MaterialName);
 				else
 					CurrObject->Material = FoundMaterial;
 			} else {
-				Log(WARN, "File \"%s\": usemtl without any materials file.", filename);
+				Log(WARN, "[WObj] File \"%s\": usemtl without any materials file.", filename);
 			}
 		} else if(strncmp(Command, "v\0", 2) == 0) {
 			Vec3 pos;
@@ -339,7 +339,7 @@ WObj_Library *WObj_FromFile(const char *filename) {
 
 face_vertex_end:
 				if(FaceVerts.Size == 3) {
-					Log(ERROR, "OBJ file \"%s\" has a non-triangulated face.", filename);
+					Log(ERROR, "[WObj] OBJ file \"%s\" has a non-triangulated face.", filename);
 				}
 
 				Array_FaceVert_Push(&FaceVerts, &FV);
@@ -356,7 +356,7 @@ face_vertex_end:
 			READ_NEXT_WORD(word);
 			// SmoothingEnabled = (strncmp(word, "on", 2) == 0);
 		} else {
-			Log(ERROR, "Unknown OBJ directive %s.", Command);
+			Log(ERROR, "[WObj] Unknown OBJ directive %s.", Command);
 			SKIP_TO_NEXT_LINE();
 		}
 	}
@@ -421,7 +421,7 @@ face_vertex_end:
 		Object.Vertices = Vertices.Data;
 		Object.Indices = Indices.Data;
 
-		Log(INFO, "    Loaded object \"%s\" with %d faces.", Object.Name, obj->Faces.Size);
+		Log(INFO, "[WObj]    Loaded \"%s\" with %d faces.", Object.Name, obj->Faces.Size);
 
 		Array_WObj_Push(&FinalObjects, &Object);
 
@@ -452,11 +452,12 @@ face_vertex_end:
 		}
 	}
 	Vec3 Center = Vec3_Center(Min, Max);
-	Log(INFO, "File \"%s\" is offset by (%.2f, %.2f, %.2f).", filename, Center.x, Center.y, Center.z);
-	Log(INFO, "File \"%s\" is bounded between (%.2f, %.2f, %.2f) and (%.2f, %.2f, %.2f).", 
-			filename, 
-			Min.x, Min.y, Min.z,
-			Max.x, Max.y, Max.z);
+	Log(INFO, "[WObj] \"%s\" offset by (%.2f, %.2f, %.2f).", filename, Center.x, Center.y, Center.z);
+	Log(INFO, "[WObj] \"%s\" bounded between (%.2f, %.2f, %.2f) and (%.2f, %.2f, %.2f).", 
+		filename, 
+		Min.x, Min.y, Min.z,
+		Max.x, Max.y, Max.z
+	);
 
 	for(u32 i = 0; i < res->NumObjects; i++)
 		for(u32 j = 0; j < res->Objects[i].NumVertices; j++)
@@ -481,7 +482,6 @@ void WObj_Library_Free(WObj_Library *l)
 		Free(l->Objects[i].Indices);
 		Free(l->Objects[i].Name);
 	}
-
 
 	for(u32 i = 0; i < l->NumMaterials; ++i)
 	{

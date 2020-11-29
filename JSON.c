@@ -13,7 +13,7 @@ DECL_HASHMAP(JSON_Value, JSON_Value);
 JSON_Value
 JSON_FromFile(const char* filename)
 {
-	Log(INFO, "Reading JSON file \"%s\".", filename);
+	//Log(INFO, "Reading JSON file \"%s\".", filename);
 	u32 size;
 	u8* buf = File_ReadToBuffer_Alloc(filename, &size);
 	JSON_Value res = JSON_FromString_N((char*) buf, size);
@@ -134,7 +134,7 @@ JSON_ToTokens(const char* str, u32 len)
 			while(q < str+len && *q != '\"') q += (*q == '\\' ? 2 : 1);
 			if(q == str+len)
 			{
-				Log(ERROR, "JSON with unclosed string.", "");
+				Log(ERROR, "[JSON] Unclosed string.", "");
 			}
 
 			type = Token_String;
@@ -151,7 +151,7 @@ JSON_ToTokens(const char* str, u32 len)
 			{
 				if(*q == '.') {
 					if(gotDot) { 
-						Log(ERROR, "JSON number with too many decimal points.", ""); 
+						Log(ERROR, "[JSON] Number with too many decimal points.", ""); 
 						Array_Token_Free(&tokens);
 						return (Array_Token) {0};
 					}
@@ -222,7 +222,7 @@ JSON_ParsePrimitive(const Token **curr)
 		case Token_Bool_False: res.Type = JSON_Boolean; res.Boolean = 0; break;
 
 		default: {
-			Log(ERROR, "Token %s is not a primitive.", TokenType_Strings[(*curr)->Type]); 
+			Log(ERROR, "[JSON] Token %s is not a primitive.", TokenType_Strings[(*curr)->Type]); 
 			break;
 		}
 	}
@@ -266,7 +266,7 @@ JSON_ParseArray(const Token **curr) {
 		Array_JSON_Value_Push(&array.Array, &v);
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndArray) {
-			Log(ERROR, "JSON Array, expected ',' or ']', got: ", "");
+			Log(ERROR, "[JSON] Array: expected ',' or ']', got these instead: ", "");
 			PrintToken(*curr-2);
 			PrintToken(*curr-1);
 			PrintToken(*curr);
@@ -281,7 +281,7 @@ JSON_ParseArray(const Token **curr) {
 	}
 
 	if((*curr)->Type == Token_EOF) {
-		Log(ERROR, "JSON Array, reached EOF without closing the array.", "");
+		Log(ERROR, "[JSON] Array: reached EOF without closing the array.", "");
 		PrintToken(*curr-4);
 		PrintToken(*curr-3);
 		PrintToken(*curr-2);
@@ -322,7 +322,7 @@ JSON_ParseObject(const Token **curr) {
 
 			(*curr)++;
 		} else {
-			Log(ERROR, "JSON Object, expected string, got %s.", TokenType_Strings[(*curr)->Type]);
+			Log(ERROR, "[JSON] Object, expected string, got %s.", TokenType_Strings[(*curr)->Type]);
 			PrintToken(*curr-2);
 			PrintToken(*curr-1);
 			PrintToken(*curr);
@@ -336,7 +336,7 @@ JSON_ParseObject(const Token **curr) {
 			(*curr)++;
 		} else {
 			Free(Key);
-			Log(ERROR, "JSON Object, expected ':', got %s.", TokenType_Strings[(*curr)->Type]);
+			Log(ERROR, "[JSON] Object, expected ':', got %s.", TokenType_Strings[(*curr)->Type]);
 			PrintToken(*curr-2);
 			PrintToken(*curr-1);
 			PrintToken(*curr);
@@ -372,7 +372,7 @@ JSON_ParseObject(const Token **curr) {
 
 		i32 i = HashMap_JSON_Value_FindIdx(&object.Object.Map, (u8*) Key, KeyLen);
 		if(i >= 0) {
-			Log(WARN, "JSON Object, key-value pair with already existing key \"%s\", replacing value.", Key);
+			Log(WARN, "[JSON] Object, key \"%s\" already exists, overwriting value.", Key);
 			object.Object.Map.Values[i] = v;
 		} else {
 			HashMap_JSON_Value_Add(&object.Object.Map, (u8*) Key, KeyLen, &v);
@@ -381,7 +381,7 @@ JSON_ParseObject(const Token **curr) {
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndObject) {
 			Free(Key);
-			Log(ERROR, "JSON Object, expected ',' or '}', got %s", TokenType_Strings[(*curr)->Type]);
+			Log(ERROR, "[JSON] Object, expected ',' or '}', got %s", TokenType_Strings[(*curr)->Type]);
 			PrintToken(*curr-2);
 			PrintToken(*curr-1);
 			PrintToken(*curr);
@@ -396,7 +396,7 @@ JSON_ParseObject(const Token **curr) {
 	}
 
 	if((*curr)->Type == Token_EOF) {
-		Log(ERROR, "JSON Object, reached EOF without closing the object.", "");
+		Log(ERROR, "[JSON] Object, reached EOF without closing the object.", "");
 		goto ParseObject_error;
 	}
 
@@ -411,14 +411,14 @@ JSON_Value
 JSON_FromString_N(const char* str, u32 len)
 {
 	if(!str || !len) {
-		Log(ERROR, "Null string or zero length.", "");
+		Log(ERROR, "[JSON] Null string or zero length.", "");
 		return Error;
 	}
 
 	Array_Token tokens = JSON_ToTokens(str, len);
 
 	if(!tokens.Data) {
-		Log(ERROR, "No tokens parsed.", "");
+		Log(ERROR, "[JSON] No tokens parsed.", "");
 		return Error;
 	}
 
@@ -448,11 +448,11 @@ JSON_FromString_N(const char* str, u32 len)
 
 end:
 	if(currToken->Type != Token_EOF)
-		Log(WARN, "There are still unparsed JSON tokens.", "");
+		Log(WARN, "[JSON] There are still unparsed JSON tokens.", "");
 	Array_Token_Free(&tokens);
 	return res;
 error:
-	Log(ERROR, "JSON parsing error.", "");
+	Log(ERROR, "[JSON] Parsing error.", "");
 	Array_Token_Free(&tokens);
 	return Error;
 }

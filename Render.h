@@ -14,13 +14,6 @@
 // Rendering system
 //
 
-typedef struct RSys_Size RSys_Size;
-
-struct RSys_Size {
-	i32 Width, Height;
-	r32 AspectRatio;
-};
-
 void RSys_LogVideoDriverInfo(void);
 
 void RSys_Init(u32 Width, u32 Height);
@@ -37,7 +30,7 @@ GLuint VAO_GetTemp();
 void   VAO_FreeTemp(GLuint);
 
 enum Texture_Format {
-	Format_Red  = GL_RED,  // Only one color per pixel.
+	Format_Red  = GL_RED,  // Only one color per pixel
 	Format_RG   = GL_RG,   // Two colors per pixel
 	Format_RGB  = GL_RGB,  // Three colors per pixel, Red Green Blue
 	Format_RGBA = GL_RGBA, // Four colors per pixel, Red Green Blue Alpha
@@ -186,7 +179,7 @@ void Rect2D_DrawMany(const Rect2D *Rects, u32 NumRects, bool8 Fill);    // Draw 
 void Rect2D_DrawImage(Rect2D rect, GLuint TextureID, bool8 UseRectUVs); // Draw a Rect2D with an image inside.
 
 Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char *fmt, ...); // Shows text on screen, returns last pen location.
-Vec2 Text2D_Size(const TextStyle* ts, const char *fmt, ...);              // Returns the width and height of some text.
+Vec2 Text2D_Size(const TextStyle* style, const char *fmt, ...);           // Returns the width and height of some text.
 
 
 //
