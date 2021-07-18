@@ -74,7 +74,7 @@ i32 Pow_I32(i32 n, u32 power) {
 		if(!power) break;
 		n *= n;
 	}
-
+	
 	return res;
 }
 r32 String_ToR32_N(const char *str, u32 len) {

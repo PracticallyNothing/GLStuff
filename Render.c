@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "Math3D.h"
 #include "SDL_video.h"
 #include "stb_image.h"
 
@@ -435,7 +436,7 @@ RT RT_Init(u32 w, u32 h)
 	rt.Color = Texture_Init(w, h, Format_RGBA,  Filter_Nearest, Wrap_ClampToBorder);
 	rt.Depth = Texture_Init(w, h, Format_Depth, Filter_Nearest, Wrap_ClampToBorder);
 
-	Log(INFO, "[Render] RT %u with Color %u and Depth %u.", rt.Color.Id, rt.Depth.Id);
+	Log(INFO, "[Render] RT %u with Color %u and Depth %u.", rt.Id, rt.Color.Id, rt.Depth.Id);
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt.Color.Id, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,  GL_TEXTURE_2D, rt.Depth.Id, 0);
@@ -1096,10 +1097,53 @@ void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color)
 DEF_ARRAY(Transform3D, Transform3D);
 DECL_ARRAY(Transform3D, Transform3D);
 
+DEF_ARRAY(NodePtr, R3D_Node*);
+DECL_ARRAY(NodePtr, R3D_Node*);
+
+void R3D_CalcTransform(const R3D_Node* r, Mat4 out)
+{
+	if(r == NULL)
+	{
+		Mat4_Identity(out);
+		return;
+	}
+
+	Mat4 m, t;
+	R3D_CalcTransform(r->Parent, m);
+	Transform3D_Mat4(r->LocalTransform, t);
+
+	Mat4_MultMat(m, t);
+	Mat4_Copy(out, m);
+}
+
+// TODO: Finish this
 void R3D_RenderScene(R3D_Scene *scene)
 {
-	if(!scene)
+	if(!scene || !scene->ActiveCamNode)
 		return;
 
-	//Array_Transform3D transforms = (Array_Transform3D){0};
+	Shader_Use(R3D_Shader_UnlitTextured);
+
+	Mat4 camTr;
+	R3D_CalcTransform(scene->ActiveCamNode, camTr);
+
+	Array_Transform3D transforms = (Array_Transform3D){0};
+	Array_NodePtr stk = (Array_NodePtr){0};
+
+	Array_Transform3D_Push(&transforms, &stk.Data[0]->LocalTransform);
+	Array_NodePtr_PushVal(&stk, &scene->Root);
+
+	while(stk.Size)
+	{
+		R3D_Node* curr = stk.Data[0];
+
+		// Draw this object
+		if(curr->Type == Node_Actor)
+		{
+		}
+		
+		// Add this node's children to the stack
+		for(u32 i = 0; i < curr->Children.Size; ++i)
+			Array_NodePtr_PushVal(&stk, curr->Children.Data+i);
+	}
 }

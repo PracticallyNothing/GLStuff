@@ -345,7 +345,7 @@ face_vertex_end:
 				Array_FaceVert_Push(&FaceVerts, &FV);
 			}
 
-			// Flip faces to correspond to OpenGL CCW front face requirements.
+			// Flip faces, otherwise OpenGL CCW will cull them as back faces.
 			FaceVertex tmp = FaceVerts.Data[0];
 			FaceVerts.Data[0] = FaceVerts.Data[1];
 			FaceVerts.Data[1] = tmp;

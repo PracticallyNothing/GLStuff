@@ -86,6 +86,7 @@ struct Token {
 	enum TokenType Type;
 	const char* Start;
 	const char* End;
+	u32 LineNumber;
 };
 
 DEF_ARRAY(Token, Token);
@@ -107,12 +108,8 @@ static Array_Token
 JSON_ToTokens(const char* str, u32 len) 
 {
 	const char* p = str;
-
-	Array_Token tokens = {
-		.Size = 0,
-		.Capacity = 0,
-		.Data = NULL
-	};
+	Array_Token tokens = {0};
+	Array_Token_Prealloc(&tokens, 256);
 
 	while(p != str+len)
 	{
@@ -169,9 +166,7 @@ JSON_ToTokens(const char* str, u32 len)
 		else if(strncmp(p, "null",  4) == 0) { type = Token_Null;       p+=4;} 
 		else if(strncmp(p, "true",  4) == 0) { type = Token_Bool_True;  p+=4;} 
 		else if(strncmp(p, "false", 5) == 0) { type = Token_Bool_False; p+=5;} 
-		else { while(p < str+len && !Char_OneOf(*p, " \t\n\r{}[]:,\"")) ++p; }
-
-		// Allocate more space for tokens
+		else { while(p != str+len && !Char_OneOf(*p, " \t\n\r{}[]:,\"")) ++p; }
 
 		Token t = {
 			.Type = type,

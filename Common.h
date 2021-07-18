@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <stdint.h>
+#include <string.h>
 
 #ifndef NULL
 #  define NULL 0
@@ -138,6 +139,7 @@ void File_DumpBuffer        (const char *filename, const u8 *buf, u32 bufSize); 
 typedef struct Array_##name Array_##name;                            \
 struct Array_##name { u32 Size, Capacity; type *Data; };             \
                                                                      \
+ void Array_##name##_Prealloc(Array_##name *, u32 numElems);         \
  void Array_##name##_SizeToFit(Array_##name *);                      \
  void Array_##name##_Free(Array_##name *);                           \
                                                                      \
@@ -156,6 +158,13 @@ bool8 Array_##name##_Has(const Array_##name *, const type *);        \
  void Array_##name##_Reverse(Array_##name *);
 
 #define DECL_ARRAY(name, type)                                         \
+void Array_##name##_Prealloc(Array_##name *a, u32 n)                   \
+{                                                                      \
+	if(!n) { Array_##name##_Free(a); return; }                         \
+	a->Data = Allocate(sizeof(type) * n);                              \
+	a->Size = 0;                                                       \
+	a->Capacity = n;                                                   \
+}                                                                      \
 bool8 Array_##name##_Has(const Array_##name *a, const type *t)         \
 {                                                                      \
     return Array_##name##_Find(a, t) < 0 ? 0 : 1;                      \
@@ -195,7 +204,7 @@ void Array_##name##_PushVal(Array_##name *a, const type t) {           \
     Array_##name##_Push(a, &t);                                        \
 }                                                                      \
 void Array_##name##_Free(Array_##name *a) {                            \
-	Free(a->Data);                                                     \
+	if(a->Data) Free(a->Data);                                         \
 	a->Data = NULL;                                                    \
 	a->Size = 0;                                                       \
 	a->Capacity = 0;                                                   \
@@ -270,8 +279,8 @@ struct u128 {
 	};
 };
 
-u128  Hash_MD5       (const u8 *bytes, u32 length);  // Calc the MD5 hash for an array of bytes.
-u128  Hash_String_MD5(const char *str);              // Calc the MD5 hash for a NULL-terminated string.
+u128  Hash_MD5       (const u8 *bytes, u32 length);  // Compute the MD5 hash for an array of bytes.
+u128  Hash_String_MD5(const char *str);              // Compute the MD5 hash for a NULL-terminated string.
 bool8 Hash_Equal     (const u128 *a, const u128 *b); // Compare two hashes for equality.
 
 // Create a struct and prototype functions for a hashmap type HashMap_##name.

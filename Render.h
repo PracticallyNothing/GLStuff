@@ -44,7 +44,8 @@ enum Texture_Format {
 
 enum Texture_Filter {
 	Filter_Nearest = GL_NEAREST, // Looks pixelated
-	Filter_Linear  = GL_LINEAR   // Looks blurry
+	Filter_Linear  = GL_LINEAR,  // Looks blurry
+	//Filter_Aniso2x = GL_
 };
 enum Texture_Wrap {
 	Wrap_Repeat        = GL_REPEAT,         // If sampling outside texture, return pixel from inside texture
@@ -291,7 +292,7 @@ struct R3D_Node {
 
 struct R3D_Scene {
 	R3D_Node Root;
-	Camera *ActiveCamera;
+	R3D_Node *ActiveCamNode;
 	
 	bool8 SunEnabled;
 	struct {
@@ -300,15 +301,17 @@ struct R3D_Scene {
 	} Sun;
 };
 
-void R3D_Init();
-void R3D_RenderScene(R3D_Scene *Scene);
+void R3D_Init();                   // Init 3D stuff, called by RSys_Init()
+// void R3D_RegroupScene(R3D_Scene*); // Restructure scene to improve performance.
+void R3D_RenderScene (R3D_Scene*); // Draw a scene.
 
 R3D_Node* R3D_Node_Create(enum R3D_Node_Type);
 R3D_Node* R3D_Node_AttachNew(enum R3D_Node_Type);
+void R3D_CalcTransform(const R3D_Node*, Mat4 out);
 
-void R3D_DrawLine(Camera cam, Vec3 start, Vec3 end, RGBA color);
-void R3D_DrawLines(Camera cam, Vec3 *linePoints, u32 numLines, RGBA color);
-void R3D_DrawTriangle(Camera cam, Vec3 a, Vec3 b, Vec3 c, RGBA color);
-void R3D_DrawWireSphere(Camera cam, Vec3 center, r32 radius, RGBA color);
+void R3D_DrawLine      (Camera cam, Vec3 Start, Vec3 End, RGBA Color);
+void R3D_DrawLines     (Camera cam, Vec3 *LinePoints, u32 NumLines, RGBA Color);
+void R3D_DrawTriangle  (Camera cam, Vec3 A, Vec3 B, Vec3 C, RGBA Color);
+void R3D_DrawWireSphere(Camera cam, Vec3 Center, r32 Radius, RGBA Color);
 
 #endif

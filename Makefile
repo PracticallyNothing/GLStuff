@@ -16,9 +16,10 @@ dbg: dirs GLSpiral_debug
 
 GLSpiral_release: flags $(OBJS_REL)
 	@echo "LD obj/release/*.o -> $@"
-	@$(CC) -o $@ $(OBJS_REL_EX) $(LFLAGS) -O2
+	@$(CC) -o $@ $(OBJS_REL_EX) $(LFLAGS) -Osize
+	@strip $@
 $(OBJS_REL): obj/release/%.o: %.c
-	@echo "CC -O2 $<"
+	@echo "CC -Osize $<"
 	@$(CC) -c $< -o obj/release/$(shell echo '$@' | sed 's/.*\///') $(CFLAGS) -O2
 
 GLSpiral_debug: flags $(OBJS_DBG)
@@ -37,6 +38,5 @@ dirs:
 	mkdir -p obj obj/release obj/debug
 
 flags:
-	@printf "    LIBS: %s\n" "$(LIBS)"
-	@printf "  CFLAGS: %s\n" "$(CFLAGS)"
-	@printf "LIBFLAGS: %s\n" "$(LFLAGS)"
+	@printf "\n    LIBS: %s\n  CFLAGS: %s\nLIBFLAGS: %s\n\n" \
+			"$(LIBS)" "$(CFLAGS)" "$(LFLAGS)"

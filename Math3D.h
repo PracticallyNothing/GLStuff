@@ -261,14 +261,12 @@ struct Transform2D {
 	Vec2 Position;
 	r32 Rotation;
 	Vec2 Scale;
-	Transform2D *Parent;
 };
 
 struct Transform3D {
 	Vec3 Position;
 	Quat Rotation;
 	Vec3 Scale;
-	Transform3D *Parent;
 };
 
 extern const Transform2D Transform2D_Default;

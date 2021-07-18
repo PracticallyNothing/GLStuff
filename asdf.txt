@@ -1,0 +1,32 @@
+Стъпки:
+- Прочети конфигурацията
+	-> ReadJSONConf()
+- Създай прозорец и му задай FPS cap
+	-> RSys_Init()
+	-> RSys_SetFPSCap()
+- Зареди Wavefront OBJ файл от диска и го превърни в модел за графичната карта
+	-> struct WObj_Library* lib;
+	-> WObj_FromFile()
+	-> WObj_ToGPUModel()
+- Приготви аудио системата, зареди някакви WAV файлове
+	-> Audio_Init(NULL)
+	-> struct Audio_Buffer buffer;
+	-> Audio_Buffer_FromFile()
+- Създай Render Target
+	-> struct RT renderTarget;
+	-> RT_Init()
+	-> RT_Clear()
+- Създай източник за звука и му дай един от заредените звуци
+	-> struct Audio_Source src;
+	-> Audio_Source_Init()
+	-> Audio_Source_SetBuffer()
+	-> struct Audio_SourceProps srcProps;
+	-> Audio_Source_ReadProps()
+	-> Audio_Source_SetProps()
+	-> Audio_Source_SeekTo()
+- Зареди Shader
+	-> struct Shader* shad;
+	-> Shader_FromFile()
+- Включи сменянето на двата буфера в double buffering
+	-> SDL_GL_SetSwapInterval(-1)
+- Създай орбитираща камера

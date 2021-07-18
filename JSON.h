@@ -38,12 +38,12 @@ struct JSON_Value {
 	};
 };
 
-JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str);
+JSON_Value* JSON_ObjectFind(const JSON_Value* object, const char* key); // Search an object for a given key.
 
-JSON_Value JSON_FromString(const char* str);
-JSON_Value JSON_FromString_N(const char* str, u32 len);
-JSON_Value JSON_FromFile(const char* filename);
+JSON_Value JSON_FromString(const char* str);            // Parse JSON from a C string.
+JSON_Value JSON_FromString_N(const char* str, u32 len); // Parse JSON from a C string with a specfied length.
+JSON_Value JSON_FromFile(const char* filename);         // Load a JSON file from disk.
 
-void JSON_Free(JSON_Value *v);
+void JSON_Free(JSON_Value *v); // Free an allocated JSON structure.
 
 #endif

@@ -731,23 +731,20 @@ r32 Triangle_CircumsphereRadius(Vec3 a, Vec3 b, Vec3 c)
 const Transform2D Transform2D_Default = {
 	.Position = V2C(0,0),
 	.Rotation = 0,
-	.Scale    = V2C(1,1),
-	.Parent   = NULL
+	.Scale    = V2C(1,1)
 };
 const Transform3D Transform3D_Default = {
 	.Position = V3C(0,0,0),
 	.Rotation = V4C(0, 0, 0, 1),
-	.Scale    = V3C(1,1,1),
-	.Parent   = NULL
+	.Scale    = V3C(1,1,1)
 };
 
 void Transform2D_Mat3(Transform2D t, Mat3 out) {
-	Mat3 translate, rotate, scale, parent;
+	Mat3 translate, rotate, scale;
 
 	Mat3_Identity(translate);
 	Mat3_Identity(rotate);
 	Mat3_Identity(scale);
-	Mat3_Identity(parent);
 
 	// Translation
 	translate[2] = t.Position.x;
@@ -763,22 +760,17 @@ void Transform2D_Mat3(Transform2D t, Mat3 out) {
 	scale[0] = t.Scale.x;
 	scale[4] = t.Scale.y;
 
-	// Parent
-	if(t.Parent && t.Parent != &t) Transform2D_Mat3(*t.Parent, parent);
-
 	Mat3_MultMat(rotate, scale);
 	Mat3_MultMat(translate, rotate);
-	Mat3_MultMat(parent, translate);
-	Mat3_Copy(out, parent);
+	Mat3_Copy(out, translate);
 }
 
-	void Transform3D_Mat4(Transform3D t, Mat4 out) {
-	Mat4 translate, rotate, scale, parent;
+void Transform3D_Mat4(Transform3D t, Mat4 out) {
+	Mat4 translate, rotate, scale;
 
 	Mat4_Identity(translate);
 	Mat4_Identity(rotate);
 	Mat4_Identity(scale);
-	Mat4_Identity(parent);
 
 	// Translation
 	Mat4_Translate(translate, t.Position);
@@ -789,11 +781,7 @@ void Transform2D_Mat3(Transform2D t, Mat3 out) {
 	// Scale
 	Mat4_Scale(scale, t.Scale);
 
-	// Parent matrix
-	if(t.Parent && t.Parent != &t) Transform3D_Mat4(*t.Parent, parent);
-
 	Mat4_MultMat(rotate, scale);
 	Mat4_MultMat(translate, rotate);
-	Mat4_MultMat(parent, translate);
-	Mat4_Copy(out, parent);
+	Mat4_Copy(out, translate);
 }
