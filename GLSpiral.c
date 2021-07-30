@@ -17,7 +17,7 @@
 #include "Utils.h"
 
 void DrawGrid(OrbitCamera c, i32 size) {
-	Vec3 *points = Allocate(sizeof(Vec3) * 4 * size);
+	Vec3* points = Allocate(sizeof(Vec3) * 4 * size);
 	for(u32 i = 0; i < size; i++) {
 		points[(i * 4) + 0] = V3(i - size / 2.0, 0, -size);
 		points[(i * 4) + 1] = V3(i - size / 2.0, 0, size);
@@ -25,14 +25,13 @@ void DrawGrid(OrbitCamera c, i32 size) {
 		points[(i * 4) + 2] = V3(-size, 0, i - size / 2.0);
 		points[(i * 4) + 3] = V3(size, 0, i - size / 2.0);
 	}
-	R3D_DrawLines(OrbitCamera_ToCamera(c), points, size * 2,
-	              V4(0.8, 0.8, 0.8, 1));
+	R3D_DrawLines(OrbitCamera_ToCamera(c), points, size * 2, V4(0.8, 0.8, 0.8, 1));
 	Free(points);
 }
 
 typedef struct CamControl CamControl;
 struct CamControl {
-	OrbitCamera *Camera;
+	OrbitCamera* Camera;
 
 	r32 Sensitivity;
 
@@ -41,7 +40,7 @@ struct CamControl {
 	Vec2 InitialYawPitch;
 };
 
-bool8 OrbitCamera_Control(CamControl *cc, SDL_Event e) {
+bool8 OrbitCamera_Control(CamControl* cc, SDL_Event e) {
 	switch(e.type) {
 		default: return 0;
 		case SDL_MOUSEMOTION: {
@@ -49,10 +48,10 @@ bool8 OrbitCamera_Control(CamControl *cc, SDL_Event e) {
 				r32 dx = (e.motion.x - cc->InitialDragMousePos.x) / 512.0 * cc->Sensitivity;
 				r32 dy = (e.motion.y - cc->InitialDragMousePos.y) / 256.0 * cc->Sensitivity;
 
-				cc->Camera->Yaw = (-dx) * Pi_Half + cc->InitialYawPitch.x;
-				cc->Camera->Pitch =
-				    Clamp_R32((-dy) * Pi_Half + cc->InitialYawPitch.y,
-				              DegToRad(0.1), DegToRad(179.9));
+				cc->Camera->Yaw   = (-dx) * Pi_Half + cc->InitialYawPitch.x;
+				cc->Camera->Pitch = Clamp_R32((-dy) * Pi_Half + cc->InitialYawPitch.y,
+				                              DegToRad(0.1),
+				                              DegToRad(179.9));
 			}
 		} break;
 		case SDL_MOUSEBUTTONDOWN: {
@@ -61,14 +60,14 @@ bool8 OrbitCamera_Control(CamControl *cc, SDL_Event e) {
 				cc->MouseDragging = 1;
 
 				cc->InitialDragMousePos = V2(e.button.x, e.button.y);
-				cc->InitialYawPitch = V2(cc->Camera->Yaw, cc->Camera->Pitch);
+				cc->InitialYawPitch     = V2(cc->Camera->Yaw, cc->Camera->Pitch);
 			}
 		} break;
 		case SDL_MOUSEWHEEL: {
 			const r32 minFov = DegToRad(60), maxFov = DegToRad(140);
 
-			cc->Camera->VerticalFoV = CLAMP(
-			    cc->Camera->VerticalFoV - e.wheel.y * 0.1, minFov, maxFov);
+			cc->Camera->VerticalFoV =
+			    CLAMP(cc->Camera->VerticalFoV - e.wheel.y * 0.1, minFov, maxFov);
 			// cc->Camera->Radius = MAX(2, MIN(50, cc->Camera->Radius -
 			// e.wheel.y));
 		} break;
@@ -88,9 +87,9 @@ struct Configuration {
 };
 
 static const Configuration DefaultConf = {
-    .ScreenWidth = 1280,
+    .ScreenWidth  = 1280,
     .ScreenHeight = 720,
-    .FPSCap = 60,
+    .FPSCap       = 60,
 };
 
 Configuration ReadJSONConf() {
@@ -105,19 +104,19 @@ Configuration ReadJSONConf() {
 
 	enum { CONF_ScreenWidth, CONF_ScreenHeight, CONF_FPS };
 
-	const char *ConfStrings[] = {
+	const char* ConfStrings[] = {
 	    "ScreenWidth",
 	    "ScreenHeight",
 	    "FPS",
 	};
 
-	u128 ConfHashes[sizeof(ConfStrings) / sizeof(char *)];
-	for(u32 i = 0; i < sizeof(ConfStrings) / sizeof(char *); ++i)
+	u128 ConfHashes[sizeof(ConfStrings) / sizeof(char*)];
+	for(u32 i = 0; i < sizeof(ConfStrings) / sizeof(char*); ++i)
 		ConfHashes[i] = Hash_String_MD5(ConfStrings[i]);
 
 	for(u32 i = 0; i < v.Object.Map.Size; ++i) {
-		u128 *k = v.Object.Map.Keys + i;
-		JSON_Value *val = v.Object.Map.Values + i;
+		u128* k         = v.Object.Map.Keys + i;
+		JSON_Value* val = v.Object.Map.Values + i;
 
 		if(Hash_Equal(k, ConfHashes + CONF_ScreenWidth)) {
 			if(val->Type == JSON_Number) Conf.ScreenWidth = val->Number;
@@ -132,7 +131,7 @@ Configuration ReadJSONConf() {
 	return Conf;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 	u32 StartupTime = SDL_GetTicks();
 	srand(time(NULL));
 
@@ -140,62 +139,40 @@ int main(int argc, char *argv[]) {
 	RSys_Init(Conf.ScreenWidth, Conf.ScreenHeight);
 	RSys_SetFPSCap(Conf.FPSCap);
 
-	WObj_Library *lib = WObj_FromFile("res/meshes/sphere.obj");
-	GPUModel sphere = {0};
+	RT def = {0};
+	RT_InitScreenSize(def);
+
+	WObj_Library* lib = WObj_FromFile("res/meshes/sphere.obj");
+	GPUModel sphere   = {0};
 	WObj_ToGPUModel(&sphere, lib->Objects + 0);
 
-	// glClearColor(0, 0, 0, 0);
-
-	Audio_Init(NULL);
-	Audio_Buffer buffers[3] = {
-	    Audio_Buffer_FromFile("res/audio/left.wav"),
-	    Audio_Buffer_FromFile("res/audio/right.wav"),
-	    Audio_Buffer_FromFile("res/audio/test.wav"),
-	};
-	Audio_Buffer *b = buffers;
-
-	RT def = RT_Init(640, 480);
-	RT_Clear(def);
-
-	Audio_Source src = Audio_Source_Init();
-	Audio_Source_SetBuffer(src, *b);
-
-	Audio_SourceProps srcProps = Audio_Source_ReadProps(src);
-	srcProps.Loop = 1;
-	srcProps.PosRelative = AL_FALSE;
-	srcProps.Pitch = 1;
-	Audio_Source_SetProps(src, &srcProps);
-	Audio_Source_SeekTo(src, 5);
-
-	Shader *s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
+	Shader* s = Shader_FromFile("res/shaders/3d/unlit-tex.glsl");
 
 	Log(INFO, "[Main] Startup time: %u ms", SDL_GetTicks() - StartupTime);
 	SDL_GL_SetSwapInterval(-1);
 
 	float Time = 0;
 
-	OrbitCamera Cam = {.Center = V3C(0, 0, 0),
-	                   .ZNear = 1e-2,
-	                   .ZFar = 1e10,
+	OrbitCamera Cam = {.Center      = V3C(0, 0, 0),
+	                   .ZNear       = 1e-2,
+	                   .ZFar        = 1e10,
 	                   .VerticalFoV = Pi_Half,
-	                   .Yaw = DegToRad(0),
-	                   .Pitch = DegToRad(0.01),
-	                   .Radius = 20,
+	                   .Yaw         = DegToRad(0),
+	                   .Pitch       = DegToRad(0.01),
+	                   .Radius      = 20,
 	                   .AspectRatio = RT_GetCurrentAspectRatio()};
 
-	CamControl cControl = {&Cam, 1, 0, V2(0, 0), V2(0, 0)};
-	cControl.Camera = &Cam;
+	CamControl cControl          = {&Cam, 1, 0, V2(0, 0), V2(0, 0)};
+	cControl.Camera              = &Cam;
 	cControl.InitialDragMousePos = V2(0, 0);
-	cControl.InitialYawPitch = V2(0, 0);
-	cControl.Sensitivity = 1;
-	cControl.MouseDragging = 0;
-	
+	cControl.InitialYawPitch     = V2(0, 0);
+	cControl.Sensitivity         = 1;
+	cControl.MouseDragging       = 0;
+
 	Camera cc = OrbitCamera_ToCamera(Cam);
-	Audio_Listener_SyncToCamera(cc);
-	Audio_Source_Play(src);
 
 	bool8 ChangeDisplaySize = 0;
-	Vec2 NewSize = V2(0, 0);
+	Vec2 NewSize            = V2(0, 0);
 
 	while(1) {
 		SDL_Event e;
@@ -204,29 +181,24 @@ int main(int argc, char *argv[]) {
 
 			switch(e.type) {
 				case SDL_QUIT: goto end;
-				case SDL_KEYUP: {
+				case SDL_KEYUP:
 					switch(e.key.keysym.sym) {
 						case SDLK_ESCAPE: goto end;
-						case SDLK_SPACE:
-							if(Audio_Source_ReadState(src) ==
-							   SourceState_Playing)
-								Audio_Source_Pause(src);
-							else
-								Audio_Source_Play(src);
-							break;
-						case SDLK_r: {
+						case SDLK_r:
 							ChangeDisplaySize = 15;
-							NewSize = RT_GetScreenSize();
-						} break;
+							NewSize           = RT_GetScreenSize();
+							break;
 						default: break;
 					}
-				} break;
+					break;
 				case SDL_WINDOWEVENT: {
 					switch(e.window.event) {
 						case SDL_WINDOWEVENT_CLOSE: goto end;
 						case SDL_WINDOWEVENT_SIZE_CHANGED:
 						case SDL_WINDOWEVENT_RESIZED: {
-							i32 w = e.window.data1, h = e.window.data2;
+							i32 w = e.window.data1;
+							i32 h = e.window.data2;
+
 							RT_SetSize(&def, w, h);
 							glViewport(0, 0, w, h);
 							Cam.AspectRatio = (r32) w / h;
@@ -258,7 +230,7 @@ int main(int argc, char *argv[]) {
 
 			RT_UseDefault();
 
-			Vec2 scrSz = RT_GetScreenSize();
+			Vec2 scrSz    = RT_GetScreenSize();
 			Rect2D screen = {V2C(0, 0), scrSz};
 			Rect2D_DrawImage(screen, def.Color.Id, 0);
 

@@ -6,30 +6,22 @@
 #include <stdio.h>
 
 DECL_ARRAY(Hash, u128);
-DECL_ARRAY(String, char *);
+DECL_ARRAY(String, char*);
 DECL_ARRAY(JSON_Value, JSON_Value);
 DECL_HASHMAP(JSON_Value, JSON_Value);
 
-JSON_Value
-JSON_FromFile(const char* filename)
-{
+JSON_Value JSON_FromFile(const char* filename) {
 	//Log(INFO, "Reading JSON file \"%s\".", filename);
 	u32 size;
-	u8* buf = File_ReadToBuffer_Alloc(filename, &size);
+	u8* buf        = File_ReadToBuffer_Alloc(filename, &size);
 	JSON_Value res = JSON_FromString_N((char*) buf, size);
 	Free(buf);
 	return res;
 }
 
-JSON_Value 
-JSON_FromString(const char* str)
-{
-	return JSON_FromString_N(str, strlen(str));
-}
+JSON_Value JSON_FromString(const char* str) { return JSON_FromString_N(str, strlen(str)); }
 
-static bool8 
-Char_OneOf(char c, const char* chars)
-{
+static bool8 Char_OneOf(char c, const char* chars) {
 	if(!chars) return 0;
 
 	while(*chars) {
@@ -47,39 +39,37 @@ enum TokenType {
 
 	Token_BeginObject, // {
 	Token_EndObject,   // }
-	
-	Token_BeginArray,  // [
-	Token_EndArray,    // ]
 
-	Token_Null,    // null
-	Token_Number,  // 0 || 1.0012
-	Token_String,  // "asdf"
-	Token_Bool_True, // true
+	Token_BeginArray, // [
+	Token_EndArray,   // ]
+
+	Token_Null,       // null
+	Token_Number,     // 0 || 1.0012
+	Token_String,     // "asdf"
+	Token_Bool_True,  // true
 	Token_Bool_False, // false
-	
+
 	Token_TotalTypes,
 };
 
-const char *TokenType_Strings[Token_TotalTypes+1] = {
-	"Token_EOF",
+const char* TokenType_Strings[Token_TotalTypes + 1] = {"Token_EOF",
 
-	"Token_Comma",
-	"Token_Colon",
+                                                       "Token_Comma",
+                                                       "Token_Colon",
 
-	"Token_BeginObject",
-	"Token_EndObject",
-	
-	"Token_BeginArray",
-	"Token_EndArray",
+                                                       "Token_BeginObject",
+                                                       "Token_EndObject",
 
-	"Token_Null",
-	"Token_Number",
-	"Token_String",
-	"Token_Bool_True",
-	"Token_Bool_False",
-	
-	"Token_TotalTypes"
-};
+                                                       "Token_BeginArray",
+                                                       "Token_EndArray",
+
+                                                       "Token_Null",
+                                                       "Token_Number",
+                                                       "Token_String",
+                                                       "Token_Bool_True",
+                                                       "Token_Bool_False",
+
+                                                       "Token_TotalTypes"};
 
 typedef struct Token Token;
 struct Token {
@@ -92,132 +82,146 @@ struct Token {
 DEF_ARRAY(Token, Token);
 DECL_ARRAY(Token, Token);
 
-static void
-PrintToken(const Token *t)
-{
+static void PrintToken(const Token* t) {
 	printf("%s", TokenType_Strings[t->Type]);
 	switch(t->Type) {
 		case Token_String: printf("(\"%.*s\")", (i32) (t->End - t->Start), t->Start); break;
-		case Token_Number: printf("(%.2f)", String_ToR32_N(t->Start, t->End - t->Start)); break;
+		case Token_Number:
+			printf("(%.2f)", String_ToR32_N(t->Start, t->End - t->Start));
+			break;
 		default: break;
 	}
 	printf(" ");
 }
 
-static Array_Token 
-JSON_ToTokens(const char* str, u32 len) 
-{
-	const char* p = str;
+static Array_Token JSON_ToTokens(const char* str, u32 len) {
+	const char* p      = str;
 	Array_Token tokens = {0};
 	Array_Token_Prealloc(&tokens, 256);
 
-	while(p != str+len)
-	{
+	while(p != str + len) {
 		enum TokenType type = Token_EOF;
 		const char *start = 0, *end = 0;
 
 		// Eat whitespace
-		while(p < str+len && Char_OneOf(*p, " \t\n\r")) ++p;
+		while(p < str + len && Char_OneOf(*p, " \t\n\r")) ++p;
 
-		if(*p == '{') { type = Token_BeginObject; ++p;}
-		else if(*p == '}') { type = Token_EndObject;   ++p;} 
-		else if(*p == '[') { type = Token_BeginArray;  ++p;} 
-		else if(*p == ']') { type = Token_EndArray;    ++p;}
-		else if(*p == ':') { type = Token_Colon;       ++p;} 
-		else if(*p == ',') { type = Token_Comma;       ++p;} 
-		else if(*p == '\"') { 
+		if(*p == '{') {
+			type = Token_BeginObject;
+			++p;
+		} else if(*p == '}') {
+			type = Token_EndObject;
+			++p;
+		} else if(*p == '[') {
+			type = Token_BeginArray;
+			++p;
+		} else if(*p == ']') {
+			type = Token_EndArray;
+			++p;
+		} else if(*p == ':') {
+			type = Token_Colon;
+			++p;
+		} else if(*p == ',') {
+			type = Token_Comma;
+			++p;
+		} else if(*p == '\"') {
 			++p;
 			const char* q = p;
-			while(q < str+len && *q != '\"') q += (*q == '\\' ? 2 : 1);
-			if(q == str+len)
-			{
+			while(q < str + len && *q != '\"') q += (*q == '\\' ? 2 : 1);
+			if(q == str + len) {
 				Log(ERROR, "[JSON] Unclosed string.", "");
 			}
 
-			type = Token_String;
+			type  = Token_String;
 			start = p;
-			end = q;
+			end   = q;
 
-			p = q+1;
-		} 
-		else if(*p == '-' || ('0' <= *p && *p <= '9')) {
+			p = q + 1;
+		} else if(*p == '-' || ('0' <= *p && *p <= '9')) {
 			const char* q = p;
-			bool8 gotDot = 0;
+			bool8 gotDot  = 0;
 
-			while(q < str+len && !Char_OneOf(*q, " \t\n\r{}[]:,\""))
-			{
+			while(q < str + len && !Char_OneOf(*q, " \t\n\r{}[]:,\"")) {
 				if(*q == '.') {
-					if(gotDot) { 
-						Log(ERROR, "[JSON] Number with too many decimal points.", ""); 
+					if(gotDot) {
+						Log(ERROR, "[JSON] Number with too many decimal points.", "");
 						Array_Token_Free(&tokens);
-						return (Array_Token) {0};
-					}
-					else 
+						return (Array_Token){0};
+					} else
 						gotDot = 1;
 				}
 				++q;
 			}
-			type = Token_Number;
+			type  = Token_Number;
 			start = p;
-			end = q;
+			end   = q;
 
 			p = q;
+		} else if(strncmp(p, "null", 4) == 0) {
+			type = Token_Null;
+			p += 4;
+		} else if(strncmp(p, "true", 4) == 0) {
+			type = Token_Bool_True;
+			p += 4;
+		} else if(strncmp(p, "false", 5) == 0) {
+			type = Token_Bool_False;
+			p += 5;
+		} else {
+			while(p != str + len && !Char_OneOf(*p, " \t\n\r{}[]:,\"")) ++p;
 		}
-		else if(strncmp(p, "null",  4) == 0) { type = Token_Null;       p+=4;} 
-		else if(strncmp(p, "true",  4) == 0) { type = Token_Bool_True;  p+=4;} 
-		else if(strncmp(p, "false", 5) == 0) { type = Token_Bool_False; p+=5;} 
-		else { while(p != str+len && !Char_OneOf(*p, " \t\n\r{}[]:,\"")) ++p; }
 
-		Token t = {
-			.Type = type,
-			.Start = start,
-			.End = end
-		};
+		Token t = {.Type = type, .Start = start, .End = end};
 		//PrintToken(&t);
 		Array_Token_Push(&tokens, &t);
 	}
 
 	// Push final Token_EOF
-	Token t = { .Type = Token_EOF };
+	Token t = {.Type = Token_EOF};
 	Array_Token_Push(&tokens, &t);
 	Array_Token_SizeToFit(&tokens);
 	return tokens;
 }
 
-const JSON_Value Error = { .Type = JSON_Error };
+const JSON_Value Error = {.Type = JSON_Error};
 
-static JSON_Value JSON_ParsePrimitive(const Token **curr);
-static JSON_Value JSON_ParseArray(const Token **curr);
-static JSON_Value JSON_ParseObject(const Token **curr);
+static JSON_Value JSON_ParsePrimitive(const Token** curr);
+static JSON_Value JSON_ParseArray(const Token** curr);
+static JSON_Value JSON_ParseObject(const Token** curr);
 
-static JSON_Value 
-JSON_ParsePrimitive(const Token **curr) 
-{
-	JSON_Value res = { .Type = JSON_Error };
+static JSON_Value JSON_ParsePrimitive(const Token** curr) {
+	JSON_Value res = {.Type = JSON_Error};
 
 	switch((*curr)->Type) {
 		case Token_String: {
 			res.Type = JSON_String;
 
-			u32 len = (*curr)->End - (*curr)->Start; 
+			u32 len = (*curr)->End - (*curr)->Start;
 
 			res.String = Allocate(len + 1);
 			strncpy(res.String, (*curr)->Start, len);
 			res.String[len] = '\0';
 
-			break; 
+			break;
 		}
 		case Token_Number: {
-			res.Type = JSON_Number;
+			res.Type   = JSON_Number;
 			res.Number = String_ToR32_N((*curr)->Start, (*curr)->End - (*curr)->Start);
 			break;
 		}
-		case Token_Null:       res.Type = JSON_Null; break;
-		case Token_Bool_True:  res.Type = JSON_Boolean; res.Boolean = 1; break;
-		case Token_Bool_False: res.Type = JSON_Boolean; res.Boolean = 0; break;
+		case Token_Null: res.Type = JSON_Null; break;
+		case Token_Bool_True:
+			res.Type    = JSON_Boolean;
+			res.Boolean = 1;
+			break;
+		case Token_Bool_False:
+			res.Type    = JSON_Boolean;
+			res.Boolean = 0;
+			break;
 
 		default: {
-			Log(ERROR, "[JSON] Token %s is not a primitive.", TokenType_Strings[(*curr)->Type]); 
+			Log(ERROR,
+			    "[JSON] Token %s is not a primitive.",
+			    TokenType_Strings[(*curr)->Type]);
 			break;
 		}
 	}
@@ -226,61 +230,49 @@ JSON_ParsePrimitive(const Token **curr)
 	return res;
 }
 
-static JSON_Value
-JSON_ParseArray(const Token **curr) {
+static JSON_Value JSON_ParseArray(const Token** curr) {
 	(*curr)++;
 
 	JSON_Value array;
-	array.Type = JSON_Array;
-	array.Array = (Array_JSON_Value) {0};
+	array.Type  = JSON_Array;
+	array.Array = (Array_JSON_Value){0};
 
-	while((*curr)->Type != Token_EndArray && (*curr)->Type != Token_EOF)
-	{
+	while((*curr)->Type != Token_EndArray && (*curr)->Type != Token_EOF) {
 		JSON_Value v;
 		switch((*curr)->Type) {
-			case Token_BeginArray:
-				v = JSON_ParseArray(curr);
-				break;
-			case Token_BeginObject:
-				v = JSON_ParseObject(curr);
-				break;
+			case Token_BeginArray: v = JSON_ParseArray(curr); break;
+			case Token_BeginObject: v = JSON_ParseObject(curr); break;
 			case Token_Bool_True:
 			case Token_Bool_False:
 			case Token_Null:
 			case Token_Number:
-			case Token_String:
-				v = JSON_ParsePrimitive(curr);
-				break;
-			default:
-				v = Error;
-				break;
+			case Token_String: v = JSON_ParsePrimitive(curr); break;
+			default: v = Error; break;
 		}
-		if(v.Type == JSON_Error)
-			goto ParseArray_error;
+		if(v.Type == JSON_Error) goto ParseArray_error;
 
 		Array_JSON_Value_Push(&array.Array, &v);
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndArray) {
 			Log(ERROR, "[JSON] Array: expected ',' or ']', got these instead: ", "");
-			PrintToken(*curr-2);
-			PrintToken(*curr-1);
+			PrintToken(*curr - 2);
+			PrintToken(*curr - 1);
 			PrintToken(*curr);
-			PrintToken(*curr+1);
-			PrintToken(*curr+2);
+			PrintToken(*curr + 1);
+			PrintToken(*curr + 2);
 			printf("\n");
 			goto ParseArray_error;
 		}
 
-		if((*curr)->Type == Token_Comma)
-			(*curr)++;
+		if((*curr)->Type == Token_Comma) (*curr)++;
 	}
 
 	if((*curr)->Type == Token_EOF) {
 		Log(ERROR, "[JSON] Array: reached EOF without closing the array.", "");
-		PrintToken(*curr-4);
-		PrintToken(*curr-3);
-		PrintToken(*curr-2);
-		PrintToken(*curr-1);
+		PrintToken(*curr - 4);
+		PrintToken(*curr - 3);
+		PrintToken(*curr - 2);
+		PrintToken(*curr - 1);
 		PrintToken(*curr);
 		printf("\n");
 		goto ParseArray_error;
@@ -294,35 +286,35 @@ ParseArray_error:
 	return Error;
 }
 
-static JSON_Value
-JSON_ParseObject(const Token **curr) {
+static JSON_Value JSON_ParseObject(const Token** curr) {
 	(*curr)++;
 
 	JSON_Value object;
-	object.Type = JSON_Object;
-	object.Object.Map        = (HashMap_JSON_Value) {0};
-	object.Object.StringKeys = (Array_String) {0};
+	object.Type              = JSON_Object;
+	object.Object.Map        = (HashMap_JSON_Value){0};
+	object.Object.StringKeys = (Array_String){0};
 
-	while((*curr)->Type != Token_EndObject && (*curr)->Type != Token_EOF)
-	{
-		char *Key;
-		u32  KeyLen;
+	while((*curr)->Type != Token_EndObject && (*curr)->Type != Token_EOF) {
+		char* Key;
+		u32 KeyLen;
 
 		if((*curr)->Type == Token_String) {
 			KeyLen = (*curr)->End - (*curr)->Start;
 
-			Key = Allocate(KeyLen+1);
+			Key         = Allocate(KeyLen + 1);
 			Key[KeyLen] = '\0';
 			strncpy(Key, (*curr)->Start, KeyLen);
 
 			(*curr)++;
 		} else {
-			Log(ERROR, "[JSON] Object, expected string, got %s.", TokenType_Strings[(*curr)->Type]);
-			PrintToken(*curr-2);
-			PrintToken(*curr-1);
+			Log(ERROR,
+			    "[JSON] Object, expected string, got %s.",
+			    TokenType_Strings[(*curr)->Type]);
+			PrintToken(*curr - 2);
+			PrintToken(*curr - 1);
 			PrintToken(*curr);
-			PrintToken(*curr+1);
-			PrintToken(*curr+2);
+			PrintToken(*curr + 1);
+			PrintToken(*curr + 2);
 			printf("\n");
 			goto ParseObject_error;
 		}
@@ -331,34 +323,28 @@ JSON_ParseObject(const Token **curr) {
 			(*curr)++;
 		} else {
 			Free(Key);
-			Log(ERROR, "[JSON] Object, expected ':', got %s.", TokenType_Strings[(*curr)->Type]);
-			PrintToken(*curr-2);
-			PrintToken(*curr-1);
+			Log(ERROR,
+			    "[JSON] Object, expected ':', got %s.",
+			    TokenType_Strings[(*curr)->Type]);
+			PrintToken(*curr - 2);
+			PrintToken(*curr - 1);
 			PrintToken(*curr);
-			PrintToken(*curr+1);
-			PrintToken(*curr+2);
+			PrintToken(*curr + 1);
+			PrintToken(*curr + 2);
 			printf("\n");
 			goto ParseObject_error;
 		}
 
 		JSON_Value v;
 		switch((*curr)->Type) {
-			case Token_BeginArray:
-				v = JSON_ParseArray(curr);
-				break;
-			case Token_BeginObject:
-				v = JSON_ParseObject(curr);
-				break;
+			case Token_BeginArray: v = JSON_ParseArray(curr); break;
+			case Token_BeginObject: v = JSON_ParseObject(curr); break;
 			case Token_Bool_True:
 			case Token_Bool_False:
 			case Token_Null:
 			case Token_Number:
-			case Token_String:
-				v = JSON_ParsePrimitive(curr);
-				break;
-			default:
-				v = Error;
-				break;
+			case Token_String: v = JSON_ParsePrimitive(curr); break;
+			default: v = Error; break;
 		}
 		if(v.Type == JSON_Error) {
 			Free(Key);
@@ -376,18 +362,19 @@ JSON_ParseObject(const Token **curr) {
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndObject) {
 			Free(Key);
-			Log(ERROR, "[JSON] Object, expected ',' or '}', got %s", TokenType_Strings[(*curr)->Type]);
-			PrintToken(*curr-2);
-			PrintToken(*curr-1);
+			Log(ERROR,
+			    "[JSON] Object, expected ',' or '}', got %s",
+			    TokenType_Strings[(*curr)->Type]);
+			PrintToken(*curr - 2);
+			PrintToken(*curr - 1);
 			PrintToken(*curr);
-			PrintToken(*curr+1);
-			PrintToken(*curr+2);
+			PrintToken(*curr + 1);
+			PrintToken(*curr + 2);
 			printf("\n");
 			goto ParseObject_error;
 		}
 
-		if((*curr)->Type == Token_Comma)
-			(*curr)++;
+		if((*curr)->Type == Token_Comma) (*curr)++;
 	}
 
 	if((*curr)->Type == Token_EOF) {
@@ -402,9 +389,7 @@ ParseObject_error:
 	return Error;
 }
 
-JSON_Value 
-JSON_FromString_N(const char* str, u32 len)
-{
+JSON_Value JSON_FromString_N(const char* str, u32 len) {
 	if(!str || !len) {
 		Log(ERROR, "[JSON] Null string or zero length.", "");
 		return Error;
@@ -417,29 +402,21 @@ JSON_FromString_N(const char* str, u32 len)
 		return Error;
 	}
 
-	const Token *currToken = tokens.Data;
+	const Token* currToken = tokens.Data;
 	JSON_Value res;
 
 	switch(currToken->Type) {
-		case Token_BeginArray:  
-			res = JSON_ParseArray(&currToken);
-			break;
-		case Token_BeginObject: 
-			res = JSON_ParseObject(&currToken);
-			break;
-		case Token_Null: 
+		case Token_BeginArray: res = JSON_ParseArray(&currToken); break;
+		case Token_BeginObject: res = JSON_ParseObject(&currToken); break;
+		case Token_Null:
 		case Token_String:
 		case Token_Number:
 		case Token_Bool_True:
-		case Token_Bool_False:
-			res = JSON_ParsePrimitive(&currToken);
-			goto end;
-		default: 
-			goto error;
+		case Token_Bool_False: res = JSON_ParsePrimitive(&currToken); goto end;
+		default: goto error;
 	}
 
-	if(res.Type == JSON_Error)
-		goto error;
+	if(res.Type == JSON_Error) goto error;
 
 end:
 	if(currToken->Type != Token_EOF)
@@ -452,12 +429,10 @@ error:
 	return Error;
 }
 
-void JSON_Free(JSON_Value *v)
-{
+void JSON_Free(JSON_Value* v) {
 	switch(v->Type) {
 		case JSON_Array:
-			for(u32 i = 0; i < v->Array.Size; ++i)
-				JSON_Free(v->Array.Data + i);
+			for(u32 i = 0; i < v->Array.Size; ++i) JSON_Free(v->Array.Data + i);
 			Array_JSON_Value_Free(&v->Array);
 
 			break;
@@ -472,17 +447,13 @@ void JSON_Free(JSON_Value *v)
 			HashMap_JSON_Value_Free(&v->Object.Map);
 
 			break;
-		case JSON_String:
-			Free(v->String);
-			break;
+		case JSON_String: Free(v->String); break;
 
-		default: 
-			break;
+		default: break;
 	}
 }
 
-JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str)
-{
+JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str) {
 	if(!v || !str) return NULL;
 	return HashMap_JSON_Value_Find(&v->Object.Map, (u8*) str, strlen(str));
 }

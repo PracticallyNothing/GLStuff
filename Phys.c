@@ -40,8 +40,8 @@ HalfSpaceTest(Vec3 pNorm, Vec3 pPoint, Vec3 point)
 		return HS_On;
 }
 
-/// Checks if the box b is inside a.
-/// Does not check the reverse.
+/// Checks if box b is inside a.
+/// DOES NOT check the reverse.
 bool8 AABB_CheckInside(AABB a, AABB b)
 {
 	a = AABB_Fix(a);
@@ -408,180 +408,17 @@ TriHull_RayIntersect(TriHull hull, Ray ray)
 
 	return (Intersection) { .Occurred = 0 };
 }
-typedef struct OctreeNode OctreeNode;
-
-struct PhysWorld_Cache {
-	u128 LastHash;
-
-	OctreeNode* OctreeRoot;
-};
 
 void PhysWorld_Init(PhysWorld* world)
 {
 	world->Gravity = 9.8;
 	world->Objects = (Array_PhysObject) {0};
-	world->_cache = Allocate(sizeof(PhysWorld_Cache));
-	memset(world->_cache, 0, sizeof(PhysWorld_Cache));
-}
-
-// How many objects max before we need to split the octree again?
-const u32 Octree_SplitTreshold = 4;
-struct OctreeNode {
-	OctreeNode* Parent;
-	OctreeNode* Children;
-
-	AABB Extents;
-
-	// Array of indices into the PhysWorld Objects array.
-	Array_u32 ObjectInds;
-};
-
-DEF_ARRAY(OctreeNodePtr, OctreeNode*);
-DECL_ARRAY(OctreeNodePtr, OctreeNode*);
-
-// NOTE: This may need to change if any weird tree traversal
-//       leads to lots of cache misses.
-enum OctreePos
-{
-	Pos_Right = 1 << 0,
-	Pos_Top   = 1 << 1,
-	Pos_Front = 1 << 2
-};
-
-/// Creates an octree node's children and sets their extents.
-static void
-OctreeNode_Split(OctreeNode* n)
-{
-	n->Children = Allocate(sizeof(OctreeNode) * 8);
-	memset(n->Children, 0, sizeof(OctreeNode) * 8);
-
-	/* 
-	 *             _
-	 *      +Y ^   /| +Z
-	 *         |  /
-	 *         | /
-	 *         |/
-	 * -X <----+---->  +X   
-	 *        /|
-	 *       / |
-	 *  -Z |/_ |
-	 *         V -Y
-	 *
-	 * Right: Min.x = mid.x | Left:   Min.x = min.x 
-	 *        Max.x = max.x |         Max.x = mid.x 
-	 *
-	 * Top:   Min.y = mid.y | Bottom: Min.y = min.y
-	 *        Max.y = max.y |         Max.y = mid.y
-	 *
-	 * Front: Min.z = mid.z | Back:   Min.z = min.z
-	 *        Max.z = max.z |         Max.z = mid.z
-	 *
-	 */
-
-	//
-	Vec3 min = n->Extents.Min,
-		 max = n->Extents.Max,
-	     mid = Vec3_Center(min, max);
-
-	/*
-	 * 000 - Back,  Bottom, Left
-	 * 001 - Back,  Bottom, Right
-	 * 010 - Back,  Top,    Left
-	 * 011 - Back,  Top,    Right
-	 * 100 - Front, Bottom, Left 
-	 * 101 - Front, Bottom, Right
-	 * 110 - Front, Top,    Left
-	 * 111 - Front, Top,    Right
-	 */
-
-	for(u32 i = 0; i < 8; ++i) {
-		n->Children[i].Parent = n;
-
-		r32 minX = i & Pos_Right ? mid.x : min.x,
-			minY = i & Pos_Top   ? mid.y : min.y,
-			minZ = i & Pos_Front ? mid.z : min.z;
-
-		r32 maxX = i & Pos_Right ? max.x : mid.x,
-			maxY = i & Pos_Top   ? max.y : mid.y,
-			maxZ = i & Pos_Front ? max.z : mid.z;
-
-		n->Children[i].Extents = (AABB) {
-			.Min = V3(minX, minY, minZ),
-			.Max = V3(maxX, maxY, maxZ)
-		};
-	}
-}
-
-// TODO: Fix this, it isn't doing what it's supposed to.
-static void 
-PhysWorld_OctreeSplit(const PhysWorld* world)
-{
-	OctreeNode *root = world->_cache->OctreeRoot;
-
-	if(!root) {
-		root = Allocate(sizeof(OctreeNode));
-		*root = (OctreeNode) {0};
-
-		world->_cache->OctreeRoot = root;
-
-		for(u32 i = 0; i < world->Objects.Size; ++i)
-			Array_u32_Push(&root->ObjectInds, &i);
-
-		// Read through all objects and find the extents of the AABB.
-		Vec3 *min = &root->Extents.Min, *max = &root->Extents.Max;
-
-		for(u32 i = 0; i < world->Objects.Size; ++i) {
-			*max = V3(MIN(min->x, world->Objects.Data[i].AABB.Min.x),
-			          MIN(min->y, world->Objects.Data[i].AABB.Min.y),
-			          MIN(min->z, world->Objects.Data[i].AABB.Min.z));
-
-			*max = V3(MAX(max->x, world->Objects.Data[i].AABB.Max.x),
-			          MAX(max->y, world->Objects.Data[i].AABB.Max.y),
-			          MAX(max->z, world->Objects.Data[i].AABB.Max.z));
-		}
-	}
-
-	// A queue for tracking which nodes of the octree 
-	// still haven't been checked for passing the threshold.
-	Array_OctreeNodePtr queue;
-	Array_OctreeNodePtr_PushVal(&queue, root);
-
-	while(queue.Size) {
-		OctreeNode *n = queue.Data[0];
-
-		if(n->ObjectInds.Size > Octree_SplitTreshold) {
-			// Create the octree split.
-			OctreeNode_Split(n);
-			for(u32 i = 0; i < 8; ++i)
-				Array_OctreeNodePtr_PushVal(&queue, n->Children + i);
-
-			// Split objects depending on which child node's extents their AABB fits in.
-			for(u32 i = 0; i < n->ObjectInds.Size; ++i) {
-				PhysObject* o = world->Objects.Data + n->ObjectInds.Data[i];
-
-				for(u32 j = 0; j < 8; ++j) {
-					OctreeNode* c = n->Children + j;
-
-					if(AABB_CheckInside(c->Extents, AABB_ApplyTransform3D(o->AABB, o->Transform))) {
-						Array_u32_Push(&c->ObjectInds, n->ObjectInds.Data + i);
-						Array_u32_Remove(&n->ObjectInds, i);
-						i--;
-					}
-				}
-			}
-		}
-		Array_OctreeNodePtr_Remove(&queue, 0);
-		continue;
-	}
 }
 
 // TODO: Implement.
 PhysObject*
 PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 {
-	// 1. Split world into octree
-	PhysWorld_OctreeSplit(world);
-	
 	// 2. 
 	return NULL;
 }
@@ -590,8 +427,6 @@ PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 void PhysWorld_Update(PhysWorld* world, r32 dt)
 {
 	// 1. Split world into octree.
-	PhysWorld_OctreeSplit(world);
-
 	// 2. Do broadphase collision, mark any potential hits for narrowphase.
 	// 3. Do narrowphase collision, actually see if objects collide.
 	// 4. Apply forces based on delta time

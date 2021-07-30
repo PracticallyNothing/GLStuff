@@ -12,7 +12,7 @@ typedef struct GPUModel {
 	u32 NumIndices;
 } GPUModel;
 
-void GPUModel_Render(const GPUModel *model);
-void WObj_ToGPUModel(GPUModel *out, const WObj_Object *obj);
+void GPUModel_Render(const GPUModel* model);
+void WObj_ToGPUModel(GPUModel* out, const WObj_Object* obj);
 
 #endif
