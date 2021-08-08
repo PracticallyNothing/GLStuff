@@ -40,44 +40,24 @@ struct CamControl {
 	Vec2 InitialYawPitch;
 };
 
-bool8 OrbitCamera_Control(CamControl* cc, SDL_Event e) {
-	switch(e.type) {
-		default: return 0;
-		case SDL_MOUSEMOTION: {
-			if(cc->MouseDragging) {
-				r32 dx = (e.motion.x - cc->InitialDragMousePos.x) / 512.0 * cc->Sensitivity;
-				r32 dy = (e.motion.y - cc->InitialDragMousePos.y) / 256.0 * cc->Sensitivity;
-
-				cc->Camera->Yaw   = (-dx) * Pi_Half + cc->InitialYawPitch.x;
-				cc->Camera->Pitch = Clamp_R32((-dy) * Pi_Half + cc->InitialYawPitch.y,
-				                              DegToRad(0.1),
-				                              DegToRad(179.9));
-			}
-		} break;
-		case SDL_MOUSEBUTTONDOWN: {
-			if(e.button.button == SDL_BUTTON_RIGHT) {
-				// Begin camera drag if it hasn't been started yet.
-				cc->MouseDragging = 1;
-
-				cc->InitialDragMousePos = V2(e.button.x, e.button.y);
-				cc->InitialYawPitch     = V2(cc->Camera->Yaw, cc->Camera->Pitch);
-			}
-		} break;
-		case SDL_MOUSEWHEEL: {
-			const r32 minFov = DegToRad(60), maxFov = DegToRad(140);
-
-			cc->Camera->VerticalFoV =
-			    CLAMP(cc->Camera->VerticalFoV - e.wheel.y * 0.1, minFov, maxFov);
-			// cc->Camera->Radius = MAX(2, MIN(50, cc->Camera->Radius -
-			// e.wheel.y));
-		} break;
-		case SDL_MOUSEBUTTONUP: {
-			if(e.button.button == SDL_BUTTON_RIGHT) cc->MouseDragging = 0;
-		} break;
-	}
-
-	return 1;
+void OrbitCamera_StartDrag(CamControl* cc, Vec2 mousePos) {
+	cc->MouseDragging       = 1;
+	cc->InitialDragMousePos = mousePos;
+	cc->InitialYawPitch     = V2(cc->Camera->Yaw, cc->Camera->Pitch);
 }
+
+void OrbitCamera_MoveByDrag(CamControl* cc, Vec2 dragAmt) {
+	if(!cc->MouseDragging) return;
+
+	r32 dx = dragAmt.x / 512.0 * cc->Sensitivity;
+	r32 dy = dragAmt.y / 256.0 * cc->Sensitivity;
+
+	cc->Camera->Yaw = (-dx) * Pi_Half + cc->InitialYawPitch.x;
+	cc->Camera->Pitch =
+	    Clamp_R32((-dy) * Pi_Half + cc->InitialYawPitch.y, DegToRad(0.1), DegToRad(179.9));
+}
+
+void OrbitCamera_EndDrag(CamControl* cc) { cc->MouseDragging = 0; }
 
 typedef struct Configuration Configuration;
 struct Configuration {
@@ -119,11 +99,11 @@ Configuration ReadJSONConf() {
 		JSON_Value* val = v.Object.Map.Values + i;
 
 		if(Hash_Equal(k, ConfHashes + CONF_ScreenWidth)) {
-			if(val->Type == JSON_Number) Conf.ScreenWidth = val->Number;
+			Conf.ScreenWidth = val->Number;
 		} else if(Hash_Equal(k, ConfHashes + CONF_ScreenHeight)) {
-			if(val->Type == JSON_Number) Conf.ScreenHeight = val->Number;
+			Conf.ScreenHeight = val->Number;
 		} else if(Hash_Equal(k, ConfHashes + CONF_FPS)) {
-			if(val->Type == JSON_Number) Conf.FPSCap = val->Number;
+			Conf.FPSCap = val->Number;
 		}
 	}
 	JSON_Free(&v);
@@ -162,12 +142,13 @@ int main(int argc, char* argv[]) {
 	                   .Radius      = 20,
 	                   .AspectRatio = RT_GetCurrentAspectRatio()};
 
-	CamControl cControl          = {&Cam, 1, 0, V2(0, 0), V2(0, 0)};
-	cControl.Camera              = &Cam;
-	cControl.InitialDragMousePos = V2(0, 0);
-	cControl.InitialYawPitch     = V2(0, 0);
-	cControl.Sensitivity         = 1;
-	cControl.MouseDragging       = 0;
+	CamControl cControl = {
+	    .Camera              = &Cam,
+	    .InitialDragMousePos = V2(0, 0),
+	    .InitialYawPitch     = V2(0, 0),
+	    .Sensitivity         = 1,
+	    .MouseDragging       = 0,
+	};
 
 	Camera cc = OrbitCamera_ToCamera(Cam);
 
@@ -191,7 +172,7 @@ int main(int argc, char* argv[]) {
 						default: break;
 					}
 					break;
-				case SDL_WINDOWEVENT: {
+				case SDL_WINDOWEVENT:
 					switch(e.window.event) {
 						case SDL_WINDOWEVENT_CLOSE: goto end;
 						case SDL_WINDOWEVENT_SIZE_CHANGED:
@@ -205,7 +186,28 @@ int main(int argc, char* argv[]) {
 							break;
 						}
 					}
+					break;
+				case SDL_MOUSEMOTION:
+					OrbitCamera_MoveByDrag(&cControl,
+					                       V2(e.motion.x - cControl.InitialDragMousePos.x,
+					                          e.motion.y - cControl.InitialDragMousePos.y));
+					break;
+				case SDL_MOUSEBUTTONDOWN:
+					if(e.button.button == SDL_BUTTON_RIGHT)
+						OrbitCamera_StartDrag(&cControl, V2(e.button.x, e.button.y));
+					break;
+				case SDL_MOUSEWHEEL: {
+					const r32 minFov = DegToRad(60);
+					const r32 maxFov = DegToRad(140);
+
+					cControl.Camera->VerticalFoV =
+					    CLAMP(cControl.Camera->VerticalFoV - e.wheel.y * 0.1, minFov, maxFov);
+
+					// cc->Camera->Radius = MAX(2, MIN(50, cc->Camera->Radius - e.wheel.y));
 				} break;
+				case SDL_MOUSEBUTTONUP:
+					if(e.button.button == SDL_BUTTON_RIGHT) OrbitCamera_EndDrag(&cControl);
+					break;
 				default: {
 				} break;
 			}
