@@ -159,6 +159,8 @@ Sessionx.vim
 .vscode/
 *.code-workspace
 
+.cache/
+
 .clangd/
 json/
 # JSON.c
