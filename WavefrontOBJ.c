@@ -387,6 +387,7 @@ WObj_Library* WObj_FromFile(const char* filename) {
 					Log(ERROR,
 					    "[WObj] OBJ file \"%s\" has a non-triangulated face.",
 					    filename);
+					return NULL;
 				}
 
 				Array_FaceVert_Push(&FaceVerts, &FV);

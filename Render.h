@@ -68,14 +68,16 @@ Texture Texture_Init(u32 Width,                  // Width in pixels
                      u32 Height,                 // Height in pixels
                      enum Texture_Format Format, // Format of the pixels
                      enum Texture_Filter Filter, // How to resize the texture
-                     enum Texture_Wrap Wrap      // How to sample outside the texture
-);
+                     enum Texture_Wrap Wrap);    // How to sample outside the texture
+
 void Texture_SetData(Texture* Texture, // Target texture
                      const u8* Data,
                      u32 Width,
                      u32 Height,
                      bool8 GenMipmaps);
+
 Texture Texture_FromFile(const char* File);
+
 void Texture_Free(Texture);
 
 // Render target type.
@@ -92,7 +94,7 @@ struct RT {
 RT RT_Init(u32 Width, u32 Height);
 
 /// Create a render target using screen size
-RT RT_InitScreenSize();
+RT RT_InitScreenSize(void);
 
 /// Free a render target and its attachments
 void RT_Free(RT);
@@ -101,7 +103,7 @@ void RT_Free(RT);
 void RT_Use(RT Target);
 
 /// Use the default render target, which is the actual screen.
-void RT_UseDefault();
+void RT_UseDefault(void);
 
 /// Copy the pixels of the source to the destination
 /// @param[in] Source      Where to READ pixels from
@@ -118,16 +120,16 @@ void RT_Clear(RT);
 void RT_SetSize(RT*, u32 Width, u32 Height);
 
 /// Get the size of the current render target
-Vec2 RT_GetCurrentSize();
+Vec2 RT_GetCurrentSize(void);
 
 /// Get the aspect ratio of the current render target
-r32 RT_GetCurrentAspectRatio();
+r32 RT_GetCurrentAspectRatio(void);
 
 /// Get the size of the screen
-Vec2 RT_GetScreenSize();
+Vec2 RT_GetScreenSize(void);
 
 /// Get the aspect ratio of the screen
-r32 RT_GetScreenAspectRatio();
+r32 RT_GetScreenAspectRatio(void);
 
 //
 // 2D
@@ -194,21 +196,20 @@ extern Spritesheet Font_Small, Font_Medium, Font_Large;
 void Tri2D_Draw(Tri2D Triangle);
 void Tri2D_DrawMany(const Tri2D* Triangles, u32 NumTris);
 
-void Rect2D_Draw(Rect2D rect, bool8 Fill); // Draw a Rect2D onto the screen.
-void Rect2D_DrawMany(const Rect2D* Rects,
-                     u32 NumRects,
-                     bool8 Fill); // Draw many Rect2Ds onto the screen.
-void Rect2D_DrawImage(Rect2D rect,
-                      GLuint TextureID,
-                      bool8 UseRectUVs); // Draw a Rect2D with an image inside.
+// Draw a Rect2D onto the screen.
+void Rect2D_Draw(Rect2D rect, bool8 Fill);
 
-Vec2 Text2D_Draw(Vec2 pos,
-                 const TextStyle* style,
-                 const char* fmt,
-                 ...); // Shows text on screen, returns last pen location.
-Vec2 Text2D_Size(const TextStyle* style,
-                 const char* fmt,
-                 ...); // Returns the width and height of some text.
+// Draw many Rect2Ds onto the screen.
+void Rect2D_DrawMany(const Rect2D* Rects, u32 NumRects, bool8 Fill); 
+
+// Draw a Rect2D with an image inside.
+void Rect2D_DrawImage(Rect2D rect, GLuint TextureID, bool8 UseRectUVs); 
+
+// Shows text on screen, returns last pen location.
+Vec2 Text2D_Draw(Vec2 pos, const TextStyle* style, const char* fmt, ...); 
+
+// Returns the width and height of some text.
+Vec2 Text2D_Size(const TextStyle* style, const char* fmt, ...); 
 
 //
 // 3D

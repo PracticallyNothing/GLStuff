@@ -27,7 +27,7 @@ void WObj_ToGPUModel(GPUModel* out, const WObj_Object* obj) {
 	Array_Vec2 UVs       = {0};
 	Array_Vec3 Normals   = {0};
 
-	for(i32 i = 0; i < obj->NumVertices; i++) {
+	for(u32 i = 0; i < obj->NumVertices; i++) {
 		WObj_Vertex* vtx = &obj->Vertices[i];
 		Array_Vec3_Push(&Positions, &vtx->Position);
 		Array_Vec2_Push(&UVs, &vtx->UV);

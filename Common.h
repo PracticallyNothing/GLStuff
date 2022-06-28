@@ -8,72 +8,9 @@
 #	define NULL 0
 #endif
 
-#define SWAP_I8(a, b) \
-	do {              \
-		i8 tmp = (a); \
-		(a)    = (b); \
-		(b)    = tmp; \
-	} while(0)
-#define SWAP_I16(a, b) \
-	do {               \
-		i16 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-#define SWAP_I32(a, b) \
-	do {               \
-		i32 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-#define SWAP_I64(a, b) \
-	do {               \
-		i64 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-
-#define SWAP_U8(a, b) \
-	do {              \
-		u8 tmp = (a); \
-		(a)    = (b); \
-		(b)    = tmp; \
-	} while(0)
-#define SWAP_U16(a, b) \
-	do {               \
-		u16 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-#define SWAP_U32(a, b) \
-	do {               \
-		u32 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-#define SWAP_U64(a, b) \
-	do {               \
-		u64 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-
-#define SWAP_R32(a, b) \
-	do {               \
-		r32 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-#define SWAP_R64(a, b) \
-	do {               \
-		r64 tmp = (a); \
-		(a)     = (b); \
-		(b)     = tmp; \
-	} while(0)
-
 #define SWAP_U8_ARR(a, b, size)              \
 	do {                                     \
-		for(i32 i = 0; i < (size); i++) {    \
+		for(u32 i = 0; i < (size); i++) {    \
 			u8 tmp         = ((u8*) (a))[i]; \
 			((u8*) (a))[i] = ((u8*) (b))[i]; \
 			((u8*) (b))[i] = tmp;            \
@@ -161,9 +98,14 @@ r64 RadToDeg(r64 radians); // Convert radians to degrees.
 #define TRIEQ(a, b, c)  ((a) == (b) && (a) == (c))
 #define TRINEQ(a, b, c) ((a) != (b) && (a) != (c) && (b) != (c))
 
-i32 Clamp_I32(i32 value, i32 min, i32 max); // Limit an integer between a min and a max value.
-r32 Clamp_R32(r32 value, r32 min, r32 max); // Limit a float between a min and a max value.
-r64 Clamp_R64(r64 value, r64 min, r64 max); // Limit a double between a min and a max value.
+// Limit an integer between a min and a max value.
+i32 Clamp_I32(i32 value, i32 min, i32 max);
+
+// Limit a float between a min and a max value.
+r32 Clamp_R32(r32 value, r32 min, r32 max);
+
+// Limit a double between a min and a max value.
+r64 Clamp_R64(r64 value, r64 min, r64 max);
 
 bool8 InRange_I32(i32 value, i32 min, i32 max);
 bool8 InRange_R32(r32 value, r32 min, r32 max);
@@ -485,6 +427,7 @@ void Log(const char* __func,
          const char* fmt,
          ...);
 
-#define Log(level, fmt, ...) Log(__func__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
+#define Log(level, fmt, ...) \
+	Log(__func__, __FILE__, __LINE__, (level), (fmt), __VA_ARGS__)
 
 #endif

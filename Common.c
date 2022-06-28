@@ -113,7 +113,7 @@ i32 String_ToI32_N(const char* str, u32 len) {
 		--len;
 	}
 
-	for(i32 i = 0; i < len; i++) {
+	for(u32 i = 0; i < len; i++) {
 		res += (str[i] - '0') * Pow_I32(10, len - 1 - i);
 	}
 	return (neg ? -res : res);
@@ -198,113 +198,15 @@ bool8 PC_IsLittleEndian() {
 	return *c;
 }
 
-// Breaks if A is NULL/invalid or lo > hi
-u32 _QSort_Partition_i32(i32* A, u32 lo, u32 hi) {
-	i32 pivot = A[lo + (hi - lo) / 2];
-
-	i32 i = lo - 1;
-	i32 j = hi + 1;
-
-	while(1) {
-		do {
-			i++;
-		} while(A[i] < pivot);
-		do {
-			j--;
-		} while(A[j] > pivot);
-
-		if(i >= j) return j;
-
-		SWAP_I32(A[i], A[j]);
-	}
-}
-
-void Util_Quicksort_i32(i32* arr, u32 size) {
-	if(size < 2) return;
-
-	if(size == 2) {
-		if(arr[0] > arr[1]) SWAP_I32(arr[0], arr[1]);
-		return;
-	}
-
-	u32 p = _QSort_Partition_i32(arr, 0, size - 1);
-	Util_Quicksort_i32(arr, p);
-	Util_Quicksort_i32(arr + p + 1, size - p);
-}
-
-u32 _QSort_Partition_r32(r32* A, u32 lo, u32 hi) {
-	r32 pivot = A[lo + (hi - lo) / 2];
-
-	i32 i = lo - 1;
-	i32 j = hi + 1;
-
-	while(1) {
-		do {
-			i++;
-		} while(A[i] < pivot);
-		do {
-			j--;
-		} while(A[j] > pivot);
-
-		if(i >= j) return j;
-
-		SWAP_R32(A[i], A[j]);
-	}
-}
-
-void Util_Quicksort_r32(r32* arr, u32 size) {
-	if(size < 2) return;
-
-	if(size == 2) {
-		if(arr[0] > arr[1]) {
-			SWAP_R32(arr[0], arr[1]);
-		}
-		return;
-	}
-
-	u32 p = _QSort_Partition_r32(arr, 0, size - 1);
-	Util_Quicksort_r32(arr, p);
-	Util_Quicksort_r32(arr + p + 1, size - p - 1);
-}
-
-u32 _QSort_Partition_func(u8* A, u32 lo, u32 hi, u32 itemSize, Util_CompFunc f) {
-	u8* pivot = A + itemSize * (lo + (hi - lo) / 2);
-
-	i32 i = lo - 1;
-	i32 j = hi + 1;
-
-	while(1) {
-		do {
-			i++;
-		} while(f(A + itemSize * i, pivot) < 0);
-		do {
-			j--;
-		} while(f(A + itemSize * j, pivot) > 0);
-
-		if(i >= j) return j;
-
-		SWAP_U8_ARR(A + itemSize * i, A + itemSize * j, itemSize);
-	}
-}
-
-void Util_Quicksort_func(u8* arr, u32 itemSize, u32 arrSize, Util_CompFunc compFunc) {
-	if(arrSize < 2) return;
-
-	if(arrSize == 2) {
-		if(compFunc(arr, arr + itemSize) > 0) SWAP_U8_ARR(arr, arr + itemSize, itemSize);
-		return;
-	}
-
-	u32 p = _QSort_Partition_func(arr, 0, arrSize - 1, itemSize, compFunc);
-	Util_Quicksort_func(arr, itemSize, p, compFunc);
-	Util_Quicksort_func(arr + p + 1, itemSize, arrSize - p - 1, compFunc);
-}
-
 // --- Hashing --- ///
 
-bool8 Hash_Equal(const u128* a, const u128* b) { return memcmp(a, b, sizeof(u128)) == 0; }
+bool8 Hash_Equal(const u128* a, const u128* b) {
+	return memcmp(a, b, sizeof(u128)) == 0;
+}
 
-u128 Hash_String_MD5(const char* str) { return Hash_MD5((const u8*) str, strlen(str)); }
+u128 Hash_String_MD5(const char* str) {
+	return Hash_MD5((const u8*) str, strlen(str));
+}
 
 // Thank you,
 // https://en.wikipedia.org/wiki/MD5#Pseudocode
@@ -319,17 +221,19 @@ u128 Hash_MD5(const u8* bytes, u32 length) {
 
 #if 1
 	// Precomputed table.
-	u32 K[64] = {0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a,
-	             0xa8304613, 0xfd469501, 0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
-	             0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821, 0xf61e2562, 0xc040b340,
-	             0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-	             0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8,
-	             0x676f02d9, 0x8d2a4c8a, 0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
-	             0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70, 0x289b7ec6, 0xeaa127fa,
-	             0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-	             0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92,
-	             0xffeff47d, 0x85845dd1, 0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
-	             0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391};
+	u32 K[64] = {
+		0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a,
+		0xa8304613, 0xfd469501, 0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
+		0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821, 0xf61e2562, 0xc040b340,
+		0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+		0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8,
+		0x676f02d9, 0x8d2a4c8a, 0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
+		0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70, 0x289b7ec6, 0xeaa127fa,
+		0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+		0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92,
+		0xffeff47d, 0x85845dd1, 0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
+		0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
+	};
 #else
 	// Generated.
 	i32 K[64] = {0};
@@ -535,8 +439,11 @@ void* Reallocate(void* ptr, u32 newSize, const char* __func, const char* __file,
 
 	void* newPtr = realloc(ptr, newSize);
 	if(!newPtr) {
-		Log(ERROR, "Reallocation of pointer 0x%x with new size %d bytes failed.", newSize);
-		Log(ERROR, "  (Called from [%s:%d %s()])", __file, __line, __func);
+		Log(ERROR, "Reallocation of pointer 0x%x with new size %d bytes failed.",
+		    newSize);
+
+		Log(ERROR, "  (Called from [%s:%d %s()])",
+		    __file, __line, __func);
 		return NULL;
 	}
 
@@ -586,23 +493,36 @@ void Alloc_FreeAll() {
 }
 #endif
 
-void* Allocate(u32 size) { return malloc(size); }
-void* Reallocate(void* ptr, u32 newSize) { return realloc(ptr, newSize); }
-void Free(void* ptr) { free(ptr); }
+void* Allocate(u32 size) { 
+	return malloc(size);
+}
+
+void* Reallocate(void* ptr, u32 newSize) {
+	return realloc(ptr, newSize);
+}
+
+void Free(void* ptr) {
+	free(ptr);
+}
+
 u32 Alloc_GetTotalSize() {
 	Log(WARN, "Allocation debugging disabled.", "");
 	return 0;
 }
-void Alloc_PrintInfo() { Log(WARN, "Allocation debugging disabled.", ""); }
-void Alloc_FreeAll() { Log(WARN, "Allocation debugging disabled.", ""); }
+void Alloc_PrintInfo() {
+	Log(WARN, "Allocation debugging disabled.", "");
+}
+void Alloc_FreeAll() {
+	Log(WARN, "Allocation debugging disabled.", "");
+}
 
 // --- Logging --- //
 
 static const char* RESET = "\033[0m";
 
-//static const char *CYAN = "\033[36m";
-static const char* BLUE = "\033[34m";
-//static const char *GREEN = "\033[32m";
+//static const char *CYAN    = "\033[36m";
+static const char* BLUE    = "\033[34m";
+//static const char *GREEN   = "\033[32m";
 static const char* YELLOW  = "\033[33m";
 static const char* RED     = "\033[31m";
 static const char* BOLDRED = "\033[31;1m";
@@ -626,41 +546,25 @@ void Log(const char* __func,
 		case DEBUG:
 			fprintf(stdout,
 			        Log_ShortMode ? "%sDEBUG%s: " : "%sDEBUG%s [%s:%d %s()]: ",
-			        BLUE,
-			        RESET,
-			        __file,
-			        __line,
-			        __func);
+			        BLUE, RESET, __file, __line, __func);
 			break;
 		case INFO:
-			if(!Log_ShortMode) fprintf(stdout, "INFO [%s:%d %s()]: ", __file, __line, __func);
+			if(!Log_ShortMode) 
+				fprintf(stdout, "INFO [%s:%d %s()]: ", __file, __line, __func);
 			break;
 		case WARN:
 			fprintf(stdout,
 			        Log_ShortMode ? "%sWARNING%s: " : "%sWARNING%s [%s:%d %s()]: ",
-			        YELLOW,
-			        RESET,
-			        __file,
-			        __line,
-			        __func);
+			        YELLOW, RESET, __file, __line, __func);
 			break;
 		case ERROR:
 			fprintf(stdout,
 			        Log_ShortMode ? "%sERROR%s: " : "%sERROR%s [%s:%d %s()]: ",
-			        RED,
-			        RESET,
-			        __file,
-			        __line,
-			        __func);
+			        RED, RESET, __file, __line, __func);
 			break;
 		case FATAL:
-			fprintf(stderr,
-			        "%sFATAL ERROR%s [%s:%d %s()]: ",
-			        BOLDRED,
-			        RESET,
-			        __file,
-			        __line,
-			        __func);
+			fprintf(stderr, "%sFATAL ERROR%s [%s:%d %s()]: ",
+			        BOLDRED, RESET, __file, __line, __func);
 			break;
 	}
 

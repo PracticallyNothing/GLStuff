@@ -1,6 +1,6 @@
-CC = gcc
+CC = clang
 LIBS = sdl2 freetype2 opengl openal freealut
-CFLAGS = -std=c99 `pkg-config $(LIBS) --cflags` -I./glad_Core-33/include/ -Wall
+CFLAGS = -std=c11 `pkg-config $(LIBS) --cflags` -I./glad_Core-33/include/ -Wall -Wextra
 LFLAGS = -lm -ldl `pkg-config $(LIBS) --libs`
 
 SOURCES := $(shell find . -name '*.c')

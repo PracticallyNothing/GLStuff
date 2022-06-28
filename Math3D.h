@@ -74,8 +74,11 @@ Vec2 Vec2_Add(Vec2 a, Vec2 b);
 Vec3 Vec3_Add(Vec3 a, Vec3 b);
 Vec4 Vec4_Add(Vec4 a, Vec4 b);
 
+/// Subtract two 2D vectors (Hint: result is a vector pointing from b to a)
 Vec2 Vec2_Sub(Vec2 a, Vec2 b);
+/// Subtract two 3D vectors (Hint: result is a vector pointing from b to a)
 Vec3 Vec3_Sub(Vec3 a, Vec3 b);
+/// Subtract two 4D vectors (Hint: result is a vector pointing from b to a)
 Vec4 Vec4_Sub(Vec4 a, Vec4 b);
 
 Vec2 Vec2_Center(Vec2 a, Vec2 b);
@@ -274,6 +277,8 @@ extern const Transform3D Transform3D_Default;
 
 void Transform2D_Mat3(Transform2D t, Mat3 out);
 void Transform3D_Mat4(Transform3D t, Mat4 out);
+
+Transform3D Mat4_Decompose(Mat4 mat);
 // --- ------------------ --- //
 
 #endif

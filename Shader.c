@@ -58,8 +58,7 @@ static GLuint _Shader_GenShader(GLenum type, const char *src, const char* filena
 		LogStr = Allocate(sizeof(char) * LogLength);
 		glGetShaderInfoLog(Shader, LogLength, NULL, LogStr);
 
-		Log(ERROR, "[Shader] %s shader compilation failed.\n%s",
-		    (type == GL_VERTEX_SHADER ? "Vertex" : "Fragment"), LogStr);
+		Log(ERROR, "[Shader] %s couldn't compile.\n%s", filename, LogStr);
 		Free(LogStr);
 	}
 

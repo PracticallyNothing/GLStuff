@@ -14,17 +14,34 @@
  *
  * -- Basic Usage --
  *
- * - Audio_Init(NULL)                 => starts the system
- * - Audio_Listener_SyncToCamera(cam) => moves where the ears are based on the given camera
- * - Audio_Buffer_FromFile(file)      => loads a 16 bit WAV into memory
- * - Audio_Source_Init()              => creates a thing from which that WAV can play
- * - Audio_Source_SetBuffer(src, buf) => tells it to use the WAV
- * - Audio_Source_Play(src)           => makes the source actually play the WAV
- * - Audio_Source_Stop(src)           => makes the source stop playing when you get sick of hearing it.
- * - Audio_Source_Free(src)           => deletes the source, allowing the WAV to be freed
- * - Audio_Buffer_Free(buf)           => deletes the WAV from memory
- * - Audio_Quit()                     => stops the system
+ * - Audio_Init(NULL)                 => Starts the system
+ * - Audio_Listener_SyncToCamera(cam) => Moves where the ears are based on the given camera
+ * - Audio_Buffer_FromFile(file)      => Loads a 16 bit WAV into memory
+ * - Audio_Source_Init()              => Creates a thing from which that WAV can play
+ * - Audio_Source_SetBuffer(src, buf) => Tells it to use the WAV
+ * - Audio_Source_Play(src)           => Makes the source actually play the WAV
+ * - Audio_Source_Stop(src)           => Makes the source stop playing when you get sick of hearing it
+ * - Audio_Source_Free(src)           => Deletes the source, allowing the WAV to be freed
+ * - Audio_Buffer_Free(buf)           => Deletes the WAV from memory
+ * - Audio_Quit()                     => Stops the system
  *
+ */
+
+/*
+ * Audio_Init();
+ * Audio_SetVolume(r32 amt);
+ * Audio_SetCamera(const Camera* cam);
+ * 
+ * SoundSource ss;
+ * SoundSource_Init(SoundSource* ss);
+ * ss.pos = V3(1, 2, 3);
+ *
+ * Sound s = Audio_LoadSound(const char* filename);
+ * s.vol = 1;
+ * Sound_Update(s);
+ * Audio_PlaySound(s);
+ * 
+ * Audio_Quit();
  */
 
 DEF_ARRAY(CharPtr, char*);
@@ -82,9 +99,7 @@ struct Audio_ListenerProps {
 
 	union {
 		r32 d[6]; // Orientation as a six float array
-		struct {
-			Vec3 Forward, Up;
-		};
+		struct { Vec3 Forward, Up; };
 	} Orientation; // Two vectors, pointing forward and upward from the camera
 };
 

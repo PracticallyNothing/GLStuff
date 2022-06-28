@@ -9,32 +9,33 @@
 
 // Convert an error to a string.
 static const char* GL_ErrorToString(GLenum err) {
+
+#define X(x) case x: return #x
+
 	switch(err) {
-		case GL_NO_ERROR: return "GL OK";
-		case GL_INVALID_ENUM: return "GL_INVALID_ENUM";
-		case GL_INVALID_VALUE: return "GL_INVALID_VALUE";
-		case GL_INVALID_OPERATION: return "GL_INVALID_OPERATION";
-		case GL_OUT_OF_MEMORY: return "GL_OUT_OF_MEMORY";
-		case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
-
-		case GL_FRAMEBUFFER_COMPLETE: return "Framebuffer OK";
-		case GL_FRAMEBUFFER_UNDEFINED: return "GL_FRAMEBUFFER_UNDEFINED";
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-			return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
-		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-			return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-			return "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-			return "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
-		case GL_FRAMEBUFFER_UNSUPPORTED: return "GL_FRAMEBUFFER_UNSUPPORTED";
-		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-			return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
-		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-			return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
-
 		default: return "Unknown error";
+
+		case GL_NO_ERROR:             return "GL OK";
+		case GL_FRAMEBUFFER_COMPLETE: return "Framebuffer OK";
+
+		X(GL_INVALID_ENUM);
+		X(GL_INVALID_VALUE);
+		X(GL_INVALID_OPERATION);
+		X(GL_OUT_OF_MEMORY);
+		X(GL_INVALID_FRAMEBUFFER_OPERATION);
+
+		X(GL_FRAMEBUFFER_UNDEFINED);
+		X(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT);
+		X(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT);
+		X(GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER);
+		X(GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER);
+		X(GL_FRAMEBUFFER_UNSUPPORTED);
+		X(GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE);
+		X(GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS);
 	}
+
+#undef X
+
 }
 
 struct RSys_State {
@@ -56,8 +57,13 @@ struct RSys_State {
 	u32 NumVBOs, NumTakenVBOs;
 } RSys_State;
 
-void RSys_SetFPSCap(u32 capFps) { RSys_State.FrametimeCap = 1000.0 / capFps; }
-void RSys_SetFrametimeCap(r32 capMs) { RSys_State.FrametimeCap = capMs; }
+void RSys_SetFPSCap(u32 capFps) { 
+	RSys_State.FrametimeCap = 1000.0 / capFps;
+}
+
+void RSys_SetFrametimeCap(r32 capMs) {
+	RSys_State.FrametimeCap = capMs;
+}
 
 void RSys_HandleWindowEvent(const SDL_WindowEvent* e) {
 	// TODO: This may disable drawing too liberally.
@@ -66,10 +72,14 @@ void RSys_HandleWindowEvent(const SDL_WindowEvent* e) {
 	switch(e->type) {
 		case SDL_WINDOWEVENT_LEAVE:
 		case SDL_WINDOWEVENT_FOCUS_LOST:
-		case SDL_WINDOWEVENT_HIDDEN: RSys_State.DrawEnable = 0;
+		case SDL_WINDOWEVENT_HIDDEN:
+			RSys_State.DrawEnable = 0;
+			break;
 		case SDL_WINDOWEVENT_ENTER:
 		case SDL_WINDOWEVENT_FOCUS_GAINED:
-		case SDL_WINDOWEVENT_SHOWN: RSys_State.DrawEnable = 1;
+		case SDL_WINDOWEVENT_SHOWN:
+			RSys_State.DrawEnable = 1;
+			break;
 	}
 }
 
@@ -82,7 +92,8 @@ void RSys_LogVideoDriverInfo(void) {
 
 	Log(INFO, "Num video drivers: %d\n", NumVideoDrivers);
 
-	for(i32 i = 0; i < NumVideoDrivers; ++i) Log(INFO, "#%d: %s\n", i, SDL_GetVideoDriver(i));
+	for(i32 i = 0; i < NumVideoDrivers; ++i)
+		Log(INFO, "#%d: %s\n", i, SDL_GetVideoDriver(i));
 }
 
 void R2D_Init();
@@ -122,14 +133,16 @@ void RSys_Init(u32 Width, u32 Height) {
 	                                     SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
 	// If it wasn't created, error and exit.
-	if(!RSys_State.Window) Log(FATAL, "SDL_CreateWindow() failed: %s", SDL_GetError());
+	if(!RSys_State.Window)
+		Log(FATAL, "SDL_CreateWindow() failed: %s", SDL_GetError());
 
 	// Create an OpenGL context for the window,
 	// according to the earlier parameters.
 	RSys_State.GLContext = SDL_GL_CreateContext(RSys_State.Window);
 
 	// If our parameters couldn't be met, error and exit.
-	if(!RSys_State.GLContext) Log(FATAL, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
+	if(!RSys_State.GLContext)
+		Log(FATAL, "SDL_GL_CreateContext() failed: %s", SDL_GetError());
 
 	// Load OpenGL functions.
 	if(!gladLoadGL()) Log(FATAL, "%s", "gladLoadGL() failed, OpenGL couldn't be loaded.");
@@ -188,7 +201,7 @@ void RSys_Init(u32 Width, u32 Height) {
 }
 
 void RSys_AllocMoreVAOs() {
-	u32 N = RSys_State.NumVAOs * 2;
+	const u32 N = RSys_State.NumVAOs * 2;
 
 	RSys_State.TempVAOs = Reallocate(RSys_State.TempVAOs, sizeof(GLuint) * N);
 	glGenVertexArrays(RSys_State.NumVAOs, &RSys_State.TempVAOs[RSys_State.NumVAOs]);
@@ -212,7 +225,7 @@ GLuint VAO_GetTemp() {
 		RSys_AllocMoreVAOs();
 	}
 
-	for(int i = 0; i < RSys_State.NumVAOs; i++) {
+	for(u32 i = 0; i < RSys_State.NumVAOs; i++) {
 		if(!RSys_State.VAOIsTaken[i]) {
 			RSys_State.VAOIsTaken[i] = 1;
 			RSys_State.NumTakenVAOs++;
@@ -230,7 +243,7 @@ GLuint VBO_GetTemp() {
 		RSys_AllocMoreVBOs();
 	}
 
-	for(int i = 0; i < RSys_State.NumVBOs; i++) {
+	for(u32 i = 0; i < RSys_State.NumVBOs; i++) {
 		if(!RSys_State.VBOIsTaken[i]) {
 			RSys_State.VBOIsTaken[i] = 1;
 			RSys_State.NumTakenVBOs++;
@@ -250,7 +263,7 @@ void VBO_GetManyTemp(GLuint* Output, u32 N) {
 		RSys_AllocMoreVBOs();
 	}
 
-	for(int i = 0; i < RSys_State.NumVBOs && N; i++) {
+	for(u32 i = 0; i < RSys_State.NumVBOs && N; i++) {
 		if(!RSys_State.VBOIsTaken[i]) {
 			RSys_State.VBOIsTaken[i] = 1;
 			RSys_State.NumTakenVBOs++;
@@ -261,7 +274,7 @@ void VBO_GetManyTemp(GLuint* Output, u32 N) {
 }
 
 void VBO_FreeTemp(GLuint VBO) {
-	for(int i = 0; i < RSys_State.NumVBOs; i++) {
+	for(u32 i = 0; i < RSys_State.NumVBOs; i++) {
 		if(VBO == RSys_State.TempVBOs[i]) {
 			RSys_State.VBOIsTaken[i] = 0;
 			RSys_State.NumTakenVBOs--;
@@ -277,7 +290,7 @@ void VBO_FreeManyTemp(const GLuint* VBOs, u32 N) {
 }
 
 void VAO_FreeTemp(GLuint VAO) {
-	for(int i = 0; i < RSys_State.NumVAOs; i++) {
+	for(u32 i = 0; i < RSys_State.NumVAOs; i++) {
 		if(VAO == RSys_State.TempVAOs[i]) {
 			RSys_State.VAOIsTaken[i] = 0;
 			RSys_State.NumTakenVAOs--;
@@ -312,8 +325,7 @@ void RSys_Quit() {
 	SDL_Quit();
 }
 
-Texture Texture_Init(
-    u32 w, u32 h, enum Texture_Format fmt, enum Texture_Filter filt, enum Texture_Wrap wrap) {
+Texture Texture_Init(u32 w, u32 h, enum Texture_Format fmt, enum Texture_Filter filt, enum Texture_Wrap wrap) {
 	glGetError();
 
 	Texture t = {.Id         = 0,
@@ -350,24 +362,22 @@ void Texture_SetData(Texture* t, const u8* data, u32 width, u32 height, bool8 mi
 	GLenum intFmt = t->Format == Format_Depth ? Format_Depth : Format_RGBA;
 	GLenum type   = t->Format == Format_Depth ? GL_UNSIGNED_INT : GL_UNSIGNED_BYTE;
 
-	glTexImage2D(GL_TEXTURE_2D, // target:         Target texture
-	             0,         // level:          LOD level, 0 because we don't have custom LOD
-	             intFmt,    // internalFormat: How to store the data
-	             width,     // width:          Width in pixels
-	             height,    // height:         Height in pixels
-	             0,         // border:         No idea, docs.gl says "This value must be 0."
-	             t->Format, // format:         Pixel format
-	             type,      // type:           How each pixel is encoded
-	             data       // data:           Pointer to pixel data
+	glTexImage2D(
+		GL_TEXTURE_2D, // target:         Target texture
+		0,             // level:          LOD level, 0 because we don't have custom LOD
+		intFmt,        // internalFormat: How to store the data
+		width,         // width:          Width in pixels
+		height,        // height:         Height in pixels
+		0,             // border:         No idea, docs.gl says "This value must be 0."
+		t->Format,     // format:         Pixel format
+		type,          // type:           How each pixel is encoded
+		data           // data:           Pointer to pixel data
 	);
 
 	GLenum err = glGetError();
 	if(err != GL_NO_ERROR) {
-		Log(ERROR,
-		    "[Render] Texture %d set data fail: %s (%d)",
-		    t->Id,
-		    GL_ErrorToString(err),
-		    err);
+		Log(ERROR, "[Render] Texture %d set data fail: %s (%d)",
+			t->Id, GL_ErrorToString(err), err);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		return;
 	}
@@ -474,17 +484,12 @@ void RT_Use(RT rt) {
 void RT_Blit(RT src, RT dest) {
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, src.Id);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dest.Id);
-	glBlitFramebuffer(0,
-	                  0,
-	                  src.Width,
-	                  src.Height,
-	                  // Destination rect: x, y, width, height
-	                  0,
-	                  0,
-	                  dest.Width,
-	                  dest.Height,
-	                  GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-	                  GL_LINEAR);
+	glBlitFramebuffer(
+		0, 0,  src.Width,  src.Height,
+		0, 0, dest.Width, dest.Height,
+		GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+		GL_LINEAR
+	);
 }
 
 void RT_BlitToScreen(RT src) {
@@ -493,16 +498,11 @@ void RT_BlitToScreen(RT src) {
 
 	Vec2 sz = RT_GetScreenSize();
 
-	glBlitFramebuffer(0,
-	                  0,
-	                  src.Width,
-	                  src.Height, // Source region, x y width height
-	                  0,
-	                  0,
-	                  sz.w,
-	                  sz.h, // Destination region, x y width height
-	                  GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, // What to copy
-	                  GL_LINEAR // How to account for different sizes.
+	glBlitFramebuffer(
+		0, 0, src.Width, src.Height,
+		0, 0, sz.w, sz.h,
+		GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, // What to copy
+		GL_LINEAR // How to account for different sizes.
 	);
 }
 
@@ -554,6 +554,14 @@ Spritesheet Font_Small, Font_Medium, Font_Large;
 Shader* RectShader = NULL;
 Shader* TextShader = NULL;
 
+const TextStyle TextStyle_Default = {
+	.Font = &Font_Large,
+	.WrapText = 0,
+	.BackgroundEnabled = 0,
+	.ClipEnabled = 0,
+	.Color = V4C(1,1,1,1)
+};
+
 void R2D_Init() {
 	glGenVertexArrays(1, &R2D_State.TextVAO);
 
@@ -561,9 +569,9 @@ void R2D_Init() {
 	TextShader = Shader_FromFile("res/shaders/ui/text.glsl");
 
 	Texture* tex = malloc(sizeof(Texture) * 3);
-	tex[0]       = Texture_FromFile("res/textures/font_mono_6x12.png"),
-	tex[1]       = Texture_FromFile("res/textures/font_mono_7x15.png"),
-	tex[2]       = Texture_FromFile("res/textures/font_mono_15x29.png");
+	tex[0] = Texture_FromFile("res/textures/font_mono_6x12.png"),
+	tex[1] = Texture_FromFile("res/textures/font_mono_7x15.png"),
+	tex[2] = Texture_FromFile("res/textures/font_mono_15x29.png");
 
 	Font_Small = (Spritesheet){
 	    .Texture      = tex,
@@ -1092,7 +1100,7 @@ void R3D_CalcTransform(const R3D_Node* r, Mat4 out) {
 
 // TODO: Finish this
 void R3D_RenderScene(R3D_Scene* scene) {
-	if(!scene || !scene->ActiveCamNode) return;
+	if(!scene || !scene->ActiveCamera) return;
 
 	Shader_Use(R3D_Shader_UnlitTextured);
 }

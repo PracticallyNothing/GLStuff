@@ -52,24 +52,26 @@ enum TokenType {
 	Token_TotalTypes,
 };
 
-const char* TokenType_Strings[Token_TotalTypes + 1] = {"Token_EOF",
+const char* TokenType_Strings[Token_TotalTypes + 1] = {
+	"Token_EOF",
 
-                                                       "Token_Comma",
-                                                       "Token_Colon",
+	"Token_Comma",
+	"Token_Colon",
 
-                                                       "Token_BeginObject",
-                                                       "Token_EndObject",
+	"Token_BeginObject",
+	"Token_EndObject",
 
-                                                       "Token_BeginArray",
-                                                       "Token_EndArray",
+	"Token_BeginArray",
+	"Token_EndArray",
 
-                                                       "Token_Null",
-                                                       "Token_Number",
-                                                       "Token_String",
-                                                       "Token_Bool_True",
-                                                       "Token_Bool_False",
+	"Token_Null",
+	"Token_Number",
+	"Token_String",
+	"Token_Bool_True",
+	"Token_Bool_False",
 
-                                                       "Token_TotalTypes"};
+	"Token_TotalTypes"
+};
 
 typedef struct Token Token;
 struct Token {
@@ -85,11 +87,14 @@ DECL_ARRAY(Token, Token);
 static void PrintToken(const Token* t) {
 	printf("%s", TokenType_Strings[t->Type]);
 	switch(t->Type) {
-		case Token_String: printf("(\"%.*s\")", (i32) (t->End - t->Start), t->Start); break;
+		case Token_String:
+			printf("(\"%.*s\")", (i32) (t->End - t->Start), t->Start);
+			break;
 		case Token_Number:
 			printf("(%.2f)", String_ToR32_N(t->Start, t->End - t->Start));
 			break;
-		default: break;
+		default:
+			break;
 	}
 	printf(" ");
 }
@@ -127,7 +132,9 @@ static Array_Token JSON_ToTokens(const char* str, u32 len) {
 		} else if(*p == '\"') {
 			++p;
 			const char* q = p;
-			while(q < str + len && *q != '\"') q += (*q == '\\' ? 2 : 1);
+			while(q < str + len && *q != '\"')
+				q += (*q == '\\' ? 2 : 1);
+
 			if(q == str + len) {
 				Log(ERROR, "[JSON] Unclosed string.", "");
 			}
@@ -167,7 +174,8 @@ static Array_Token JSON_ToTokens(const char* str, u32 len) {
 			type = Token_Bool_False;
 			p += 5;
 		} else {
-			while(p != str + len && !Char_OneOf(*p, " \t\n\r{}[]:,\"")) ++p;
+			while(p != str + len && !Char_OneOf(*p, " \t\n\r{}[]:,\""))
+				++p;
 		}
 
 		Token t = {.Type = type, .Start = start, .End = end};
@@ -201,14 +209,16 @@ static JSON_Value JSON_ParsePrimitive(const Token** curr) {
 			strncpy(res.String, (*curr)->Start, len);
 			res.String[len] = '\0';
 
-			break;
-		}
+		} break;
+
 		case Token_Number: {
 			res.Type   = JSON_Number;
 			res.Number = String_ToR32_N((*curr)->Start, (*curr)->End - (*curr)->Start);
+		} break;
+
+		case Token_Null:
+			res.Type = JSON_Null;
 			break;
-		}
-		case Token_Null: res.Type = JSON_Null; break;
 		case Token_Bool_True:
 			res.Type    = JSON_Boolean;
 			res.Boolean = 1;
@@ -218,12 +228,10 @@ static JSON_Value JSON_ParsePrimitive(const Token** curr) {
 			res.Boolean = 0;
 			break;
 
-		default: {
-			Log(ERROR,
-			    "[JSON] Token %s is not a primitive.",
-			    TokenType_Strings[(*curr)->Type]);
+		default:
+			Log(ERROR, "[JSON] Token %s is not a primitive.",
+				TokenType_Strings[(*curr)->Type]);
 			break;
-		}
 	}
 
 	(*curr)++;
@@ -240,16 +248,28 @@ static JSON_Value JSON_ParseArray(const Token** curr) {
 	while((*curr)->Type != Token_EndArray && (*curr)->Type != Token_EOF) {
 		JSON_Value v;
 		switch((*curr)->Type) {
-			case Token_BeginArray: v = JSON_ParseArray(curr); break;
-			case Token_BeginObject: v = JSON_ParseObject(curr); break;
+			case Token_BeginArray:
+				v = JSON_ParseArray(curr);
+				break;
+
+			case Token_BeginObject:
+				v = JSON_ParseObject(curr);
+				break;
+
 			case Token_Bool_True:
 			case Token_Bool_False:
 			case Token_Null:
 			case Token_Number:
-			case Token_String: v = JSON_ParsePrimitive(curr); break;
-			default: v = Error; break;
+			case Token_String:
+				v = JSON_ParsePrimitive(curr);
+				break;
+
+			default:
+				v = Error;
+				break;
 		}
-		if(v.Type == JSON_Error) goto ParseArray_error;
+		if(v.Type == JSON_Error) 
+			goto ParseArray_error;
 
 		Array_JSON_Value_Push(&array.Array, &v);
 
@@ -301,20 +321,22 @@ static JSON_Value JSON_ParseObject(const Token** curr) {
 		if((*curr)->Type == Token_String) {
 			KeyLen = (*curr)->End - (*curr)->Start;
 
-			Key         = Allocate(KeyLen + 1);
+			Key = Allocate(KeyLen + 1);
 			Key[KeyLen] = '\0';
+
 			strncpy(Key, (*curr)->Start, KeyLen);
 
 			(*curr)++;
 		} else {
-			Log(ERROR,
-			    "[JSON] Object, expected string, got %s.",
+			Log(ERROR, "[JSON] Object, expected string, got %s.",
 			    TokenType_Strings[(*curr)->Type]);
+
 			PrintToken(*curr - 2);
 			PrintToken(*curr - 1);
 			PrintToken(*curr);
 			PrintToken(*curr + 1);
 			PrintToken(*curr + 2);
+
 			printf("\n");
 			goto ParseObject_error;
 		}
@@ -323,28 +345,40 @@ static JSON_Value JSON_ParseObject(const Token** curr) {
 			(*curr)++;
 		} else {
 			Free(Key);
-			Log(ERROR,
-			    "[JSON] Object, expected ':', got %s.",
+			Log(ERROR, "[JSON] Object, expected ':', got %s.",
 			    TokenType_Strings[(*curr)->Type]);
+
 			PrintToken(*curr - 2);
 			PrintToken(*curr - 1);
 			PrintToken(*curr);
 			PrintToken(*curr + 1);
 			PrintToken(*curr + 2);
+
 			printf("\n");
 			goto ParseObject_error;
 		}
 
 		JSON_Value v;
 		switch((*curr)->Type) {
-			case Token_BeginArray: v = JSON_ParseArray(curr); break;
-			case Token_BeginObject: v = JSON_ParseObject(curr); break;
+			case Token_BeginArray:
+				v = JSON_ParseArray(curr);
+				break;
+
+			case Token_BeginObject: 
+				v = JSON_ParseObject(curr);
+				break;
+
 			case Token_Bool_True:
 			case Token_Bool_False:
 			case Token_Null:
 			case Token_Number:
-			case Token_String: v = JSON_ParsePrimitive(curr); break;
-			default: v = Error; break;
+			case Token_String:
+				v = JSON_ParsePrimitive(curr);
+				break;
+
+			default:
+				v = Error;
+				break;
 		}
 		if(v.Type == JSON_Error) {
 			Free(Key);
@@ -352,6 +386,7 @@ static JSON_Value JSON_ParseObject(const Token** curr) {
 		}
 
 		i32 i = HashMap_JSON_Value_FindIdx(&object.Object.Map, (u8*) Key, KeyLen);
+
 		if(i >= 0) {
 			Log(WARN, "[JSON] Object, key \"%s\" already exists, overwriting value.", Key);
 			object.Object.Map.Values[i] = v;
@@ -362,19 +397,22 @@ static JSON_Value JSON_ParseObject(const Token** curr) {
 
 		if((*curr)->Type != Token_Comma && (*curr)->Type != Token_EndObject) {
 			Free(Key);
-			Log(ERROR,
-			    "[JSON] Object, expected ',' or '}', got %s",
+
+			Log(ERROR, "[JSON] Object, expected ',' or '}', got %s",
 			    TokenType_Strings[(*curr)->Type]);
+
 			PrintToken(*curr - 2);
 			PrintToken(*curr - 1);
 			PrintToken(*curr);
 			PrintToken(*curr + 1);
 			PrintToken(*curr + 2);
+
 			printf("\n");
 			goto ParseObject_error;
 		}
 
-		if((*curr)->Type == Token_Comma) (*curr)++;
+		if((*curr)->Type == Token_Comma)
+			(*curr)++;
 	}
 
 	if((*curr)->Type == Token_EOF) {
@@ -384,6 +422,7 @@ static JSON_Value JSON_ParseObject(const Token** curr) {
 
 	(*curr)++;
 	return object;
+
 ParseObject_error:
 	JSON_Free(&object);
 	return Error;
@@ -406,23 +445,36 @@ JSON_Value JSON_FromString_N(const char* str, u32 len) {
 	JSON_Value res;
 
 	switch(currToken->Type) {
-		case Token_BeginArray: res = JSON_ParseArray(&currToken); break;
-		case Token_BeginObject: res = JSON_ParseObject(&currToken); break;
+		case Token_BeginArray:
+			res = JSON_ParseArray(&currToken);
+			break;
+
+		case Token_BeginObject:
+			res = JSON_ParseObject(&currToken);
+			break;
+
 		case Token_Null:
 		case Token_String:
 		case Token_Number:
 		case Token_Bool_True:
-		case Token_Bool_False: res = JSON_ParsePrimitive(&currToken); goto end;
-		default: goto error;
+		case Token_Bool_False:
+			res = JSON_ParsePrimitive(&currToken);
+			goto end;
+
+		default:
+			goto error;
 	}
 
-	if(res.Type == JSON_Error) goto error;
+	if(res.Type == JSON_Error)
+		goto error;
 
 end:
 	if(currToken->Type != Token_EOF)
 		Log(WARN, "[JSON] There are still unparsed JSON tokens.", "");
+
 	Array_Token_Free(&tokens);
 	return res;
+
 error:
 	Log(ERROR, "[JSON] Parsing error.", "");
 	Array_Token_Free(&tokens);
@@ -432,7 +484,9 @@ error:
 void JSON_Free(JSON_Value* v) {
 	switch(v->Type) {
 		case JSON_Array:
-			for(u32 i = 0; i < v->Array.Size; ++i) JSON_Free(v->Array.Data + i);
+			for(u32 i = 0; i < v->Array.Size; ++i)
+				JSON_Free(v->Array.Data + i);
+
 			Array_JSON_Value_Free(&v->Array);
 
 			break;
@@ -447,13 +501,19 @@ void JSON_Free(JSON_Value* v) {
 			HashMap_JSON_Value_Free(&v->Object.Map);
 
 			break;
-		case JSON_String: Free(v->String); break;
 
-		default: break;
+		case JSON_String:
+			Free(v->String);
+			break;
+
+		default:
+			break;
 	}
 }
 
 JSON_Value* JSON_ObjectFind(const JSON_Value* v, const char* str) {
-	if(!v || !str) return NULL;
+	if(!v || !str)
+		return NULL;
+
 	return HashMap_JSON_Value_Find(&v->Object.Map, (u8*) str, strlen(str));
 }
