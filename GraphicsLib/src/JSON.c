@@ -1,5 +1,5 @@
-#include "JSON.h"
-#include "Common.h"
+#include "../JSON.h"
+#include "../Common.h"
 
 #include <stdlib.h>
 #include <string.h>

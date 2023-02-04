@@ -1,11 +1,11 @@
-#include "Render.h"
+#include "../Render.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "Math3D.h"
+#include "../Math3D.h"
 #include "SDL_video.h"
-#include "stb_image.h"
+#include "../stb_image.h"
 
 // Convert an error to a string.
 static const char* GL_ErrorToString(GLenum err) {
@@ -696,12 +696,6 @@ void Rect2D_DrawMany(const Rect2D* Rects, u32 NumRects, bool8 Fill) {
 void Tri2D_DrawMany(const Tri2D* tris, u32 numTris) {
 	Vec2* Pos   = Allocate(sizeof(Vec2) * numTris * 3);
 	RGBA* Color = Allocate(sizeof(RGBA) * numTris * 3);
-
-	// The vertices are assumed to be in the order
-	// top left,
-	// top right,
-	// bottom left,
-	// bottom right.
 
 	for(u32 i = 0; i < numTris; i++) {
 		Tri2D t = tris[i];

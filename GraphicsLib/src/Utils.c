@@ -1,6 +1,5 @@
-#include "Utils.h"
-
-#include "Common.h"
+#include "../Utils.h"
+#include "../Common.h"
 
 DEF_ARRAY(Vec2, Vec2);
 DEF_ARRAY(Vec3, Vec3);

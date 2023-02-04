@@ -1,9 +1,9 @@
-#include "Shader.h"
+#include "../Shader.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "Common.h"
+#include "../Common.h"
 
 Shader *Shader_FromFile(const char *file) {
 	Shader *Res = NULL;

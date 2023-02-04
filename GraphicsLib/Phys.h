@@ -28,7 +28,9 @@ enum HSRes {
 	HS_On,    // The point is on the plane
 	HS_Back   // The point is behind the plane
 };
-enum HSRes HalfSpaceTest(Vec3 planeNormal, Vec3 planePoint, Vec3 point); // Test if point is part of a plane formed from a normal and a point on it.
+
+// Test if point is part of a plane formed from a normal and a point on it.
+enum HSRes HalfSpaceTest(Vec3 planeNormal, Vec3 planePoint, Vec3 point);
 
 struct Intersection {
 	bool8 Occurred;
@@ -56,6 +58,7 @@ struct TriHull {
 	Transform3D *Transform;
 };
 
+Intersection TriTri_Intersect(const Vec3 a[3], const Vec3 b[3]);
 Intersection TriHull_RayIntersect(TriHull hull, Ray ray);
 Intersection TriHull_Intersect(TriHull a, TriHull b);
 

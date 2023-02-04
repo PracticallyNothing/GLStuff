@@ -1,11 +1,11 @@
-#include "Audio.h"
+#include "../Audio.h"
 
 #include <string.h>
 
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/alut.h>
-#include "Common.h"
+#include "../Common.h"
 
 DECL_ARRAY(CharPtr, char*);
 

@@ -1,10 +1,10 @@
-#include "WavefrontOBJ.h"
+#include "../WavefrontOBJ.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "Common.h"
+#include "../Common.h"
 
 // TODO: Replace atof() with custom function.
 

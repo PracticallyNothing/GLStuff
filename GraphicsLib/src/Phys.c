@@ -1,150 +1,48 @@
-#include "Phys.h"
+#include "../Phys.h"
 
 #include <float.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
-#include "Common.h"
-#include "Math3D.h"
+#include "../Common.h"
+#include "../Math3D.h"
 
-Plane Plane_ChangeType(Plane p)
-{
-	Plane res = {
-		.Normal = p.Normal,
-		.IsPointPlane = !p.IsPointPlane
-	};
-
-	if(p.IsPointPlane)
-		res.Distance = Vec3_Dot(p.Point, p.Normal);
-	else
-		res.Point = Vec3_MultScal(p.Normal, p.Distance);
-
-	return res;
-}
-
-// Thank you,
-// http://www.miguelcasillas.com/?p=43
-enum HSRes 
-HalfSpaceTest(Vec3 pNorm, Vec3 pPoint, Vec3 point)
-{
-	pNorm = Vec3_Norm(pNorm);
-
-	Vec3 v = Vec3_Sub(point, pPoint);
-	r32 dist = Vec3_Dot(pNorm, v);
-
-	if(dist > FLT_EPSILON)
-		return HS_Front;
-	else if(dist < -FLT_EPSILON)
-		return HS_Back;
-	else
-		return HS_On;
-}
-
-/// Checks if box b is inside a.
-/// DOES NOT check the reverse.
-bool8 AABB_CheckInside(AABB a, AABB b)
-{
-	a = AABB_Fix(a);
-	b = AABB_Fix(b);
-
-	return 
-		InRange_R32(b.Min.x, a.Min.x, a.Max.x) &&
-		InRange_R32(b.Max.x, a.Min.x, a.Max.x) &&
-
-		InRange_R32(b.Min.y, a.Min.y, a.Max.y) &&
-		InRange_R32(b.Max.y, a.Min.y, a.Max.y) &&
-
-		InRange_R32(b.Min.z, a.Min.z, a.Max.z) &&
-		InRange_R32(b.Max.z, a.Min.z, a.Max.z);
-}
-
-bool8 AABB_CheckCollision(AABB a, AABB b)
-{
-	a = AABB_Fix(a);
-	b = AABB_Fix(b);
-
-	return RangesOverlap_R32(a.Min.x, a.Max.x, b.Min.x, b.Max.x)
-		&& RangesOverlap_R32(a.Min.y, a.Max.y, b.Min.y, b.Max.y)
-		&& RangesOverlap_R32(a.Min.z, a.Max.z, b.Min.z, b.Max.z);
-}
-
-AABB AABB_Fix(AABB aabb)
-{
-	return (AABB) {
-		.Min = V3C(MIN(aabb.Min.x, aabb.Max.x),
-				   MIN(aabb.Min.y, aabb.Max.y),
-				   MIN(aabb.Min.z, aabb.Max.z)),
-
-		.Max = V3C(MAX(aabb.Min.x, aabb.Max.x),
-	               MAX(aabb.Min.y, aabb.Max.y),
-                   MAX(aabb.Min.z, aabb.Max.z))
-	};
-}
-
-AABB AABB_Add(AABB a, AABB b)
-{
-	return (AABB) {
-		.Min = V3C(MIN(a.Min.x, b.Min.x),
-				   MIN(a.Min.y, b.Min.y),
-				   MIN(a.Min.z, b.Min.z)),
-
-		.Max = V3C(MAX(a.Max.x, b.Max.x),
-				   MAX(a.Max.y, b.Max.y),
-				   MAX(a.Max.z, b.Max.z)),
-	};
-}
-
-AABB AABB_ApplyTransform3D(AABB aabb, Transform3D t)
-{
-	Mat4 model;
-	Transform3D_Mat4(t, model);
-
-	AABB res; 
-	res.Min = Mat4_MultVec4(model, V4_V3(aabb.Min, 1)).xyz;
-	res.Max = Mat4_MultVec4(model, V4_V3(aabb.Max, 1)).xyz;
-	return AABB_Fix(res);
-}
+static const r32 epsilon = 1e-8;
 
 /// Function for debugging.
 static bool8 GetSign_R32(r32 s) { return signbit(s); }
 
-// Thank you,
-// https://stackoverflow.com/a/2049593
-static r32
-sign(Vec2 p1, Vec2 p2, Vec2 p3) { return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y); }
-
+/*
 static bool8
-Triangle_PointInside(const Vec2 t[3], Vec2 p)
-{
-    r32 d1, d2, d3;
-    bool8 has_neg, has_pos;
+Triangle_PointInside(const Vec3 tri[3], Vec3 point) {
+	Vec3 normal = Vec3_Cross(Vec3_Sub(tri[1], tri[0]), Vec3_Sub(tri[2], tri[0]));
+	r32 dist = Vec3_Dot(Vec3_Neg(normal), tri[0]);
 
-    d1 = sign(p, t[1], t[2]);
-    d2 = sign(p, t[2], t[3]);
-    d3 = sign(p, t[3], t[1]);
+	normal = Vec3_Norm(normal);
 
-    has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-    return !(has_neg && has_pos);
+	Vec3 pointOnPlane = Vec3_MultScal(normal, dist);
+	return fabs(Vec3_Dot(normal, Vec3_Sub(point, pointOnPlane))) <= epsilon;
 }
+*/
 
 // Thank you,
 // https://web.stanford.edu/class/cs277/resources/papers/Moller1997b.pdf
-static Intersection
-TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
-{
-	const r32 epsilon = 1e-8;
+Intersection TriTri_Intersect(const Vec3 a[3], const Vec3 b[3]) {
+	// Compute the normal and the distance for the plane equation of the plane triangle B sits on.
+	Vec3 N2 = Vec3_Cross(Vec3_Sub(b[1], b[0]), Vec3_Sub(b[2], b[0]));
+	r32 d2 = Vec3_Dot(Vec3_Neg(N2), b[0]);
 
-	Vec3 N2 = Vec3_Cross(Vec3_Sub(Tri2[1], Tri2[0]), Vec3_Sub(Tri2[2], Tri2[0]));
-	r32 d2 = Vec3_Dot(Vec3_Neg(N2), Tri2[0]);
+	// Calculate the distances of the points of triangle A to the plane of triangle B.
 	r32 dist1[3] = {0};
-
 	for(u32 i = 0; i < 3; i++) {
-		dist1[i] = Vec3_Dot(N2, Tri1[i]) + d2;
-		if(fabs(dist1[i]) < epsilon) dist1[i] = 0;
+		dist1[i] = Vec3_Dot(N2, a[i]) + d2;
+
+		if(fabs(dist1[i]) < epsilon)
+			dist1[i] = 0;
 	}
 
+	// If they're all non-zero and they all have the same sign, the triangles
+	// don't intersect (since the points are on only 1 side of the plane).
 	if(dist1[0] != 0 && dist1[1] != 0 && dist1[2] != 0 &&
 	   TRIEQ(GetSign_R32(dist1[0]), GetSign_R32(dist1[1]), GetSign_R32(dist1[2])))
 	{
@@ -152,17 +50,18 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		return (Intersection) { .Occurred = 0 };
 	}
 
-	Vec3 N1 = Vec3_Cross(Vec3_Sub(Tri1[1], Tri1[0]), Vec3_Sub(Tri1[2], Tri1[0]));
-	r32 d1 = Vec3_Dot(Vec3_Neg(N1), Tri1[0]);
+	Vec3 N1 = Vec3_Cross(Vec3_Sub(a[1], a[0]), Vec3_Sub(a[2], a[0]));
+	r32 d1 = Vec3_Dot(Vec3_Neg(N1), a[0]);
 	r32	dist2[3] = {0};
 
 	for(u32 i = 0; i < 3; i++) {
-		dist2[i] = Vec3_Dot(N1, Tri2[i]) + d1;
-		if(fabs(dist2[i]) < epsilon) dist2[i] = 0;
+		dist2[i] = Vec3_Dot(N1, b[i]) + d1;
+		if(fabs(dist2[i]) < epsilon)
+			dist2[i] = 0;
 	}
+#define NONE_ARE_ZERO(arr) arr[0] != 0 && arr[1] != 0 && arr[2] != 0
 
-	if(dist2[0] != 0 && dist2[1] != 0 && dist2[2] != 0 &&
-	   TRIEQ(GetSign_R32(dist2[0]), GetSign_R32(dist2[1]), GetSign_R32(dist2[2])))
+	if(NONE_ARE_ZERO(dist2) && TRIEQ(GetSign_R32(dist2[0]), GetSign_R32(dist2[1]), GetSign_R32(dist2[2])))
 	{
 		Log(DEBUG, "[Phys] Early reject 2. dist2[%.2f, %.2f, %.2f]", dist2[0], dist2[1], dist2[2]);
 		return (Intersection) { .Occurred = 0 };
@@ -180,12 +79,12 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		//       In theory, this should be very rare, so hopefully this can't have too much of
 		//       an effect on performance.
 		//
-		r32 areaXY = Triangle_AreaAxisAligned(Tri1[0], Tri1[1], Tri1[2], Triangle_TargetAxis_XY)
-			       + Triangle_AreaAxisAligned(Tri2[0], Tri2[1], Tri2[2], Triangle_TargetAxis_XY);
-		r32 areaXZ = Triangle_AreaAxisAligned(Tri1[0], Tri1[1], Tri1[2], Triangle_TargetAxis_XZ)
-			       + Triangle_AreaAxisAligned(Tri2[0], Tri2[1], Tri2[2], Triangle_TargetAxis_XZ);
-		r32 areaYZ = Triangle_AreaAxisAligned(Tri1[0], Tri1[1], Tri1[2], Triangle_TargetAxis_YZ)
-			       + Triangle_AreaAxisAligned(Tri2[0], Tri2[1], Tri2[2], Triangle_TargetAxis_YZ);
+		r32 areaXY = Triangle_AreaAxisAligned(a[0], a[1], a[2], Triangle_TargetAxis_XY)
+			       + Triangle_AreaAxisAligned(b[0], b[1], b[2], Triangle_TargetAxis_XY);
+		r32 areaXZ = Triangle_AreaAxisAligned(a[0], a[1], a[2], Triangle_TargetAxis_XZ)
+			       + Triangle_AreaAxisAligned(b[0], b[1], b[2], Triangle_TargetAxis_XZ);
+		r32 areaYZ = Triangle_AreaAxisAligned(a[0], a[1], a[2], Triangle_TargetAxis_YZ)
+			       + Triangle_AreaAxisAligned(b[0], b[1], b[2], Triangle_TargetAxis_YZ);
 
 		r32 max = MAX3(areaXY, areaXZ, areaYZ);
 
@@ -193,29 +92,29 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		Vec2 tri2[3];
 
 		if(max == areaXY) {
-			tri1[0] = Tri1[0].xy;
-			tri1[1] = Tri1[1].xy;
-			tri1[2] = Tri1[2].xy;
+			tri1[0] = a[0].xy;
+			tri1[1] = a[1].xy;
+			tri1[2] = a[2].xy;
 
-			tri2[0] = Tri2[0].xy;
-			tri2[1] = Tri2[1].xy;
-			tri2[2] = Tri2[2].xy;
+			tri2[0] = b[0].xy;
+			tri2[1] = b[1].xy;
+			tri2[2] = b[2].xy;
 		} else if(max == areaXZ) {
-			tri1[0] = V2(Tri1[0].x, Tri1[0].z);
-			tri1[1] = V2(Tri1[1].x, Tri1[0].z);
-			tri1[2] = V2(Tri1[2].x, Tri1[0].z);
+			tri1[0] = V2(a[0].x, a[0].z);
+			tri1[1] = V2(a[1].x, a[0].z);
+			tri1[2] = V2(a[2].x, a[0].z);
 
-			tri2[0] = V2(Tri2[0].x, Tri2[0].z);
-			tri2[1] = V2(Tri2[1].x, Tri2[0].z);
-			tri2[2] = V2(Tri2[2].x, Tri2[0].z);
+			tri2[0] = V2(b[0].x, b[0].z);
+			tri2[1] = V2(b[1].x, b[0].z);
+			tri2[2] = V2(b[2].x, b[0].z);
 		} else if(max == areaYZ) {
-			tri1[0] = V2(Tri1[0].y, Tri1[0].z);
-			tri1[1] = V2(Tri1[1].y, Tri1[0].z);
-			tri1[2] = V2(Tri1[2].y, Tri1[0].z);
+			tri1[0] = V2(a[0].y, a[0].z);
+			tri1[1] = V2(a[1].y, a[0].z);
+			tri1[2] = V2(a[2].y, a[0].z);
 
-			tri2[0] = V2(Tri2[0].y, Tri2[0].z);
-			tri2[1] = V2(Tri2[1].y, Tri2[0].z);
-			tri2[2] = V2(Tri2[2].y, Tri2[0].z);
+			tri2[0] = V2(b[0].y, b[0].z);
+			tri2[1] = V2(b[1].y, b[0].z);
+			tri2[2] = V2(b[2].y, b[0].z);
 		}
 
 		// Thank you,
@@ -238,7 +137,7 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 				if(InRange_R32(t, 0, 1) && InRange_R32(u, 0, 1))
 					return (Intersection) { 
 						.Occurred = 1,
-						.Point = Vec3_Add(Tri1[i], Vec3_MultScal(Vec3_Sub(Tri1[(i+1)%3], Tri1[i]), t)) 
+						.Point = Vec3_Add(a[i], Vec3_MultScal(Vec3_Sub(a[(i+1)%3], a[i]), t)) 
 					};
 			}
 		}
@@ -246,28 +145,28 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 		// If the line-line tests fail, check if one of the triangles is fully within the other.
 		bool8 triInside = 1;
 		for(u32 i = 0; i < 3; i++) {
-			if(!Triangle_PointInside(tri1, tri2[i])) {
+			//if(!Triangle_PointInside(tri1, tri2[i])) {
 				triInside = 0;
 				break;
-			}
+			//}
 		}
 		if(triInside)
 			return (Intersection) {
 				.Occurred = 1,
-				.Point = Vec3_TriCenter(Tri2[0], Tri2[1], Tri2[2])
+				.Point = Vec3_TriCenter(b[0], b[1], b[2])
 			};
 
 		triInside = 1;
 		for(u32 i = 0; i < 3; i++) {
-			if(!Triangle_PointInside(tri2, tri1[i])) {
+			//if(!Triangle_PointInside(tri2, tri1[i])) {
 				triInside = 0;
 				break;
-			}
+			//}
 		}
 
 		return (Intersection) {
 			.Occurred = 1,
-			.Point = Vec3_TriCenter(Tri1[0], Tri1[1], Tri1[2])
+			.Point = Vec3_TriCenter(a[0], a[1], a[2])
 		};
 	} else {
 		// The triangles are not co-planar.
@@ -282,17 +181,17 @@ TriTri_Intersect(const Vec3 Tri1[3], const Vec3 Tri2[3])
 					Vec3_MultScal(Vec3_Cross(D, N2), d1),
 					Vec3_MultScal(Vec3_Cross(N1, D), d2)), det);
 		r32 pv1[3] = {
-			Vec3_Dot(D, Vec3_Sub(Tri1[0], O)),
-			Vec3_Dot(D, Vec3_Sub(Tri1[1], O)),
-			Vec3_Dot(D, Vec3_Sub(Tri1[2], O))
+			Vec3_Dot(D, Vec3_Sub(a[0], O)),
+			Vec3_Dot(D, Vec3_Sub(a[1], O)),
+			Vec3_Dot(D, Vec3_Sub(a[2], O))
 		};
 		r32 t1 = pv1[0] + (pv1[1] - pv1[0]) * (dist1[0] / (dist1[0] - dist1[1]));
 		r32 t2 = pv1[1] + (pv1[2] - pv1[1]) * (dist1[1] / (dist1[1] - dist1[2]));
 
 		r32 pv2[3] = {
-			Vec3_Dot(D, Vec3_Sub(Tri2[0], O)),
-			Vec3_Dot(D, Vec3_Sub(Tri2[1], O)),
-			Vec3_Dot(D, Vec3_Sub(Tri2[2], O))
+			Vec3_Dot(D, Vec3_Sub(b[0], O)),
+			Vec3_Dot(D, Vec3_Sub(b[1], O)),
+			Vec3_Dot(D, Vec3_Sub(b[2], O))
 		};
 		r32 t3 = pv2[0] + (pv2[1] - pv2[0]) * (dist2[0] / (dist2[0] - dist2[1]));
 		r32 t4 = pv2[1] + (pv2[2] - pv2[1]) * (dist2[1] / (dist2[1] - dist2[2]));
@@ -389,12 +288,19 @@ TriHull_RayIntersect(TriHull hull, Ray ray)
 	// TODO: Optimizations go here?
 	
 	for(u32 i = 0; i < hull.NumTris; i++) {
-		Vec3 tri[3] = { hull.TriPoints[i*3], hull.TriPoints[i*3+1], hull.TriPoints[i*3+2] };
+		Vec3 tri[3] = { 
+			hull.TriPoints[i * 3],
+			hull.TriPoints[i * 3 + 1],
+			hull.TriPoints[i * 3 + 2]
+		};
 
 		if(hull.Transform)
 		{
-			Mat4 m; Transform3D_Mat4(*hull.Transform, m);
-			for(u32 p = 0; p < 3; p++) tri[p] = Mat4_MultVec4(m, V4_V3(tri[p], 1)).xyz;
+			Mat4 m;
+			Transform3D_Mat4(*hull.Transform, m);
+
+			for(u32 p = 0; p < 3; p++)
+				tri[p] = Mat4_MultVec4(m, V4_V3(tri[p], 1)).xyz;
 		}
 
 		Intersection res = TriRay_Intersect(tri, ray);
@@ -427,6 +333,8 @@ PhysWorld_RayCollide(const PhysWorld* world, Ray ray)
 void PhysWorld_Update(PhysWorld* world, r32 dt)
 {
 	// 1. Split world into octree.
+	for(u32 i = 0; i < world->Objects.Size; i++) {
+	}
 	// 2. Do broadphase collision, mark any potential hits for narrowphase.
 	// 3. Do narrowphase collision, actually see if objects collide.
 	// 4. Apply forces based on delta time
