@@ -89,11 +89,9 @@ r64 RadToDeg(r64 radians); // Convert radians to degrees.
 
 #define INRANGE(v, min, max) (MIN(min, max) <= (v) && (v) <= MAX(min, max))
 
-#define RANGESOVERLAP(aMin, aMax, bMin, bMax)                      \
-	(INRANGE(MIN(aMin, aMax), MIN(bMin, bMax), MAX(bMin, bMax)) || \
-	 INRANGE(MAX(aMin, aMax), MIN(bMin, bMax), MAX(bMin, bMax)) || \
-	 INRANGE(MIN(bMin, bMax), MIN(aMin, aMax), MAX(aMin, aMax)) || \
-	 INRANGE(MAX(bMin, bMax), MIN(aMin, aMax), MAX(aMin, aMax)))
+#define RANGESOVERLAP(aMin, aMax, bMin, bMax) \
+	(MIN(aMin, aMax) <= MAX(bMin, bMax) &&    \
+     MIN(bMin, bMax) <= MAX(aMin, aMax))
 
 #define TRIEQ(a, b, c)  ((a) == (b) && (a) == (c))
 #define TRINEQ(a, b, c) ((a) != (b) && (a) != (c) && (b) != (c))
